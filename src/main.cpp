@@ -14,6 +14,7 @@
 #include "engine/system_diagram_engine.h"
 #include "engine/building_model_engine.h"
 #include "engine/propagation_engine.h"
+#include "engine/batch_editor.h"
 #include "io/drawing_exporter.h"
 
 using namespace zf;
@@ -318,6 +319,60 @@ int main(int argc, char* argv[]) {
     // 自由空间损耗验证
     std::cout << "  自由空间损耗(10m@900MHz): " << propEngine.freeSpaceLoss(10, 900) << "dB" << std::endl;
     std::cout << "P1-05: 多墙传播仿真 正常" << std::endl;
+
+    // P1-06 批量编辑与CSV导入导出
+    std::cout << "\n[P1-06] 批量编辑与CSV导入导出..." << std::endl;
+    BatchEditor batchEditor;
+
+    // 创建测试CSV文件
+    {
+        std::ofstream ofs("test_devices.csv");
+        ofs << "instanceId,modelId,x,y,note\n";
+        ofs << "BAT_001,ANT_OMNI_CEILING,100,200,批量导入天线1\n";
+        ofs << "BAT_002,ANT_OMNI_CEILING,300,400,批量导入天线2\n";
+        ofs << "BAT_003,SPLIT_2WAY,500,600,批量导入功分器\n";
+        ofs.close();
+    }
+
+    // 导入CSV
+    Floor batchFloor;
+    batchFloor.floorId = "F_BATCH";
+    BatchImportResult importResult;
+    int importRet = batchEditor.importDevicesFromCsv("test_devices.csv", &devLib, &batchFloor, importResult);
+    std::cout << "  CSV导入结果: " << zfErrorString(importRet) << std::endl;
+    std::cout << "  总行数: " << importResult.totalRows
+              << ", 成功: " << importResult.successCount
+              << ", 失败: " << importResult.failedCount << std::endl;
+    std::cout << "  导入后器件数: " << batchFloor.devices.size() << std::endl;
+
+    // 按型号统计
+    auto counts = batchEditor.countByModel(&batchFloor);
+    std::cout << "  型号统计:" << std::endl;
+    for (const auto& [model, cnt] : counts) {
+        std::cout << "    - " << model << ": " << cnt << "个" << std::endl;
+    }
+
+    // 批量修改属性
+    std::vector<std::string> ids = {"BAT_001", "BAT_002"};
+    int updated = batchEditor.batchUpdateProperty(&batchFloor, ids, "userNote", "已批量修改备注");
+    std::cout << "  批量修改属性: " << updated << "个器件" << std::endl;
+
+    // 批量移动
+    int moved = batchEditor.batchMoveDevices(&batchFloor, ids, 50, 50);
+    std::cout << "  批量移动: " << moved << "个器件" << std::endl;
+
+    // 导出CSV
+    int exportRet = batchEditor.exportDevicesToCsv("test_export.csv", &batchFloor);
+    std::cout << "  CSV导出: " << zfErrorString(exportRet) << std::endl;
+
+    // 批量删除
+    int deleted = batchEditor.batchDeleteDevices(&batchFloor, {"BAT_003"});
+    std::cout << "  批量删除: " << deleted << "个器件, 剩余: " << batchFloor.devices.size() << std::endl;
+
+    // 清理测试文件
+    std::remove("test_devices.csv");
+    std::remove("test_export.csv");
+    std::cout << "P1-06: 批量编辑与CSV导入导出 正常" << std::endl;
 
     std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
