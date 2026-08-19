@@ -12,6 +12,7 @@
 #include "io/dwg_exporter.h"
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_engine.h"
+#include "engine/building_model_engine.h"
 #include "io/drawing_exporter.h"
 
 using namespace zf;
@@ -239,6 +240,49 @@ int main(int argc, char* argv[]) {
     int csvResult = drawExp.exportMaterialCsv("output_material.csv", &project);
     std::cout << "  材料表CSV导出: " << zfErrorString(csvResult) << std::endl;
     std::cout << "P1-03: 出图引擎 导出正常" << std::endl;
+
+    // P1-04 墙体建模与底图校准
+    std::cout << "\n[P1-04] 墙体建模、房间识别、底图校准..." << std::endl;
+    BuildingModelEngine buildEngine;
+
+    // 创建一个矩形房间的4面墙
+    Floor testFloor;
+    testFloor.floorId = "F_TEST";
+    Wall w1 = buildEngine.createWall("W1", {{0,0}, {10000,0}}, WallMaterial::CONCRETE, 200);
+    Wall w2 = buildEngine.createWall("W2", {{10000,0}, {10000,8000}}, WallMaterial::CONCRETE, 200);
+    Wall w3 = buildEngine.createWall("W3", {{10000,8000}, {0,8000}}, WallMaterial::CONCRETE, 200);
+    Wall w4 = buildEngine.createWall("W4", {{0,8000}, {0,0}}, WallMaterial::BRICK, 240);
+    testFloor.walls = {w1, w2, w3, w4};
+
+    std::cout << "  创建墙体数: " << testFloor.walls.size() << std::endl;
+    std::cout << "  混凝土墙衰减: " << buildEngine.getWallAttenuation(WallMaterial::CONCRETE) << "dB" << std::endl;
+    std::cout << "  砖墙衰减: " << buildEngine.getWallAttenuation(WallMaterial::BRICK) << "dB" << std::endl;
+    std::cout << "  W1长度: " << buildEngine.calcWallLength(w1) << "m" << std::endl;
+
+    // 自动识别房间
+    int detectResult = buildEngine.autoDetectRooms(&testFloor);
+    std::cout << "  房间识别结果: " << zfErrorString(detectResult) << std::endl;
+    std::cout << "  识别房间数: " << testFloor.rooms.size() << std::endl;
+    for (const auto& r : testFloor.rooms) {
+        std::cout << "    - " << r.name << ": " << r.area_m2 << " m², " << r.polygon.size() << "个顶点" << std::endl;
+    }
+
+    // 底图校准（3对点）
+    std::vector<CalibrationPoint> calibPoints = {
+        {{0, 0}, {0, 0}},
+        {{100, 0}, {10000, 0}},
+        {{0, 80}, {0, 8000}}
+    };
+    AffineTransform transform;
+    int calibResult = buildEngine.computeAffineTransform(calibPoints, transform);
+    std::cout << "  底图校准结果: " << zfErrorString(calibResult) << std::endl;
+    std::cout << "  校准比例X: " << transform.scaleX() << ", 旋转: " << transform.rotation() << "rad" << std::endl;
+
+    // 楼层统计
+    auto stats = buildEngine.calcFloorStats(&testFloor);
+    std::cout << "  楼层统计: " << stats.wallCount << "面墙, " << stats.totalWallLength_m << "m总长, "
+              << stats.roomCount << "个房间, " << stats.totalRoomArea_m2 << "m²" << std::endl;
+    std::cout << "P1-04: 墙体建模与底图校准 正常" << std::endl;
 
     std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
