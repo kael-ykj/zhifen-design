@@ -23,15 +23,14 @@ jobs:
         cache: false
 
     - name: 配置工程
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt_DIR }}"
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
     - name: 编译
       run: cmake --build build --config Release -j4
 
     - name: 部署 Qt 依赖
       run: |
-        $qtBin = "${{ env.Qt_DIR }}\bin"
-        & "$qtBin\windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\Release\ZhiFenDesign.exe
+        windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\Release\ZhiFenDesign.exe
 
     - name: 收集产物
       run: |
