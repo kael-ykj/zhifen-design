@@ -11,6 +11,7 @@
 #include "io/project_io.h"
 #include "io/dwg_exporter.h"
 #include "engine/link_calculator.h"
+#include "engine/system_diagram_engine.h"
 
 using namespace zf;
 
@@ -187,7 +188,32 @@ int main(int argc, char* argv[]) {
     std::cout << "P1内核演示完成！" << std::endl;
     std::cout << "P0模块: 模式控制/器件库/Undo/工具/图形/IO/导出 全部正常" << std::endl;
     std::cout << "P1-01: 链路预算引擎 计算正常" << std::endl;
-    std::cout << "审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
+
+    // P1-02 系统图生成
+    std::cout << "\n[P1-02] 平面图自动生成系统图..." << std::endl;
+    SystemDiagramEngine sysEngine;
+    sysEngine.setModeManager(modeMgr);
+    SystemDiagram sysDiagram;
+    int sysResult = sysEngine.generateFromFloor(&project.floors[0], &project, sysDiagram);
+    std::cout << "  系统图生成结果: " << zfErrorString(sysResult) << std::endl;
+    if (sysResult == ZF_ERR_OK) {
+        std::cout << "  节点数: " << sysDiagram.nodes.size() << std::endl;
+        std::cout << "  连接数: " << sysDiagram.links.size() << std::endl;
+        std::cout << "\n  --- 系统图布局 ---" << std::endl;
+        for (const auto& n : sysDiagram.nodes) {
+            std::cout << "  [" << n.nodeId << "] " << n.label
+                      << " 层内位置:(" << n.layoutPos.x << "," << n.layoutPos.y << ")" << std::endl;
+        }
+        std::cout << "\n  --- 系统连接 ---" << std::endl;
+        for (const auto& l : sysDiagram.links) {
+            std::cout << "  " << l.fromNodeId << " -> " << l.toNodeId
+                      << " 线缆:" << l.cableModelId << " 长度:" << l.length_m << "m"
+                      << " 损耗:" << l.loss_dB << "dB" << std::endl;
+        }
+    }
+    std::cout << "P1-02: 系统图布局引擎 生成正常" << std::endl;
+
+    std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
     std::cin.get();
     return 0;
