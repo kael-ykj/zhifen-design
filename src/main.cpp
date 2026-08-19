@@ -16,6 +16,7 @@
 #include "engine/propagation_engine.h"
 #include "engine/batch_editor.h"
 #include "engine/floor_cloner.h"
+#include "plugin/plugin_framework.h"
 #include "io/drawing_exporter.h"
 
 using namespace zf;
@@ -429,6 +430,64 @@ int main(int argc, char* argv[]) {
     std::cout << "  3F断开引用后: " << (floor3.referenceFloorId.empty() ? "已独立" : "仍引用") << std::endl;
 
     std::cout << "P1-07: 标准层复制与同步 正常" << std::endl;
+
+    // P1-08 插件API框架
+    std::cout << "\n[P1-08] 插件API框架与权限约束..." << std::endl;
+    PluginManager pluginMgr;
+
+    // 列出插件
+    auto plugins = pluginMgr.listPlugins();
+    std::cout << "  已注册插件数: " << pluginMgr.pluginCount() << std::endl;
+    for (const auto& p : plugins) {
+        std::cout << "    - [" << p.pluginId << "] " << p.name
+                  << " v" << p.version << " (权限:" << (int)p.permissions << ")" << std::endl;
+    }
+
+    // 执行器件检查插件
+    PluginContext ctx;
+    ctx.project = &project;
+    ctx.currentFloor = &project.floors[0];
+
+    PluginResult checkResult = pluginMgr.executePlugin(
+        "builtin.device_check", ctx,
+        PluginPermission::READ_PROJECT);
+    std::cout << "  器件检查插件: " << (checkResult.success ? "成功" : "失败")
+              << " - " << checkResult.message << std::endl;
+
+    // 执行覆盖率报告插件
+    PluginResult covResult = pluginMgr.executePlugin(
+        "builtin.coverage_report", ctx,
+        PluginPermission::READ_PROJECT | PluginPermission::RUN_SIMULATION);
+    std::cout << "  覆盖率报告插件: " << (covResult.success ? "成功" : "失败")
+              << " - " << covResult.message << std::endl;
+
+    // 权限不足测试
+    PluginResult deniedResult = pluginMgr.executePlugin(
+        "builtin.coverage_report", ctx,
+        PluginPermission::READ_PROJECT);  // 缺少RUN_SIMULATION权限
+    std::cout << "  权限不足测试: " << (deniedResult.success ? "成功(异常)" : "被拒绝(正确)")
+              << " - " << deniedResult.message << std::endl;
+
+    // 禁用插件测试
+    pluginMgr.setPluginEnabled("builtin.device_check", false);
+    PluginResult disabledResult = pluginMgr.executePlugin(
+        "builtin.device_check", ctx, PluginPermission::ALL);
+    std::cout << "  禁用插件测试: " << (disabledResult.success ? "成功(异常)" : "被拒绝(正确)")
+              << " - " << disabledResult.message << std::endl;
+    pluginMgr.setPluginEnabled("builtin.device_check", true);
+
+    std::cout << "P1-08: 插件API框架与权限约束 正常" << std::endl;
+
+    printSeparator();
+    std::cout << "P1阶段全部模块开发完成！" << std::endl;
+    std::cout << "P1-01: 链路预算引擎" << std::endl;
+    std::cout << "P1-02: 系统图自动布局" << std::endl;
+    std::cout << "P1-03: 出图引擎(DXF+材料表)" << std::endl;
+    std::cout << "P1-04: 墙体建模与底图校准" << std::endl;
+    std::cout << "P1-05: 多墙传播仿真热力图" << std::endl;
+    std::cout << "P1-06: 批量编辑与CSV导入" << std::endl;
+    std::cout << "P1-07: 标准层复制" << std::endl;
+    std::cout << "P1-08: 插件API框架" << std::endl;
 
     std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
