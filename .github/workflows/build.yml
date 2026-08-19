@@ -13,25 +13,24 @@ jobs:
     - name: 安装 CMake
       uses: lukka/get-cmake@latest
 
-    - name: 安装 Qt6 (MinGW)
-      uses: jurplel/install-qt-action@v4
+    - name: 安装 Qt5
+      uses: jurplel/install-qt-action@v3
       with:
-        version: '6.5.3'
+        version: '5.15.2'
         host: 'windows'
         target: 'desktop'
         arch: 'win64_mingw81_64'
         cache: true
-        use-official: true
 
     - name: 配置工程 (MinGW)
-      run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+      run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt_DIR }}"
 
     - name: 编译
       run: cmake --build build -j4
 
     - name: 部署 Qt 依赖
       run: |
-        $qtBin = "${{ env.Qt6_DIR }}\bin"
+        $qtBin = "${{ env.Qt_DIR }}\bin"
         & "$qtBin\windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\ZhiFenDesign.exe
 
     - name: 收集产物

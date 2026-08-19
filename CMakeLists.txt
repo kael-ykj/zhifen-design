@@ -19,8 +19,22 @@ target_include_directories(ZhiFenDesign_Console PRIVATE
 
 # ===== Qt GUI版 =====
 find_package(Qt6 QUIET COMPONENTS Widgets)
+if(NOT Qt6_FOUND)
+    find_package(Qt5 QUIET COMPONENTS Widgets)
+endif()
+
+set(QT_FOUND FALSE)
 if(Qt6_FOUND)
+    set(QT_VERSION_MAJOR 6)
+    set(QT_FOUND TRUE)
     message(STATUS "Qt6 found, building GUI version")
+elseif(Qt5_FOUND)
+    set(QT_VERSION_MAJOR 5)
+    set(QT_FOUND TRUE)
+    message(STATUS "Qt5 found, building GUI version")
+endif()
+
+if(QT_FOUND)
     set(GUI_SOURCES
         gui/main.cpp
         gui/mainwindow.cpp
@@ -40,12 +54,16 @@ if(Qt6_FOUND)
         ${CMAKE_SOURCE_DIR}/third_party
         ${CMAKE_SOURCE_DIR}/gui
     )
-    target_link_libraries(ZhiFenDesign PRIVATE Qt6::Widgets)
+    if(QT_VERSION_MAJOR EQUAL 6)
+        target_link_libraries(ZhiFenDesign PRIVATE Qt6::Widgets)
+    else()
+        target_link_libraries(ZhiFenDesign PRIVATE Qt5::Widgets)
+    endif()
     set_target_properties(ZhiFenDesign PROPERTIES
         WIN32_EXECUTABLE TRUE
     )
 else()
-    message(STATUS "Qt6 not found, only console version will be built")
+    message(STATUS "Qt not found, only console version will be built")
 endif()
 
 # 编译选项
