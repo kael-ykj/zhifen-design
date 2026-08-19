@@ -4,16 +4,6 @@ project(ZhiFenDesign VERSION 3.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 自动获取 nlohmann/json
-include(FetchContent)
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.3
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(nlohmann_json)
-
 # 源文件
 set(SOURCES
     src/main.cpp
@@ -24,10 +14,7 @@ add_executable(ZhiFenDesign ${SOURCES})
 
 target_include_directories(ZhiFenDesign PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-)
-
-target_link_libraries(ZhiFenDesign PRIVATE
-    nlohmann_json::nlohmann_json
+    ${CMAKE_SOURCE_DIR}/third_party
 )
 
 # 编译选项
