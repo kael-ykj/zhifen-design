@@ -12,6 +12,7 @@
 #include "io/dwg_exporter.h"
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_engine.h"
+#include "io/drawing_exporter.h"
 
 using namespace zf;
 
@@ -212,6 +213,32 @@ int main(int argc, char* argv[]) {
         }
     }
     std::cout << "P1-02: 系统图布局引擎 生成正常" << std::endl;
+
+    // P1-03 出图引擎：DXF导出 + 材料表
+    std::cout << "\n[P1-03] 出图引擎：DXF导出 + 材料表生成..." << std::endl;
+    DrawingExporter drawExp;
+    drawExp.setModeManager(modeMgr);
+
+    // 导出系统图DXF
+    int dxfSys = drawExp.exportSystemDiagramDxf("output_system.dxf", sysDiagram);
+    std::cout << "  系统图DXF导出: " << zfErrorString(dxfSys) << std::endl;
+
+    // 导出平面图DXF
+    int dxfPlan = drawExp.exportFloorPlanDxf("output_floorplan.dxf", &project.floors[0]);
+    std::cout << "  平面图DXF导出: " << zfErrorString(dxfPlan) << std::endl;
+
+    // 生成材料表
+    auto materials = drawExp.generateMaterialList(&project);
+    std::cout << "  材料表条目数: " << materials.size() << std::endl;
+    for (const auto& m : materials) {
+        std::cout << "    - " << m.displayName << " (" << m.modelId << "): "
+                  << m.quantity << " " << m.unit << std::endl;
+    }
+
+    // 导出材料表CSV
+    int csvResult = drawExp.exportMaterialCsv("output_material.csv", &project);
+    std::cout << "  材料表CSV导出: " << zfErrorString(csvResult) << std::endl;
+    std::cout << "P1-03: 出图引擎 导出正常" << std::endl;
 
     std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
