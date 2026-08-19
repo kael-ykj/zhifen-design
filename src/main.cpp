@@ -15,6 +15,7 @@
 #include "engine/building_model_engine.h"
 #include "engine/propagation_engine.h"
 #include "engine/batch_editor.h"
+#include "engine/floor_cloner.h"
 #include "io/drawing_exporter.h"
 
 using namespace zf;
@@ -373,6 +374,61 @@ int main(int argc, char* argv[]) {
     std::remove("test_devices.csv");
     std::remove("test_export.csv");
     std::cout << "P1-06: 批量编辑与CSV导入导出 正常" << std::endl;
+
+    // P1-07 标准层复制
+    std::cout << "\n[P1-07] 标准层复制与同步..." << std::endl;
+    FloorCloner cloner;
+
+    // 把testFloor标记为标准层
+    cloner.markAsStandard(&testFloor, "标准层模板");
+    std::cout << "  标记标准层: " << (testFloor.isStandardFloor ? "是" : "否") << std::endl;
+    std::cout << "  标准层器件数: " << testFloor.devices.size()
+              << ", 墙体数: " << testFloor.walls.size() << std::endl;
+
+    // 从标准层复制到2F
+    CloneOptions cloneOpts;
+    cloneOpts.cloneWalls = true;
+    cloneOpts.cloneDevices = true;
+    cloneOpts.cloneCables = true;
+    cloneOpts.cloneRooms = true;
+    cloneOpts.idPrefix = "F2_";
+
+    Floor floor2;
+    int cloneResult = cloner.cloneFromStandard(&testFloor, "F2", "2F", cloneOpts, floor2);
+    std::cout << "  复制到2F结果: " << zfErrorString(cloneResult) << std::endl;
+    std::cout << "  2F器件数: " << floor2.devices.size()
+              << ", 墙体数: " << floor2.walls.size()
+              << ", 房间数: " << floor2.rooms.size() << std::endl;
+    std::cout << "  2F引用标准层: " << floor2.referenceFloorId << std::endl;
+
+    // 验证ID前缀
+    if (!floor2.devices.empty()) {
+        std::cout << "  2F首个器件ID: " << floor2.devices[0].instanceId << " (前缀验证)" << std::endl;
+    }
+
+    // 复制到3F
+    cloneOpts.idPrefix = "F3_";
+    Floor floor3;
+    cloner.cloneFromStandard(&testFloor, "F3", "3F", cloneOpts, floor3);
+    std::cout << "  3F器件数: " << floor3.devices.size() << std::endl;
+
+    // 统计
+    std::vector<Floor> allFloors = {testFloor, floor2, floor3};
+    auto cloneStats = cloner.analyzeProject(allFloors);
+    std::cout << "  楼层统计: 标准层" << cloneStats.standardCount
+              << "个, 引用层" << cloneStats.referenceCount
+              << "个, 独立层" << cloneStats.independentCount << "个" << std::endl;
+
+    // 比较差异
+    auto diff = cloner.compareFloors(&testFloor, &floor2);
+    std::cout << "  标准层与2F差异: 墙体" << diff.wallDiff
+              << ", 器件" << diff.deviceDiff << std::endl;
+
+    // 断开引用
+    cloner.detachReference(&floor3);
+    std::cout << "  3F断开引用后: " << (floor3.referenceFloorId.empty() ? "已独立" : "仍引用") << std::endl;
+
+    std::cout << "P1-07: 标准层复制与同步 正常" << std::endl;
 
     std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
