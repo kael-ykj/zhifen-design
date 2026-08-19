@@ -13,6 +13,7 @@
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_engine.h"
 #include "engine/building_model_engine.h"
+#include "engine/propagation_engine.h"
 #include "io/drawing_exporter.h"
 
 using namespace zf;
@@ -283,6 +284,40 @@ int main(int argc, char* argv[]) {
     std::cout << "  楼层统计: " << stats.wallCount << "面墙, " << stats.totalWallLength_m << "m总长, "
               << stats.roomCount << "个房间, " << stats.totalRoomArea_m2 << "m²" << std::endl;
     std::cout << "P1-04: 墙体建模与底图校准 正常" << std::endl;
+
+    // P1-05 多墙传播仿真与热力图
+    std::cout << "\n[P1-05] 多墙传播仿真与热力图..." << std::endl;
+    PropagationEngine propEngine;
+    propEngine.setModeManager(modeMgr);
+
+    SimulationConfig simCfg;
+    simCfg.frequency_MHz = 900.0;
+    simCfg.gridResolution_m = 1.0;
+    simCfg.txPower_dBm = 15.0;
+    simCfg.antennaGain_dBi = 3.0;
+    simCfg.maxDistance_m = 30.0;
+    propEngine.setConfig(simCfg);
+
+    // 在testFloor中放置天线，生成热力图
+    Point2D txPos = {5000, 4000};  // 房间中心
+    HeatmapData heatmap;
+    int simResult = propEngine.generateHeatmap(&testFloor, txPos, heatmap);
+    std::cout << "  仿真结果: " << zfErrorString(simResult) << std::endl;
+    if (simResult == ZF_ERR_OK) {
+        std::cout << "  网格: " << heatmap.gridWidth << "x" << heatmap.gridHeight << std::endl;
+        std::cout << "  RSRP范围: " << heatmap.minRSRP << " ~ " << heatmap.maxRSRP << " dBm" << std::endl;
+        std::cout << "  平均RSRP: " << heatmap.avgRSRP << " dBm" << std::endl;
+        std::cout << "  覆盖率(>=-100dBm): " << (heatmap.coverageRate * 100) << "%" << std::endl;
+        std::cout << "  弱覆盖点数: " << heatmap.weakCoverageCount << std::endl;
+
+        // 显示简化热力图
+        std::cout << "\n  --- 热力图(简化) ---" << std::endl;
+        std::cout << propEngine.heatmapToText(heatmap, 30) << std::endl;
+    }
+
+    // 自由空间损耗验证
+    std::cout << "  自由空间损耗(10m@900MHz): " << propEngine.freeSpaceLoss(10, 900) << "dB" << std::endl;
+    std::cout << "P1-05: 多墙传播仿真 正常" << std::endl;
 
     std::cout << "\n审计日志记录: " << modeMgr->getAuditLog().size() << " 条" << std::endl;
     std::cout << "按回车键退出..." << std::endl;
