@@ -13,6 +13,7 @@ constexpr int ZF_ERR_FORMAL_MODE_REQUIRED    = -1002;
 constexpr int ZF_ERR_PERMISSION_DENIED       = -1003;
 
 // IO与文件 -2000段
+constexpr int ZF_ERR_IO                      = -2001;
 constexpr int ZF_ERR_IO_OPEN_FAILED          = -2001;
 constexpr int ZF_ERR_IO_READ_FAILED          = -2002;
 constexpr int ZF_ERR_IO_WRITE_FAILED         = -2003;
@@ -21,6 +22,7 @@ constexpr int ZF_ERR_VERSION_TOO_OLD         = -2005;
 constexpr int ZF_ERR_VERSION_TOO_NEW         = -2006;
 
 // 参数与数据校验 -3000段
+constexpr int ZF_ERR_ARG                     = -3001;
 constexpr int ZF_ERR_ARG_INVALID             = -3001;
 constexpr int ZF_ERR_ARG_EMPTY               = -3002;
 constexpr int ZF_ERR_NOT_FOUND               = -3003;
