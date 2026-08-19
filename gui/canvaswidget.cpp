@@ -330,7 +330,7 @@ void CanvasWidget::wheelEvent(QWheelEvent *event)
     if (newZoom > 20) newZoom = 20;
 
     // 以鼠标位置为中心缩放
-    QPointF mousePos = event->localPos();
+    QPointF mousePos = event->pos();
     QPointF worldBefore = screenToWorld(mousePos);
     m_zoom = newZoom;
     QPointF worldAfter = screenToWorld(mousePos);
