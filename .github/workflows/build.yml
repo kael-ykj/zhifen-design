@@ -19,27 +19,27 @@ jobs:
         version: '5.15.2'
         host: 'windows'
         target: 'desktop'
-        arch: 'win64_mingw81_64'
-        cache: true
+        arch: 'win64_msvc2019_64'
+        cache: false
 
-    - name: 配置工程 (MinGW)
-      run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt_DIR }}"
+    - name: 配置工程
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt_DIR }}"
 
     - name: 编译
-      run: cmake --build build -j4
+      run: cmake --build build --config Release -j4
 
     - name: 部署 Qt 依赖
       run: |
         $qtBin = "${{ env.Qt_DIR }}\bin"
-        & "$qtBin\windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\ZhiFenDesign.exe
+        & "$qtBin\windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\Release\ZhiFenDesign.exe
 
     - name: 收集产物
       run: |
         mkdir deploy
-        copy build\ZhiFenDesign.exe deploy\
-        if (Test-Path build\ZhiFenDesign_Console.exe) { copy build\ZhiFenDesign_Console.exe deploy\ }
-        Get-ChildItem build\*.dll | ForEach-Object { copy $_.FullName deploy\ }
-        if (Test-Path build\platforms) { xcopy /E /I build\platforms deploy\platforms }
+        copy build\Release\ZhiFenDesign.exe deploy\
+        if (Test-Path build\Release\ZhiFenDesign_Console.exe) { copy build\Release\ZhiFenDesign_Console.exe deploy\ }
+        Get-ChildItem build\Release\*.dll | ForEach-Object { copy $_.FullName deploy\ }
+        if (Test-Path build\Release\platforms) { xcopy /E /I build\Release\platforms deploy\platforms }
         if (Test-Path README.md) { copy README.md deploy\ }
 
     - name: 安装 Inno Setup
