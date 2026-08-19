@@ -252,7 +252,7 @@ QString CanvasWidget::findDeviceAt(const QPointF& worldPos)
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event)
 {
-    m_lastMousePos = event->position();
+    m_lastMousePos = event->localPos();
 
     if (event->button() == Qt::MiddleButton) {
         m_panning = true;
@@ -260,7 +260,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
         return;
     }
 
-    QPointF worldPos = screenToWorld(event->position());
+    QPointF worldPos = screenToWorld(event->localPos());
 
     if (m_currentTool == "select" && event->button() == Qt::LeftButton) {
         QString devId = findDeviceAt(worldPos);
@@ -290,14 +290,14 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    QPointF delta = event->position() - m_lastMousePos;
+    QPointF delta = event->localPos() - m_lastMousePos;
 
     if (m_panning) {
         m_panOffset += delta;
         update();
     }
     else if (m_dragging && !m_selectedDeviceId.isEmpty() && m_project) {
-        QPointF worldPos = screenToWorld(event->position());
+        QPointF worldPos = screenToWorld(event->localPos());
         auto& floor = m_project->floors[0];
         for (auto& dev : floor.devices) {
             if (dev.instanceId == m_selectedDeviceId.toStdString()) {
@@ -308,7 +308,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
         update();
     }
 
-    m_lastMousePos = event->position();
+    m_lastMousePos = event->localPos();
 }
 
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
@@ -330,7 +330,7 @@ void CanvasWidget::wheelEvent(QWheelEvent *event)
     if (newZoom > 20) newZoom = 20;
 
     // 以鼠标位置为中心缩放
-    QPointF mousePos = event->position();
+    QPointF mousePos = event->localPos();
     QPointF worldBefore = screenToWorld(mousePos);
     m_zoom = newZoom;
     QPointF worldAfter = screenToWorld(mousePos);

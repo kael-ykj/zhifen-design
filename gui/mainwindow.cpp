@@ -121,8 +121,12 @@ void MainWindow::createMenus()
     fileMenu->addAction("退出", this, &QWidget::close);
 
     QMenu* editMenu = menuBar()->addMenu("编辑");
-    editMenu->addAction("撤销", QKeySequence::Undo, [](){});
-    editMenu->addAction("重做", QKeySequence::Redo, [](){});
+    QAction* undoAct = new QAction("撤销", this);
+    undoAct->setShortcut(QKeySequence::Undo);
+    editMenu->addAction(undoAct);
+    QAction* redoAct = new QAction("重做", this);
+    redoAct->setShortcut(QKeySequence::Redo);
+    editMenu->addAction(redoAct);
 
     QMenu* calcMenu = menuBar()->addMenu("计算");
     calcMenu->addAction(m_actLinkCalc);
