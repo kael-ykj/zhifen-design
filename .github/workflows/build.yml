@@ -1,14 +1,11 @@
 name: 智分Design 自动构建打包
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
     - name: 拉取代码
       uses: actions/checkout@v4
@@ -16,16 +13,35 @@ jobs:
     - name: 安装 CMake
       uses: lukka/get-cmake@latest
 
+    - name: 安装 Qt6
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.5.*'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        modules: 'qtbase'
+        cache: true
+
     - name: 配置工程
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
 
     - name: 编译
       run: cmake --build build --config Release -j4
+
+    - name: 部署 Qt 依赖
+      run: |
+        $qtBin = "${{ env.Qt6_DIR }}\..\..\bin"
+        & "$qtBin\windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\Release\ZhiFenDesign.exe
 
     - name: 收集产物
       run: |
         mkdir deploy
         copy build\Release\ZhiFenDesign.exe deploy\
+        if (Test-Path build\Release\ZhiFenDesign_Console.exe) { copy build\Release\ZhiFenDesign_Console.exe deploy\ }
+        # 复制Qt DLL
+        Get-ChildItem build\Release\*.dll | ForEach-Object { copy $_.FullName deploy\ }
+        if (Test-Path build\Release\platforms) { xcopy /E /I build\Release\platforms deploy\platforms }
         if (Test-Path README.md) { copy README.md deploy\ }
 
     - name: 安装 Inno Setup
@@ -46,5 +62,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: 智分Design-Windows-Exe
-        path: deploy\*.exe
+        path: deploy\*
         retention-days: 30
