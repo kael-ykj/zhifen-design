@@ -5,11 +5,11 @@
 #include <memory>
 #include <unordered_map>
 #include <cstdlib>
-#include "zf_types.h"
-#include "zf_error.h"
-#include "../mode_control/mode_control_layer.h"
-#include "../device/device_library.h"
-#include "../undo/undo_redo_stack.h"
+#include "core/zf_types.h"
+#include "core/zf_error.h"
+#include "mode_control/mode_control_layer.h"
+#include "device/device_library.h"
+#include "undo/undo_redo_stack.h"
 
 namespace zf {
 

@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cmath>
-#include "zf_types.h"
-#include "zf_error.h"
+#include "core/zf_types.h"
+#include "core/zf_error.h"
 
 namespace zf {
 

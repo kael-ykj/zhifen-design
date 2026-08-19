@@ -4,8 +4,8 @@
 #include <vector>
 #include <unordered_map>
 #include <optional>
-#include "zf_types.h"
-#include "zf_error.h"
+#include "core/zf_types.h"
+#include "core/zf_error.h"
 
 namespace zf {
 

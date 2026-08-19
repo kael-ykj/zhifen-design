@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include "zf_error.h"
-#include "zf_types.h"
+#include "core/zf_error.h"
+#include "core/zf_types.h"
 
 namespace zf {
 

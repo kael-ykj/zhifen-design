@@ -1,9 +1,9 @@
 #pragma once
 
 #include <string>
-#include "zf_types.h"
-#include "zf_error.h"
-#include "../mode_control/mode_control_layer.h"
+#include "core/zf_types.h"
+#include "core/zf_error.h"
+#include "mode_control/mode_control_layer.h"
 
 namespace zf {
 

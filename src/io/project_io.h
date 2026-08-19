@@ -4,8 +4,8 @@
 #include <memory>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include "zf_types.h"
-#include "zf_error.h"
+#include "core/zf_types.h"
+#include "core/zf_error.h"
 
 namespace zf {
 using json = nlohmann::json;
