@@ -1,0 +1,50 @@
+name: 智分Design 自动构建打包
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: 拉取代码
+      uses: actions/checkout@v4
+
+    - name: 安装 CMake
+      uses: lukka/get-cmake@latest
+
+    - name: 配置工程
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: 编译
+      run: cmake --build build --config Release -j4
+
+    - name: 收集产物
+      run: |
+        mkdir deploy
+        copy build\Release\ZhiFenDesign.exe deploy\
+        if (Test-Path README.md) { copy README.md deploy\ }
+
+    - name: 安装 Inno Setup
+      run: choco install innosetup -y
+
+    - name: 打包安装包
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
+
+    - name: 上传安装包
+      uses: actions/upload-artifact@v4
+      with:
+        name: 智分Design-Windows-Setup
+        path: installer\Output\*.exe
+        retention-days: 30
+
+    - name: 上传可执行文件
+      uses: actions/upload-artifact@v4
+      with:
+        name: 智分Design-Windows-Exe
+        path: deploy\*.exe
+        retention-days: 30
