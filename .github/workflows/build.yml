@@ -16,10 +16,10 @@ jobs:
     - name: 安装 Qt6
       uses: jurplel/install-qt-action@v4
       with:
-        version: '6.5.*'
+        version: '6.7.*'
         host: 'windows'
         target: 'desktop'
-        arch: 'win64_msvc2019_64'
+        arch: 'win64_msvc2022_64'
         cache: true
 
     - name: 配置工程

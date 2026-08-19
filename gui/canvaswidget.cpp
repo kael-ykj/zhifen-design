@@ -204,7 +204,7 @@ void CanvasWidget::drawSelectedHighlight(QPainter& painter)
     const auto& floor = m_project->floors[0];
 
     for (const auto& dev : floor.devices) {
-        if (dev.instanceId == m_selectedDeviceId) {
+        if (dev.instanceId == m_selectedDeviceId.toStdString()) {
             QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
             double r = 18 * m_zoom;
             painter.setBrush(Qt::NoBrush);
