@@ -119,6 +119,9 @@ void MainWindow::createActions()
     m_actExportMaterial = new QAction("材料表导出", this);
     connect(m_actExportMaterial, &QAction::triggered, this, &MainWindow::onExportMaterialList);
 
+    m_actBatchExportDxf = new QAction("批量出图", this);
+    connect(m_actBatchExportDxf, &QAction::triggered, this, &MainWindow::onBatchExportDxf);
+
 
     m_actAddFloor = new QAction("新增楼层", this);
     connect(m_actAddFloor, &QAction::triggered, this, &MainWindow::onAddFloor);
@@ -197,6 +200,7 @@ void MainWindow::createMenus()
     calcMenu->addAction(m_actGenerateReport);
     calcMenu->addSeparator();
     calcMenu->addAction(m_actExportMaterial);
+    calcMenu->addAction(m_actBatchExportDxf);
 
     QMenu* helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction(m_actAbout);
@@ -252,6 +256,7 @@ void MainWindow::createToolBars()
     calcTool->addAction(m_actGenerateReport);
     calcTool->addSeparator();
     calcTool->addAction(m_actExportMaterial);
+    calcTool->addAction(m_actBatchExportDxf);
     calcTool->addAction(m_actExport);
 }
 
@@ -493,19 +498,35 @@ void MainWindow::onCostEstimate()
     zf::CostSummary summary;
     int result = estimator.estimateProject(&m_project, summary);
     if (result == zf::ZF_ERR_OK) {
-        QString msg = QString("工程造价概算完成!\n\n"
-                              "器件总数: %1 个\n"
-                              "线缆总长: %2 米\n\n"
-                              "材料费:   %3 元\n"
-                              "线缆费:   %4 元\n"
-                              "人工费:   %5 元\n"
-                              "其他费:   %6 元\n"
-                              "小计:     %7 元\n"
-                              "税金(9%%): %8 元\n"
-                              "========================\n"
-                              "含税总价: %9 元")
+        // 按楼层分项统计
+        QString floorBreakdown = "各楼层器件统计:\n";
+        for (size_t i = 0; i < m_project.floors.size(); i++) {
+            const auto& floor = m_project.floors[i];
+            floorBreakdown += QString("  %1 %2: %3个器件, %4段墙体\n")
+                .arg(QString::fromStdString(floor.floorId))
+                .arg(QString::fromStdString(floor.floorName))
+                .arg(floor.devices.size())
+                .arg(floor.walls.size());
+        }
+
+        QString msg = QString("全楼工程造价概算完成!\n\n"
+                              "楼层数:   %1 层\n"
+                              "器件总数: %2 个\n"
+                              "线缆总长: %3 米\n\n"
+                              "%4\n"
+                              "费用汇总:\n"
+                              "  材料费:   %5 元\n"
+                              "  线缆费:   %6 元\n"
+                              "  人工费:   %7 元\n"
+                              "  其他费:   %8 元\n"
+                              "  小计:     %9 元\n"
+                              "  税金(9%%): %10 元\n"
+                              "  ========================\n"
+                              "  含税总价: %11 元")
+            .arg(m_project.floors.size())
             .arg(summary.deviceCount)
             .arg(summary.cableLength_m, 0, 'f', 1)
+            .arg(floorBreakdown)
             .arg(summary.materialCost, 0, 'f', 2)
             .arg(summary.cableCost, 0, 'f', 2)
             .arg(summary.laborCost, 0, 'f', 2)
@@ -513,14 +534,12 @@ void MainWindow::onCostEstimate()
             .arg(summary.subtotal, 0, 'f', 2)
             .arg(summary.tax, 0, 'f', 2)
             .arg(summary.total, 0, 'f', 2);
-        QMessageBox::information(this, "造价概算", msg);
-        statusBar()->showMessage(QString("造价概算完成，含税总价: %1 元").arg(summary.total, 0, 'f', 2));
+        QMessageBox::information(this, "全楼造价概算", msg);
+        statusBar()->showMessage(QString("全楼造价概算完成，含税总价: %1 元").arg(summary.total, 0, 'f', 2));
     } else {
         QMessageBox::warning(this, "造价概算", QString("概算失败，错误码: %1").arg(result));
     }
 }
-
-void MainWindow::onGenerateReport()
 {
     if (m_project.floors.empty()) {
         QMessageBox::warning(this, "生成报告", "工程为空");
@@ -809,4 +828,46 @@ void MainWindow::onCloneFloor()
     } else {
         QMessageBox::warning(this, "复制失败", QString("复制失败，错误码: %1").arg(result));
     }
+}
+
+void MainWindow::onBatchExportDxf()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "批量出图", "工程为空，没有楼层可导出");
+        return;
+    }
+    QString dir = QFileDialog::getExistingDirectory(this, "选择输出目录", "");
+    if (dir.isEmpty()) return;
+
+    zf::DrawingExporter exporter;
+    exporter.setModeManager(m_modeLayer.modeManager.get());
+
+    int success = 0, failed = 0;
+    QStringList failedFloors;
+
+    for (size_t i = 0; i < m_project.floors.size(); i++) {
+        const auto& floor = m_project.floors[i];
+        QString fileName = QString("%1_%2_平面图.dxf")
+            .arg(QString::fromStdString(floor.floorId))
+            .arg(QString::fromStdString(floor.floorName));
+        // 清理文件名中的非法字符
+        fileName.replace("/", "_").replace("\\", "_").replace(":", "_");
+        QString filePath = dir + "/" + fileName;
+
+        int result = exporter.exportFloorPlanDxf(filePath.toStdString(), &floor);
+        if (result == zf::ZF_ERR_OK) {
+            success++;
+        } else {
+            failed++;
+            failedFloors << QString::fromStdString(floor.floorName);
+        }
+    }
+
+    QString msg = QString("批量出图完成!\n\n成功: %1 层\n失败: %2 层\n输出目录: %3")
+        .arg(success).arg(failed).arg(dir);
+    if (!failedFloors.isEmpty()) {
+        msg += "\n\n失败楼层: " + failedFloors.join(", ");
+    }
+    QMessageBox::information(this, "批量出图", msg);
+    statusBar()->showMessage(QString("批量出图完成: 成功%1层, 失败%2层").arg(success).arg(failed));
 }
