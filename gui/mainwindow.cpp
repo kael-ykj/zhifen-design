@@ -47,6 +47,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_canvas, &CanvasWidget::projectChanged, this, &MainWindow::onProjectChanged);
     updateUndoButtons();
 }
+
+MainWindow::~MainWindow() {}
 void MainWindow::initProject()
 {
     m_project.projectId = "GUI_PROJECT";
