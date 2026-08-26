@@ -20,6 +20,7 @@ class CanvasWidget;
 class DeviceListPanel;
 class PropertyPanel;
 class LayerPanel;
+class CommandLine;
 
 class MainWindow : public QMainWindow
 {
@@ -64,6 +65,7 @@ private slots:
     void onFloorChanged(int index);
     void onCursorPositionChanged(const QPointF& worldPos);
     void onActiveFloorChanged(int floorIndex);
+    void onCommandEntered(const QString& command);
     void onAddFloor();
     void onDeleteFloor();
     void onCloneFloor();
@@ -98,6 +100,7 @@ private:
     DeviceListPanel* m_devicePanel{nullptr};
     PropertyPanel* m_propertyPanel{nullptr};
     LayerPanel* m_layerPanel{nullptr};
+    CommandLine* m_commandLine{nullptr};
 
     QAction* m_actNew{nullptr};
     QAction* m_actOpen{nullptr};

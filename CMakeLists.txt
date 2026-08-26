@@ -42,6 +42,7 @@ if(QT_FOUND)
         gui/devicelistpanel.cpp
         gui/propertypanel.cpp
         gui/layerpanel.cpp
+        gui/commandline.cpp
         gui/system_dialog.cpp
     )
     set(GUI_HEADERS
@@ -50,6 +51,7 @@ if(QT_FOUND)
         gui/devicelistpanel.h
         gui/propertypanel.h
         gui/layerpanel.h
+        gui/commandline.h
         gui/system_dialog.h
     )
     add_executable(ZhiFenDesign WIN32 ${GUI_SOURCES} ${GUI_HEADERS})

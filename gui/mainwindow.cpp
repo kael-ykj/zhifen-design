@@ -3,6 +3,7 @@
 #include "devicelistpanel.h"
 #include "propertypanel.h"
 #include "layerpanel.h"
+#include "commandline.h"
 #include "system_dialog.h"
 #include "engine/link_calculator.h"
 #include "engine/propagation_engine.h"
@@ -81,6 +82,12 @@ MainWindow::MainWindow(QWidget *parent)
         connect(m_devicePanel, &DeviceListPanel::deviceModelSelected,
                 m_canvas, &CanvasWidget::setPlaceModel);
     }
+
+    // 命令行面板
+    m_commandLine = new CommandLine(this);
+    addDockWidget(Qt::BottomDockWidgetArea, m_commandLine);
+    connect(m_commandLine, &CommandLine::commandEntered, this, &MainWindow::onCommandEntered);
+
     updateUndoButtons();
 }
 
@@ -852,6 +859,97 @@ void MainWindow::onActiveFloorChanged(int floorIndex)
         m_floorCombo->blockSignals(true);
         m_floorCombo->setCurrentIndex(floorIndex);
         m_floorCombo->blockSignals(false);
+    }
+}
+
+void MainWindow::onCommandEntered(const QString& command)
+{
+    QString cmd = command.trimmed().toUpper();
+    QStringList args = command.trimmed().split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+
+    if (cmd == "HELP" || cmd == "?") {
+        m_commandLine->appendOutput("可用命令:");
+        m_commandLine->appendOutput("  HELP        - 显示帮助");
+        m_commandLine->appendOutput("  ZOOM [in|out|fit|all] - 缩放");
+        m_commandLine->appendOutput("  PAN         - 平移模式");
+        m_commandLine->appendOutput("  PRINT       - 打印全部");
+        m_commandLine->appendOutput("  PRINTWIN    - 窗口打印");
+        m_commandLine->appendOutput("  ERASE       - 删除选中");
+        m_commandLine->appendOutput("  LAYER [on|off|list] - 图层管理");
+        m_commandLine->appendOutput("  SAVE        - 保存工程");
+        m_commandLine->appendOutput("  NEW         - 新建工程");
+        m_commandLine->appendOutput("  UNDO        - 撤销");
+        m_commandLine->appendOutput("  REDO        - 重做");
+        m_commandLine->appendOutput("  FLOOR [n]   - 定位到楼层n");
+        m_commandLine->appendOutput("  SNAP [on|off] - 捕捉开关");
+        m_commandLine->appendOutput("  ORTHO [on|off] - 正交开关");
+    } else if (cmd.startsWith("ZOOM")) {
+        if (args.size() > 1) {
+            QString sub = args[1].toUpper();
+            if (sub == "IN") { onZoomIn(); m_commandLine->appendOutput("放大"); }
+            else if (sub == "OUT") { onZoomOut(); m_commandLine->appendOutput("缩小"); }
+            else if (sub == "FIT" || sub == "ALL") { onZoomFit(); m_commandLine->appendOutput("适配窗口"); }
+        } else {
+            m_commandLine->appendOutput("用法: ZOOM [in|out|fit|all]");
+        }
+    } else if (cmd == "PAN") {
+        m_canvas->setCurrentTool("pan");
+        m_commandLine->appendOutput("平移模式 (按ESC退出)");
+    } else if (cmd == "PRINT") {
+        onPrint();
+    } else if (cmd == "PRINTWIN") {
+        onPrintWindow();
+    } else if (cmd == "ERASE" || cmd == "DELETE") {
+        onDeleteSelected();
+        m_commandLine->appendOutput("已删除选中对象");
+    } else if (cmd.startsWith("LAYER")) {
+        if (args.size() > 1) {
+            QString sub = args[1].toUpper();
+            if (sub == "LIST") {
+                m_commandLine->appendOutput("图层列表:");
+                for (const auto& l : m_project.layers) {
+                    m_commandLine->appendOutput(QString("  %1 - %2 (%3)")
+                        .arg(QString::fromStdString(l.name))
+                        .arg(l.visible ? "显示" : "隐藏")
+                        .arg(l.locked ? "锁定" : "解锁"));
+                }
+            }
+        } else {
+            m_commandLine->appendOutput("用法: LAYER [list]");
+        }
+    } else if (cmd == "SAVE") {
+        onSaveProject();
+    } else if (cmd == "NEW") {
+        onNewProject();
+    } else if (cmd == "UNDO") {
+        onUndo();
+    } else if (cmd == "REDO") {
+        onRedo();
+    } else if (cmd.startsWith("FLOOR")) {
+        if (args.size() > 1) {
+            bool ok;
+            int n = args[1].toInt(&ok);
+            if (ok && n >= 1 && n <= (int)m_project.floors.size()) {
+                m_canvas->goToFloor(n - 1);
+                m_commandLine->appendOutput(QString("定位到楼层 %1").arg(n));
+            } else {
+                m_commandLine->appendOutput("无效楼层号");
+            }
+        }
+    } else if (cmd.startsWith("SNAP")) {
+        if (args.size() > 1) {
+            bool on = args[1].toUpper() == "ON";
+            m_canvas->setSnapEnabled(on);
+            m_commandLine->appendOutput(on ? "捕捉: 开" : "捕捉: 关");
+        }
+    } else if (cmd.startsWith("ORTHO")) {
+        if (args.size() > 1) {
+            bool on = args[1].toUpper() == "ON";
+            m_canvas->setOrthoEnabled(on);
+            m_commandLine->appendOutput(on ? "正交: 开" : "正交: 关");
+        }
+    } else {
+        m_commandLine->appendOutput("未知命令: " + command + " (输入 HELP 查看帮助)");
     }
 }
 
