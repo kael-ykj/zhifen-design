@@ -249,6 +249,9 @@ void MainWindow::createActions()
 
     m_actAutoNumber = new QAction("自动编号", this);
     connect(m_actAutoNumber, &QAction::triggered, this, &MainWindow::onAutoNumber);
+
+    m_actReversePower = new QAction("逆向功率", this);
+    connect(m_actReversePower, &QAction::triggered, this, &MainWindow::onReversePower);
 }
 
 void MainWindow::createMenus()
@@ -340,6 +343,7 @@ void MainWindow::createToolBars()
     toolBar->addAction(m_actInsertSplitter);
     toolBar->addAction(m_actInsertCoupler);
     toolBar->addAction(m_actAutoNumber);
+    toolBar->addAction(m_actReversePower);
     toolBar->addSeparator();
     toolBar->addAction(m_actMode);
 
@@ -576,6 +580,62 @@ void MainWindow::onAutoNumber()
     m_canvas->clearLinkReport();
     m_canvas->refresh();
     statusBar()->showMessage(QString("自动编号完成，共编号 %1 个器件").arg(total));
+}
+
+void MainWindow::onReversePower()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "逆向功率优化", "请先创建楼层");
+        return;
+    }
+    // 先运行链路预算
+    zf::LinkCalculator calc;
+    calc.setModeManager(m_modeLayer.modeManager.get());
+    int result = calc.calculateProject(&m_project);
+    if (result != zf::ZF_ERR_OK) {
+        QMessageBox::warning(this, "逆向功率优化", "链路预算失败，无法进行逆向优化");
+        return;
+    }
+    const auto& report = calc.getReport();
+
+    // 输入目标天线功率
+    bool ok = false;
+    double targetPower = QInputDialog::getDouble(this, "逆向功率优化",
+        "目标天线口功率 (dBm):\n（建议: 室内分布 8~12 dBm）",
+        10.0, 0.0, 30.0, 1, &ok);
+    if (!ok) return;
+
+    // 找到最大损耗路径
+    double maxLoss = 0;
+    std::string maxLossAntenna;
+    for (const auto& r : report.results) {
+        if (r.isAntenna && r.cumulativeLoss_dB > maxLoss) {
+            maxLoss = r.cumulativeLoss_dB;
+            maxLossAntenna = r.deviceInstanceId;
+        }
+    }
+
+    if (maxLoss <= 0) {
+        QMessageBox::information(this, "逆向功率优化", "未找到天线链路，请先连接器件");
+        return;
+    }
+
+    // 反推信源功率
+    double sourcePower = targetPower + maxLoss;
+    QString msg = QString("逆向功率优化结果:\n\n"
+                          "目标天线功率: %1 dBm\n"
+                          "最大路径损耗: %2 dB\n"
+                          "对应天线: %3\n\n"
+                          "建议信源输出功率: %4 dBm\n\n"
+                          "说明: 此功率可保证最远天线达到目标功率，\n"
+                          "近端天线功率可能偏高，建议加衰减器调整。")
+        .arg(targetPower, 0, 'f', 1)
+        .arg(maxLoss, 0, 'f', 1)
+        .arg(QString::fromStdString(maxLossAntenna))
+        .arg(sourcePower, 0, 'f', 1);
+
+    QMessageBox::information(this, "逆向功率优化", msg);
+    statusBar()->showMessage(QString("逆向功率优化完成，建议信源功率 %1 dBm").arg(sourcePower, 0, 'f', 1));
 }
 
 void MainWindow::onRunSimulation()
