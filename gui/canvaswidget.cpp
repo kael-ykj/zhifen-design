@@ -30,6 +30,8 @@ void CanvasWidget::setCurrentTool(const QString& tool)
 {
     if (m_currentTool != tool) {
         m_drawingWall = false;
+        m_drawingCable = false;
+        m_cableStartDeviceId.clear();
     }
     m_currentTool = tool;
     if (tool == "select") setCursor(Qt::ArrowCursor);
@@ -108,9 +110,34 @@ void CanvasWidget::paintEvent(QPaintEvent*)
         QPointF start = worldToScreen(m_wallStartPoint);
         QPointF end = worldToScreen(m_wallPreviewPoint);
         painter.drawLine(start, end);
-        // 起点标记
         painter.setBrush(QColor(255, 100, 0));
         painter.drawEllipse(start, 4, 4);
+    }
+
+    // 线缆连接预览
+    if (m_drawingCable && !m_cableStartDeviceId.isEmpty()) {
+        // 找到起点器件位置
+        QPointF startPos;
+        bool found = false;
+        const auto& floor = m_project->floors[0];
+        for (const auto& dev : floor.devices) {
+            if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
+                startPos = worldToScreen(QPointF(dev.position.x, dev.position.y));
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            QPen cablePen(QColor(0, 160, 0));
+            cablePen.setWidth(3);
+            cablePen.setStyle(Qt::DashLine);
+            painter.setPen(cablePen);
+            painter.setBrush(Qt::NoBrush);
+            QPointF end = worldToScreen(m_cablePreviewPoint);
+            painter.drawLine(startPos, end);
+            painter.setBrush(QColor(0, 160, 0));
+            painter.drawEllipse(startPos, 5, 5);
+        }
     }
 
     // 模式指示
@@ -385,6 +412,62 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             update();
         }
     }
+    else if (m_currentTool == "cable" && event->button() == Qt::LeftButton) {
+        if (!m_project) return;
+        QString devId = findDeviceAt(worldPos);
+        if (devId.isEmpty()) {
+            emit statusMessage("请点击器件来创建连接");
+            return;
+        }
+        if (!m_drawingCable) {
+            // 第一次点击：设置起点
+            m_drawingCable = true;
+            m_cableStartDeviceId = devId;
+            m_cablePreviewPoint = worldPos;
+            emit statusMessage("线缆连接: 已选起点 " + devId + "，点击目标器件完成连接");
+        } else {
+            // 第二次点击：创建连接
+            if (devId == m_cableStartDeviceId) {
+                emit statusMessage("不能连接到自身，请选择其他器件");
+                return;
+            }
+            auto& floor = m_project->floors[0];
+            // 在起点器件的connections中添加指向目标的连接
+            for (auto& dev : floor.devices) {
+                if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
+                    // 检查是否已存在连接
+                    bool exists = false;
+                    for (const auto& conn : dev.connections) {
+                        if (conn.targetInstanceId == devId.toStdString()) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        zf::DeviceInstance::Connection conn;
+                        conn.targetInstanceId = devId.toStdString();
+                        conn.fromPortId = "out";
+                        conn.toPortId = "in";
+                        dev.connections.push_back(conn);
+                    }
+                    break;
+                }
+            }
+            emit statusMessage("已创建连接: " + m_cableStartDeviceId + " → " + devId + "，可继续点击下一个目标，右键结束");
+            // 连续连接：当前目标作为下一个起点
+            m_cableStartDeviceId = devId;
+            m_cablePreviewPoint = worldPos;
+        }
+        update();
+    }
+    else if (m_currentTool == "cable" && event->button() == Qt::RightButton) {
+        if (m_drawingCable) {
+            m_drawingCable = false;
+            m_cableStartDeviceId.clear();
+            emit statusMessage("线缆连接结束");
+            update();
+        }
+    }
 }
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
@@ -407,6 +490,10 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
     }
     else if (m_drawingWall) {
         m_wallPreviewPoint = screenToWorld(event->localPos());
+        update();
+    }
+    else if (m_drawingCable) {
+        m_cablePreviewPoint = screenToWorld(event->localPos());
         update();
     }
     m_lastMousePos = event->localPos();
@@ -450,6 +537,11 @@ void CanvasWidget::keyPressEvent(QKeyEvent *event)
         if (m_drawingWall) {
             m_drawingWall = false;
             emit statusMessage("墙体绘制已取消");
+            update();
+        } else if (m_drawingCable) {
+            m_drawingCable = false;
+            m_cableStartDeviceId.clear();
+            emit statusMessage("线缆连接已取消");
             update();
         } else {
             m_selectedDeviceId.clear();

@@ -65,4 +65,8 @@ private:
     bool m_drawingWall{false};
     QPointF m_wallStartPoint;
     QPointF m_wallPreviewPoint;
+    // 线缆连接
+    bool m_drawingCable{false};
+    QString m_cableStartDeviceId;
+    QPointF m_cablePreviewPoint;
 };

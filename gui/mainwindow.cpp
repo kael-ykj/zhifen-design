@@ -339,10 +339,10 @@ void MainWindow::onToolSelect()
         statusBar()->showMessage("当前工具: 放置器件 (从左侧器件库选择)");
     } else if (m_actToolWall->isChecked()) {
         m_canvas->setCurrentTool("wall");
-        statusBar()->showMessage("当前工具: 绘制墙体 (开发中)");
+        statusBar()->showMessage("当前工具: 绘制墙体 (点击起点→点击终点，右键结束)");
     } else if (m_actToolCable->isChecked()) {
         m_canvas->setCurrentTool("cable");
-        statusBar()->showMessage("当前工具: 绘制线缆 (开发中)");
+        statusBar()->showMessage("当前工具: 线缆连接 (点击起点器件→点击目标器件，右键结束)");
     }
 }
 
