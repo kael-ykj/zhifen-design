@@ -103,6 +103,40 @@ private:
         }
         j["printWindows"] = printWins;
 
+        // 系统图序列化
+        json sysDiags = json::array();
+        for (const auto& sd : p->systemDiagrams) {
+            json sdj;
+            sdj["diagramId"] = sd.diagramId;
+            sdj["floorId"] = sd.floorId;
+            json nodes = json::array();
+            for (const auto& n : sd.nodes) {
+                json nj;
+                nj["nodeId"] = n.nodeId;
+                nj["type"] = (int)n.type;
+                nj["deviceInstanceId"] = n.deviceInstanceId;
+                nj["layoutX"] = n.layoutPos.x;
+                nj["layoutY"] = n.layoutPos.y;
+                nj["label"] = n.label;
+                nodes.push_back(nj);
+            }
+            sdj["nodes"] = nodes;
+            json links = json::array();
+            for (const auto& l : sd.links) {
+                json lj;
+                lj["linkId"] = l.linkId;
+                lj["fromNodeId"] = l.fromNodeId;
+                lj["toNodeId"] = l.toNodeId;
+                lj["cableModelId"] = l.cableModelId;
+                lj["length_m"] = l.length_m;
+                lj["loss_dB"] = l.loss_dB;
+                links.push_back(lj);
+            }
+            sdj["links"] = links;
+            sysDiags.push_back(sdj);
+        }
+        j["systemDiagrams"] = sysDiags;
+
         serializeAudit(p->globalAuditLog, j["globalAuditLog"]);
     }
 
@@ -170,6 +204,39 @@ private:
                 pw.scale = pj.value("scale", 100.0);
                 pw.color = pj.value("color", true);
                 p->printWindows.push_back(pw);
+            }
+        }
+        // 系统图反序列化
+        if (j.contains("systemDiagrams") && j["systemDiagrams"].is_array()) {
+            for (const auto& sdj : j["systemDiagrams"]) {
+                SystemDiagram sd;
+                sd.diagramId = sdj.value("diagramId", "");
+                sd.floorId = sdj.value("floorId", "");
+                if (sdj.contains("nodes") && sdj["nodes"].is_array()) {
+                    for (const auto& nj : sdj["nodes"]) {
+                        SystemNode n;
+                        n.nodeId = nj.value("nodeId", "");
+                        n.type = (NodeType)nj.value("type", 0);
+                        n.deviceInstanceId = nj.value("deviceInstanceId", "");
+                        n.layoutPos.x = nj.value("layoutX", 0.0);
+                        n.layoutPos.y = nj.value("layoutY", 0.0);
+                        n.label = nj.value("label", "");
+                        sd.nodes.push_back(n);
+                    }
+                }
+                if (sdj.contains("links") && sdj["links"].is_array()) {
+                    for (const auto& lj : sdj["links"]) {
+                        SystemLink l;
+                        l.linkId = lj.value("linkId", "");
+                        l.fromNodeId = lj.value("fromNodeId", "");
+                        l.toNodeId = lj.value("toNodeId", "");
+                        l.cableModelId = lj.value("cableModelId", "");
+                        l.length_m = lj.value("length_m", 0.0);
+                        l.loss_dB = lj.value("loss_dB", 0.0);
+                        sd.links.push_back(l);
+                    }
+                }
+                p->systemDiagrams.push_back(sd);
             }
         }
         if (j.contains("globalAuditLog"))

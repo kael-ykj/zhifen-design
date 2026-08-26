@@ -770,6 +770,41 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             dev.position.y = insertPos.y() - oy;
             floor.devices.push_back(dev);
 
+            // 自动连接：检测馈线两端附近的器件并建立连接
+            double connectThreshold = 200 / m_zoom; // 200mm范围内自动连接
+            QPointF seg1Start(cable.routePoints[0].x + ox, cable.routePoints[0].y + oy);
+            QPointF seg2End(seg2.routePoints.back().x + ox, seg2.routePoints.back().y + oy);
+            std::string startDevId, endDevId;
+            for (const auto& d : floor.devices) {
+                if (d.instanceId == dev.instanceId) continue;
+                QPointF dp(d.position.x + ox, d.position.y + oy);
+                if (sqrt(pow(dp.x() - seg1Start.x(), 2) + pow(dp.y() - seg1Start.y(), 2)) < connectThreshold) {
+                    startDevId = d.instanceId;
+                }
+                if (sqrt(pow(dp.x() - seg2End.x(), 2) + pow(dp.y() - seg2End.y(), 2)) < connectThreshold) {
+                    endDevId = d.instanceId;
+                }
+            }
+            // 建立连接：起点器件 → 新器件
+            if (!startDevId.empty()) {
+                for (auto& d : floor.devices) {
+                    if (d.instanceId == startDevId) {
+                        zf::DeviceInstance::Connection conn;
+                        conn.targetInstanceId = dev.instanceId;
+                        conn.cableSegmentId = cable.segmentId;
+                        d.connections.push_back(conn);
+                        break;
+                    }
+                }
+            }
+            // 建立连接：新器件 → 终点器件
+            if (!endDevId.empty()) {
+                zf::DeviceInstance::Connection conn;
+                conn.targetInstanceId = endDevId;
+                conn.cableSegmentId = seg2.segmentId;
+                dev.connections.push_back(conn);
+            }
+
             emit projectChanged(QString("插入%1").arg(m_insertDeviceType == "coupler" ?
                 QString("%1dB耦合器").arg(m_couplerDb) : "二功分器"));
             update();

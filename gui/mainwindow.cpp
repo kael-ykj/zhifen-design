@@ -548,11 +548,13 @@ void MainWindow::onAutoNumber()
         return;
     }
     int total = 0;
-    emit m_canvas->projectAboutToChange();
+    // 建立旧ID到新ID的映射
+    std::map<std::string, std::string> idMap;
     for (size_t fi = 0; fi < m_project.floors.size(); fi++) {
         auto& floor = m_project.floors[fi];
         int antCount = 0, psCount = 0, tCount = 0, cbCount = 0, ldCount = 0, atCount = 0;
         for (auto& dev : floor.devices) {
+            std::string oldId = dev.instanceId;
             std::string model = dev.modelId;
             std::string prefix;
             int* counter = nullptr;
@@ -569,14 +571,26 @@ void MainWindow::onAutoNumber()
             } else if (model.find("ATTENUATOR") != std::string::npos || model.find("AT") != std::string::npos) {
                 prefix = "AT"; counter = &atCount;
             } else {
-                continue; // 信源等不编号
+                continue;
             }
             (*counter)++;
-            dev.instanceId = prefix + std::to_string(*counter) + "-" + std::to_string(fi + 1) + "F";
+            std::string newId = prefix + std::to_string(*counter) + "-" + std::to_string(fi + 1) + "F";
+            idMap[oldId] = newId;
+            dev.instanceId = newId;
             total++;
         }
     }
-    emit m_canvas->projectChanged("自动编号");
+    // 更新所有connections中的targetInstanceId
+    for (auto& floor : m_project.floors) {
+        for (auto& dev : floor.devices) {
+            for (auto& conn : dev.connections) {
+                auto it = idMap.find(conn.targetInstanceId);
+                if (it != idMap.end()) {
+                    conn.targetInstanceId = it->second;
+                }
+            }
+        }
+    }
     m_canvas->clearLinkReport();
     m_canvas->refresh();
     statusBar()->showMessage(QString("自动编号完成，共编号 %1 个器件").arg(total));
@@ -1234,6 +1248,8 @@ void MainWindow::onProjectChanged(const QString& description)
     m_undoStack.pushTransaction(std::move(tx));
     updateUndoButtons();
     m_propertyPanel->refresh();
+    // 工程修改后清除旧的链路预算结果，避免显示过期的功率标注
+    m_canvas->clearLinkReport();
 }
 
 void MainWindow::onUndo()
