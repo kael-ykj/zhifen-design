@@ -8,6 +8,8 @@
 #include "core/zf_types.h"
 #include "device/device_library.h"
 #include "mode_control/mode_control_layer.h"
+#include "undo/undo_redo_stack.h"
+#include "undo/project_snapshot_transaction.h"
 
 class CanvasWidget;
 class DeviceListPanel;
@@ -39,6 +41,8 @@ private slots:
     void onZoomOut();
     void onZoomFit();
     void onDeleteSelected();
+    void onUndo();
+    void onRedo();
     void onAbout();
     void onDeviceSelected(const QString& deviceId);
     void onStatusMessage(const QString& msg);
@@ -57,10 +61,15 @@ private:
     void initProject();
     void updateModeIndicator();
     void refreshFloorCombo();
+    void updateUndoButtons();
+    void onProjectAboutToChange();
+    void onProjectChanged(const QString& description);
 
     zf::Project m_project;
     zf::DeviceLibrary m_devLib;
     zf::ModeControlLayer m_modeLayer;
+    zf::UndoRedoDoubleStack m_undoStack;
+    zf::Project m_undoSnapshot;
 
     CanvasWidget* m_canvas{nullptr};
     DeviceListPanel* m_devicePanel{nullptr};

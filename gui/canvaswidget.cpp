@@ -78,6 +78,7 @@ void CanvasWidget::clearHeatmap()
 void CanvasWidget::deleteSelectedDevice()
 {
     if (m_selectedDeviceId.isEmpty() || !m_project || m_project->floors.empty()) return;
+    emit projectAboutToChange();
     QString deletedId = m_selectedDeviceId;
     auto& floor = m_project->floors[m_currentFloorIndex];
     floor.devices.erase(std::remove_if(floor.devices.begin(), floor.devices.end(),
@@ -90,6 +91,7 @@ void CanvasWidget::deleteSelectedDevice()
     }
     m_selectedDeviceId.clear();
     emit deviceDeleted(deletedId);
+    emit projectChanged("删除器件");
     update();
 }
 
@@ -372,6 +374,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
         m_selectedDeviceId = devId;
         if (!devId.isEmpty()) {
             emit deviceSelected(devId);
+            emit projectAboutToChange();
             m_dragging = true;
         }
         update();
@@ -382,6 +385,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             return;
         }
         zf::DeviceInstance dev;
+        emit projectAboutToChange();
         dev.instanceId = "DEV_" + std::to_string(m_project->floors[m_currentFloorIndex].devices.size() + 1);
         dev.modelId = m_placeModelId.toStdString();
         dev.position = {worldPos.x(), worldPos.y()};
@@ -389,6 +393,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
         emit statusMessage("已放置: " + m_placeModelId + " at (" +
             QString::number(worldPos.x(), 'f', 0) + ", " +
             QString::number(worldPos.y(), 'f', 0) + ")");
+        emit projectChanged("放置器件");
         update();
     }
     else if (m_currentTool == "wall" && event->button() == Qt::LeftButton) {
@@ -402,12 +407,14 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
         } else {
             // 完成一段墙体
             zf::Wall wall;
+            emit projectAboutToChange();
             wall.wallId = "WALL_" + std::to_string(m_project->floors[m_currentFloorIndex].walls.size() + 1);
             wall.points.push_back({m_wallStartPoint.x(), m_wallStartPoint.y()});
             wall.points.push_back({worldPos.x(), worldPos.y()});
             wall.attenuation_dB = 10.0; // 默认墙体损耗
             wall.thickness_mm = 240.0;
             m_project->floors[m_currentFloorIndex].walls.push_back(wall);
+            emit projectChanged("绘制墙体");
             double len = std::sqrt(std::pow(worldPos.x() - m_wallStartPoint.x(), 2) +
                                     std::pow(worldPos.y() - m_wallStartPoint.y(), 2));
             emit statusMessage(QString("已添加墙体段 (长度: %1m)，继续点击添加下一段，右键结束").arg(len, 0, 'f', 1));
@@ -457,10 +464,12 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
                     }
                     if (!exists) {
                         zf::DeviceInstance::Connection conn;
+                        emit projectAboutToChange();
                         conn.targetInstanceId = devId.toStdString();
                         conn.fromPortId = "out";
                         conn.toPortId = "in";
                         dev.connections.push_back(conn);
+                        emit projectChanged("线缆连接");
                     }
                     break;
                 }
@@ -520,6 +529,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         if (m_dragging && !m_selectedDeviceId.isEmpty()) {
             emit statusMessage("已移动器件: " + m_selectedDeviceId);
+            emit projectChanged("移动器件");
         }
         m_dragging = false;
     }

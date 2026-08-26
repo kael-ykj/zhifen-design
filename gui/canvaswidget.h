@@ -31,6 +31,8 @@ signals:
     void deviceSelected(const QString& deviceId);
     void statusMessage(const QString& message);
     void deviceDeleted(const QString& deviceId);
+    void projectAboutToChange();
+    void projectChanged(const QString& description);
 
 protected:
     void paintEvent(QPaintEvent *event) override;

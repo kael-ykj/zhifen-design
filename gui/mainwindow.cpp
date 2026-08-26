@@ -43,10 +43,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_canvas, &CanvasWidget::deviceSelected, this, &MainWindow::onDeviceSelected);
     connect(m_canvas, &CanvasWidget::statusMessage, this, &MainWindow::onStatusMessage);
     connect(m_canvas, &CanvasWidget::deviceDeleted, this, &MainWindow::onDeviceDeleted);
+    connect(m_canvas, &CanvasWidget::projectAboutToChange, this, &MainWindow::onProjectAboutToChange);
+    connect(m_canvas, &CanvasWidget::projectChanged, this, &MainWindow::onProjectChanged);
+    updateUndoButtons();
 }
-
-MainWindow::~MainWindow() {}
-
 void MainWindow::initProject()
 {
     m_project.projectId = "GUI_PROJECT";
@@ -82,12 +82,12 @@ void MainWindow::createActions()
     m_actUndo = new QAction("撤销", this);
     m_actUndo->setShortcut(QKeySequence::Undo);
     m_actUndo->setEnabled(false);
-    connect(m_actUndo, &QAction::triggered, this, [this](){ statusBar()->showMessage("撤销功能开发中"); });
+    connect(m_actUndo, &QAction::triggered, this, &MainWindow::onUndo);
 
     m_actRedo = new QAction("重做", this);
     m_actRedo->setShortcut(QKeySequence::Redo);
     m_actRedo->setEnabled(false);
-    connect(m_actRedo, &QAction::triggered, this, [this](){ statusBar()->showMessage("重做功能开发中"); });
+    connect(m_actRedo, &QAction::triggered, this, &MainWindow::onRedo);
 
     m_actDelete = new QAction("删除选中", this);
     m_actDelete->setShortcut(QKeySequence::Delete);
@@ -872,4 +872,46 @@ void MainWindow::onBatchExportDxf()
     }
     QMessageBox::information(this, "批量出图", msg);
     statusBar()->showMessage(QString("批量出图完成: 成功%1层, 失败%2层").arg(success).arg(failed));
+}
+
+void MainWindow::onProjectAboutToChange()
+{
+    m_undoSnapshot = m_project;
+}
+
+void MainWindow::onProjectChanged(const QString& description)
+{
+    auto tx = std::make_unique<zf::ProjectSnapshotTransaction>(
+        &m_project, m_undoSnapshot, m_project, description.toStdString());
+    m_undoStack.pushTransaction(std::move(tx));
+    updateUndoButtons();
+    m_propertyPanel->refresh();
+}
+
+void MainWindow::onUndo()
+{
+    if (m_undoStack.canUndo()) {
+        m_undoStack.undo();
+        m_canvas->refresh();
+        m_propertyPanel->clear();
+        updateUndoButtons();
+        statusBar()->showMessage("已撤销");
+    }
+}
+
+void MainWindow::onRedo()
+{
+    if (m_undoStack.canRedo()) {
+        m_undoStack.redo();
+        m_canvas->refresh();
+        m_propertyPanel->clear();
+        updateUndoButtons();
+        statusBar()->showMessage("已重做");
+    }
+}
+
+void MainWindow::updateUndoButtons()
+{
+    if (m_actUndo) m_actUndo->setEnabled(m_undoStack.canUndo());
+    if (m_actRedo) m_actRedo->setEnabled(m_undoStack.canRedo());
 }
