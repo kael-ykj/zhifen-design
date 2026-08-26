@@ -18,9 +18,9 @@ target_include_directories(ZhiFenDesign_Console PRIVATE
 )
 
 # ===== Qt GUI版 =====
-find_package(Qt6 QUIET COMPONENTS Widgets)
+find_package(Qt6 QUIET COMPONENTS Widgets PrintSupport)
 if(NOT Qt6_FOUND)
-    find_package(Qt5 QUIET COMPONENTS Widgets)
+    find_package(Qt5 QUIET COMPONENTS Widgets PrintSupport)
 endif()
 
 set(QT_FOUND FALSE)
@@ -57,9 +57,9 @@ if(QT_FOUND)
         ${CMAKE_SOURCE_DIR}/gui
     )
     if(QT_VERSION_MAJOR EQUAL 6)
-        target_link_libraries(ZhiFenDesign PRIVATE Qt6::Widgets)
+        target_link_libraries(ZhiFenDesign PRIVATE Qt6::Widgets Qt6::PrintSupport)
     else()
-        target_link_libraries(ZhiFenDesign PRIVATE Qt5::Widgets)
+        target_link_libraries(ZhiFenDesign PRIVATE Qt5::Widgets Qt5::PrintSupport)
     endif()
     set_target_properties(ZhiFenDesign PROPERTIES
         WIN32_EXECUTABLE TRUE
