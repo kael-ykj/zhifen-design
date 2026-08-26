@@ -133,6 +133,7 @@ private:
     QAction* m_actToolPlace{nullptr};
     QAction* m_actToolWall{nullptr};
     QAction* m_actToolCable{nullptr};
+    QAction* m_actToolFeeder{nullptr};
 
     // 楼层管理
     QComboBox* m_floorCombo{nullptr};

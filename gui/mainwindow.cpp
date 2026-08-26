@@ -230,9 +230,14 @@ void MainWindow::createActions()
     m_actToolWall->setCheckable(true);
     connect(m_actToolWall, &QAction::triggered, this, &MainWindow::onToolSelect);
 
-    m_actToolCable = new QAction("绘制线缆", this);
+    m_actToolCable = new QAction("连接器件", this);
     m_actToolCable->setCheckable(true);
     connect(m_actToolCable, &QAction::triggered, this, &MainWindow::onToolSelect);
+
+    m_actToolFeeder = new QAction("画馈线", this);
+    m_actToolFeeder->setCheckable(true);
+    m_actToolFeeder->setShortcut(QKeySequence("F"));
+    connect(m_actToolFeeder, &QAction::triggered, this, &MainWindow::onToolSelect);
 }
 
 void MainWindow::createMenus()
@@ -320,6 +325,7 @@ void MainWindow::createToolBars()
     toolBar->addAction(m_actToolPlace);
     toolBar->addAction(m_actToolWall);
     toolBar->addAction(m_actToolCable);
+    toolBar->addAction(m_actToolFeeder);
     toolBar->addSeparator();
     toolBar->addAction(m_actMode);
 
@@ -475,7 +481,10 @@ void MainWindow::onToolSelect()
         statusBar()->showMessage("当前工具: 绘制墙体 (点击起点→点击终点，右键结束)");
     } else if (m_actToolCable->isChecked()) {
         m_canvas->setCurrentTool("cable");
-        statusBar()->showMessage("当前工具: 线缆连接 (点击起点器件→点击目标器件，右键结束)");
+        statusBar()->showMessage("当前工具: 连接器件 (点击起点器件→点击目标器件)");
+    } else if (m_actToolFeeder->isChecked()) {
+        m_canvas->setCurrentTool("feeder");
+        statusBar()->showMessage("当前工具: 画馈线 (点击起点→点击终点，F8正交，ESC取消)");
     }
 }
 

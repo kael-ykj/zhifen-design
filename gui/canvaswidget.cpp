@@ -39,7 +39,7 @@ void CanvasWidget::setCurrentTool(const QString& tool)
     m_currentTool = tool;
     if (tool == "select") {
         setCursor(Qt::ArrowCursor);
-    } else if (tool == "place" || tool == "wall" || tool == "cable") {
+    } else if (tool == "place" || tool == "wall" || tool == "cable" || tool == "feeder") {
         setCursor(Qt::CrossCursor);
     } else if (tool == "pan") {
         setCursor(Qt::OpenHandCursor);
@@ -265,6 +265,26 @@ void CanvasWidget::paintEvent(QPaintEvent*)
             painter.setBrush(QColor(0, 160, 0));
             painter.drawEllipse(startPos, 5, 5);
         }
+    }
+
+    // 馈线绘制预览
+    if (m_drawingFeeder) {
+        QPen feederPen(QColor(0, 180, 180));
+        feederPen.setWidth(3);
+        feederPen.setStyle(Qt::DashLine);
+        painter.setPen(feederPen);
+        painter.setBrush(Qt::NoBrush);
+        QPointF start = worldToScreen(m_feederStartPoint);
+        QPointF end = worldToScreen(m_feederPreviewPoint);
+        painter.drawLine(start, end);
+        double len_m = sqrt(pow(m_feederPreviewPoint.x() - m_feederStartPoint.x(), 2) +
+                           pow(m_feederPreviewPoint.y() - m_feederStartPoint.y(), 2)) / 1000.0;
+        QPointF mid = (start + end) / 2;
+        painter.setPen(QColor(0, 100, 100));
+        painter.setFont(QFont("Arial", 9));
+        painter.drawText(mid + QPointF(5, -5), QString("%1m (%2)").arg(len_m, 0, 'f', 2).arg(m_feederType));
+        painter.setBrush(QColor(0, 180, 180));
+        painter.drawEllipse(start, 4, 4);
     }
 
     if (m_selectingPrintWindow) {
@@ -614,6 +634,10 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             m_cableStartDeviceId = devId;
             m_cablePreviewPoint = worldPos;
         }
+    } else if (m_currentTool == "feeder") {
+        m_drawingFeeder = true;
+        m_feederStartPoint = snapPoint(worldPos);
+        m_feederPreviewPoint = m_feederStartPoint;
     }
 }
 
@@ -670,6 +694,20 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (m_drawingCable) {
         m_cablePreviewPoint = worldPos;
+        update();
+    }
+
+    if (m_drawingFeeder) {
+        m_feederPreviewPoint = snapPoint(worldPos);
+        if (m_orthoEnabled) {
+            double dx = m_feederPreviewPoint.x() - m_feederStartPoint.x();
+            double dy = m_feederPreviewPoint.y() - m_feederStartPoint.y();
+            if (fabs(dx) > fabs(dy)) {
+                m_feederPreviewPoint.setY(m_feederStartPoint.y());
+            } else {
+                m_feederPreviewPoint.setX(m_feederStartPoint.x());
+            }
+        }
         update();
     }
 }
@@ -736,6 +774,33 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
         m_cableStartDeviceId.clear();
         update();
     }
+
+    if (m_drawingFeeder) {
+        m_drawingFeeder = false;
+        if (m_project && !m_project->floors.empty()) {
+            double dx = m_feederPreviewPoint.x() - m_feederStartPoint.x();
+            double dy = m_feederPreviewPoint.y() - m_feederStartPoint.y();
+            double len = sqrt(dx*dx + dy*dy);
+            if (len > 100) { // 至少100mm
+                int floorIdx = findFloorAt(m_feederStartPoint);
+                if (floorIdx < 0) floorIdx = m_activeFloorIndex;
+                double ox = m_project->floors[floorIdx].origin.x;
+                double oy = m_project->floors[floorIdx].origin.y;
+
+                emit projectAboutToChange();
+                zf::CableSegment seg;
+                seg.segmentId = "CABLE_" + std::to_string(m_project->floors[floorIdx].cables.size() + 1);
+                seg.modelId = m_feederType.toStdString();
+                seg.floorId = m_project->floors[floorIdx].floorId;
+                seg.length_m = len / 1000.0;
+                seg.routePoints.push_back({m_feederStartPoint.x() - ox, m_feederStartPoint.y() - oy});
+                seg.routePoints.push_back({m_feederPreviewPoint.x() - ox, m_feederPreviewPoint.y() - oy});
+                m_project->floors[floorIdx].cables.push_back(seg);
+                emit projectChanged(QString("绘制馈线 %1m").arg(seg.length_m, 0, 'f', 2));
+            }
+        }
+        update();
+    }
 }
 
 void CanvasWidget::mouseDoubleClickEvent(QMouseEvent *event)
@@ -784,6 +849,7 @@ void CanvasWidget::keyPressEvent(QKeyEvent *event)
     } else if (event->key() == Qt::Key_Escape) {
         m_drawingWall = false;
         m_drawingCable = false;
+        m_drawingFeeder = false;
         m_selectingPrintWindow = false;
         m_selectedDeviceId.clear();
         emit deviceSelected("");

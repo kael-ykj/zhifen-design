@@ -22,6 +22,8 @@ public:
     void setModeManager(zf::ModeManager* mgr);
     void setCurrentTool(const QString& tool);
     void setPlaceModel(const QString& modelId);
+    void setFeederType(const QString& type) { m_feederType = type; }
+    QString feederType() const { return m_feederType; }
     void setActiveFloorIndex(int index);
     int activeFloorIndex() const { return m_activeFloorIndex; }
     void setHeatmap(const zf::HeatmapData& heatmap);
@@ -112,6 +114,11 @@ private:
     bool m_drawingCable{false};
     QString m_cableStartDeviceId;
     QPointF m_cablePreviewPoint;
+    // 馈线绘制
+    bool m_drawingFeeder{false};
+    QPointF m_feederStartPoint;
+    QPointF m_feederPreviewPoint;
+    QString m_feederType{"1/2\""};
 
     // CAD状态栏
     bool m_snapEnabled{true};
