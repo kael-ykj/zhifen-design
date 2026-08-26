@@ -212,6 +212,41 @@ struct Room {
     double area_m2{0.0};
 };
 
+// ========= 图层 =========
+enum class LayerType : int {
+    BACKGROUND = 0,   // 底图
+    WALL = 1,         // 墙体
+    DEVICE = 2,       // 器件
+    CABLE = 3,        // 馈线
+    ANNOTATION = 4,   // 标注
+    SYSTEM_DIAGRAM = 5, // 系统图
+    HEATMAP = 6,      // 热力图
+    AUXILIARY = 7,    // 辅助（网格/楼层分界）
+    CUSTOM = 8        // 自定义
+};
+
+struct Layer {
+    std::string layerId;
+    std::string name;
+    LayerType type{LayerType::CUSTOM};
+    int color{0xFFFFFF};  // RGB
+    bool visible{true};
+    bool locked{false};
+    bool frozen{false};
+    double lineWidth{0.1}; // mm
+    int order{0};
+};
+
+// ========= 打印窗口 =========
+struct PrintWindow {
+    std::string name;
+    Point2D minPt;
+    Point2D maxPt;
+    std::string paperSize{"A1"};
+    double scale{100.0}; // 1:100
+    bool color{true};
+};
+
 // ========= 楼层 =========
 struct Floor {
     std::string floorId;
@@ -321,6 +356,8 @@ struct Project {
     std::string description;
 
     std::vector<Floor> floors;
+    std::vector<Layer> layers;
+    std::vector<PrintWindow> printWindows;
     std::vector<Band> bands;
     std::vector<DeviceModel> deviceLibrary;
     std::vector<SignalSourceConfig> sources;
@@ -345,6 +382,40 @@ struct Project {
     WorkMode globalWorkMode{WorkMode::SKETCH_MODE};
     CopyDuplicateMode defaultCopyMode{CopyDuplicateMode::LIGHT_COPY};
     std::vector<AuditEntry> globalAuditLog;
+
+    // 初始化默认8个图层
+    void initDefaultLayers() {
+        layers.clear();
+        const char* names[] = {"底图", "墙体", "器件", "馈线", "标注", "系统图", "热力图", "辅助"};
+        int colors[] = {0x808080, 0xFFFFFF, 0x00FF00, 0x00FFFF, 0x00FF00, 0x00FF00, 0xFF0000, 0xFF0000};
+        bool visible[] = {true, true, true, true, true, true, false, false};
+        bool locked[] = {true, false, false, false, false, false, false, false};
+        for (int i = 0; i < 8; i++) {
+            Layer l;
+            l.layerId = "LAYER_" + std::to_string(i);
+            l.name = names[i];
+            l.type = static_cast<LayerType>(i);
+            l.color = colors[i];
+            l.visible = visible[i];
+            l.locked = locked[i];
+            l.order = i;
+            layers.push_back(l);
+        }
+    }
+
+    Layer* findLayer(LayerType type) {
+        for (auto& l : layers) {
+            if (l.type == type) return &l;
+        }
+        return nullptr;
+    }
+
+    bool isLayerVisible(LayerType type) const {
+        for (const auto& l : layers) {
+            if (l.type == type) return l.visible;
+        }
+        return true;
+    }
 };
 
 } // namespace zf

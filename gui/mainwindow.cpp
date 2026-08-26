@@ -41,13 +41,38 @@ MainWindow::MainWindow(QWidget *parent)
     m_canvas->setProject(&m_project);
     setCentralWidget(m_canvas);
 
-    statusBar()->showMessage("就绪 | 当前模式: 草图模式 | 提示: 左键选择/放置, 中键平移, 滚轮缩放, Delete删除");
+    // CAD状态栏
+    m_statusCoord = new QLabel("X: 0.0  Y: 0.0", this);
+    m_statusCoord->setMinimumWidth(180);
+    statusBar()->addPermanentWidget(m_statusCoord);
+
+    m_statusSnap = new QLabel("捕捉:开", this);
+    m_statusSnap->setMinimumWidth(70);
+    m_statusSnap->setStyleSheet("color: green;");
+    statusBar()->addPermanentWidget(m_statusSnap);
+
+    m_statusOrtho = new QLabel("正交:关", this);
+    m_statusOrtho->setMinimumWidth(70);
+    m_statusOrtho->setStyleSheet("color: gray;");
+    statusBar()->addPermanentWidget(m_statusOrtho);
+
+    m_statusScale = new QLabel("1:100", this);
+    m_statusScale->setMinimumWidth(70);
+    statusBar()->addPermanentWidget(m_statusScale);
+
+    m_statusLayer = new QLabel("图层:器件", this);
+    m_statusLayer->setMinimumWidth(100);
+    statusBar()->addPermanentWidget(m_statusLayer);
+
+    statusBar()->showMessage("就绪 | 提示: 左键选择/放置, 中键平移, 滚轮缩放, F3捕捉, F8正交, Delete删除");
 
     connect(m_canvas, &CanvasWidget::deviceSelected, this, &MainWindow::onDeviceSelected);
     connect(m_canvas, &CanvasWidget::statusMessage, this, &MainWindow::onStatusMessage);
     connect(m_canvas, &CanvasWidget::deviceDeleted, this, &MainWindow::onDeviceDeleted);
     connect(m_canvas, &CanvasWidget::projectAboutToChange, this, &MainWindow::onProjectAboutToChange);
     connect(m_canvas, &CanvasWidget::projectChanged, this, &MainWindow::onProjectChanged);
+    connect(m_canvas, &CanvasWidget::cursorPositionChanged, this, &MainWindow::onCursorPositionChanged);
+    connect(m_canvas, &CanvasWidget::activeFloorChanged, this, &MainWindow::onActiveFloorChanged);
     updateUndoButtons();
 }
 
@@ -56,6 +81,7 @@ void MainWindow::initProject()
 {
     m_project.projectId = "GUI_PROJECT";
     m_project.projectName = "未命名工程";
+    m_project.initDefaultLayers();
     m_devLib.loadDefaultLibrary();
     for (const auto& cat : {zf::DeviceCategory::SIGNAL_SOURCE, zf::DeviceCategory::SPLITTER,
                             zf::DeviceCategory::COUPLER, zf::DeviceCategory::ANTENNA,
@@ -66,6 +92,8 @@ void MainWindow::initProject()
     zf::Floor floor;
     floor.floorId = "F1";
     floor.floorName = "1F";
+    floor.origin.x = 0;
+    floor.origin.y = 0;
     m_project.floors.push_back(floor);
     m_modeLayer.init();
 }
@@ -414,7 +442,7 @@ void MainWindow::onToolSelect()
 
 void MainWindow::onRunLinkCalc()
 {
-    if (m_project.floors.empty() || m_project.floors[m_canvas->currentFloorIndex()].devices.empty()) {
+    if (m_project.floors.empty() || m_project.floors[m_canvas->activeFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "链路预算", "请先放置器件");
         return;
     }
@@ -440,14 +468,14 @@ void MainWindow::onRunLinkCalc()
 
 void MainWindow::onRunSimulation()
 {
-    if (m_project.floors.empty() || m_project.floors[m_canvas->currentFloorIndex()].devices.empty()) {
+    if (m_project.floors.empty() || m_project.floors[m_canvas->activeFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "覆盖仿真", "请先放置器件");
         return;
     }
     // 找到第一个天线作为发射点
     zf::Point2D txPos{0, 0};
     bool found = false;
-    for (const auto& dev : m_project.floors[m_canvas->currentFloorIndex()].devices) {
+    for (const auto& dev : m_project.floors[m_canvas->activeFloorIndex()].devices) {
         auto it = std::find_if(m_project.deviceLibrary.begin(), m_project.deviceLibrary.end(),
             [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
         if (it != m_project.deviceLibrary.end() && it->category == zf::DeviceCategory::ANTENNA) {
@@ -458,7 +486,7 @@ void MainWindow::onRunSimulation()
     }
     if (!found) {
         // 用第一个器件
-        txPos = m_project.floors[m_canvas->currentFloorIndex()].devices[0].position;
+        txPos = m_project.floors[m_canvas->activeFloorIndex()].devices[0].position;
     }
 
     zf::PropagationEngine engine;
@@ -469,7 +497,7 @@ void MainWindow::onRunSimulation()
     engine.setConfig(cfg);
 
     zf::HeatmapData heatmap;
-    int result = engine.generateHeatmap(&m_project.floors[m_canvas->currentFloorIndex()], txPos, heatmap);
+    int result = engine.generateHeatmap(&m_project.floors[m_canvas->activeFloorIndex()], txPos, heatmap);
     if (result == zf::ZF_ERR_OK) {
         m_canvas->setHeatmap(heatmap);
         m_heatmapVisible = true;
@@ -504,14 +532,14 @@ void MainWindow::onToggleHeatmap()
 
 void MainWindow::onShowSystemDiagram()
 {
-    if (m_project.floors.empty() || m_project.floors[m_canvas->currentFloorIndex()].devices.empty()) {
+    if (m_project.floors.empty() || m_project.floors[m_canvas->activeFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "系统图", "请先放置器件");
         return;
     }
     zf::SystemDiagramEngine engine;
     engine.setModeManager(m_modeLayer.modeManager.get());
     zf::SystemDiagram diagram;
-    int result = engine.generateFromFloor(&m_project.floors[m_canvas->currentFloorIndex()], &m_project, diagram);
+    int result = engine.generateFromFloor(&m_project.floors[m_canvas->activeFloorIndex()], &m_project, diagram);
     if (result == zf::ZF_ERR_OK) {
         SystemDiagramDialog dlg(diagram, this);
         dlg.exec();
@@ -673,7 +701,7 @@ void MainWindow::onExportDxf()
     if (path.isEmpty()) return;
     zf::DrawingExporter exporter;
     exporter.setModeManager(m_modeLayer.modeManager.get());
-    int result = exporter.exportFloorPlanDxf(path.toStdString(), &m_project.floors[m_canvas->currentFloorIndex()]);
+    int result = exporter.exportFloorPlanDxf(path.toStdString(), &m_project.floors[m_canvas->activeFloorIndex()]);
     if (result == zf::ZF_ERR_OK) {
         QMessageBox::information(this, "导出成功", "DXF文件已导出: " + path);
     } else {
@@ -761,7 +789,7 @@ void MainWindow::refreshFloorCombo()
         if (floor.isStandardFloor) label += " [标准层]";
         m_floorCombo->addItem(label);
     }
-    int idx = m_canvas ? m_canvas->currentFloorIndex() : 0;
+    int idx = m_canvas ? m_canvas->activeFloorIndex() : 0;
     if (idx >= 0 && idx < m_floorCombo->count()) {
         m_floorCombo->setCurrentIndex(idx);
     }
@@ -775,14 +803,32 @@ void MainWindow::refreshFloorCombo()
 void MainWindow::onFloorChanged(int index)
 {
     if (m_canvas && index >= 0) {
-        m_canvas->setCurrentFloorIndex(index);
+        m_canvas->goToFloor(index);
         m_propertyPanel->clear();
         const auto& floor = m_project.floors[index];
-        statusBar()->showMessage(QString("切换到楼层: %1 - %2 (器件: %3, 墙体: %4)")
+        statusBar()->showMessage(QString("定位到楼层: %1 - %2 (器件: %3, 墙体: %4)")
             .arg(QString::fromStdString(floor.floorId))
             .arg(QString::fromStdString(floor.floorName))
             .arg(floor.devices.size())
             .arg(floor.walls.size()));
+    }
+}
+
+void MainWindow::onCursorPositionChanged(const QPointF& worldPos)
+{
+    if (m_statusCoord) {
+        m_statusCoord->setText(QString("X: %1  Y: %2")
+            .arg(worldPos.x(), 0, 'f', 1)
+            .arg(worldPos.y(), 0, 'f', 1));
+    }
+}
+
+void MainWindow::onActiveFloorChanged(int floorIndex)
+{
+    if (m_floorCombo && floorIndex >= 0 && floorIndex < m_floorCombo->count()) {
+        m_floorCombo->blockSignals(true);
+        m_floorCombo->setCurrentIndex(floorIndex);
+        m_floorCombo->blockSignals(false);
     }
 }
 
@@ -798,10 +844,13 @@ void MainWindow::onAddFloor()
     newFloor.floorName = floorName.toStdString();
     newFloor.floorIndex = (int)m_project.floors.size();
     newFloor.height_m = 3.0;
+    // 横向排列：每个楼层宽30000mm，间距5000mm
+    newFloor.origin.x = m_project.floors.size() * 35000.0;
+    newFloor.origin.y = 0;
     m_project.floors.push_back(newFloor);
 
     refreshFloorCombo();
-    m_floorCombo->setCurrentIndex((int)m_project.floors.size() - 1);
+    m_canvas->goToFloor((int)m_project.floors.size() - 1);
     statusBar()->showMessage("已新增楼层: " + floorName);
 }
 

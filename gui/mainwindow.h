@@ -7,6 +7,8 @@
 #include <QStatusBar>
 #include <QDockWidget>
 #include <QComboBox>
+#include <QLabel>
+#include <QPushButton>
 #include "core/zf_types.h"
 #include "device/device_library.h"
 #include "mode_control/mode_control_layer.h"
@@ -57,6 +59,8 @@ private slots:
     void onPropertyChanged();
     void onDeviceDeleted(const QString& deviceId);
     void onFloorChanged(int index);
+    void onCursorPositionChanged(const QPointF& worldPos);
+    void onActiveFloorChanged(int floorIndex);
     void onAddFloor();
     void onDeleteFloor();
     void onCloneFloor();
@@ -127,4 +131,11 @@ private:
     QAction* m_actCloneFloor{nullptr};
 
     bool m_heatmapVisible{false};
+
+    // CAD状态栏组件
+    QLabel* m_statusCoord{nullptr};
+    QLabel* m_statusSnap{nullptr};
+    QLabel* m_statusOrtho{nullptr};
+    QLabel* m_statusScale{nullptr};
+    QLabel* m_statusLayer{nullptr};
 };

@@ -1,8 +1,11 @@
 #include "canvaswidget.h"
 #include <QPaintEvent>
-#include <QKeyEvent>
-#include <algorithm>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QWheelEvent>
 #include <cmath>
+#include <algorithm>
+#include <QFontMetrics>
 
 CanvasWidget::CanvasWidget(QWidget *parent)
     : QWidget(parent)
@@ -17,6 +20,11 @@ CanvasWidget::~CanvasWidget() {}
 void CanvasWidget::setProject(zf::Project* project)
 {
     m_project = project;
+    m_selectedDeviceId.clear();
+    m_activeFloorIndex = 0;
+    if (m_project && m_project->layers.empty()) {
+        m_project->initDefaultLayers();
+    }
     update();
 }
 
@@ -28,40 +36,31 @@ void CanvasWidget::setModeManager(zf::ModeManager* mgr)
 
 void CanvasWidget::setCurrentTool(const QString& tool)
 {
-    if (m_currentTool != tool) {
-        m_drawingWall = false;
-        m_drawingCable = false;
-        m_cableStartDeviceId.clear();
-    }
     m_currentTool = tool;
-    if (tool == "select") setCursor(Qt::ArrowCursor);
-    else if (tool == "place") setCursor(Qt::CrossCursor);
-    else if (tool == "wall") setCursor(Qt::CrossCursor);
-    else if (tool == "cable") setCursor(Qt::CrossCursor);
-    else setCursor(Qt::ArrowCursor);
+    if (tool == "select") {
+        setCursor(Qt::ArrowCursor);
+    } else if (tool == "place" || tool == "wall" || tool == "cable") {
+        setCursor(Qt::CrossCursor);
+    } else if (tool == "pan") {
+        setCursor(Qt::OpenHandCursor);
+    }
+    update();
 }
 
 void CanvasWidget::setPlaceModel(const QString& modelId)
 {
     m_placeModelId = modelId;
-    if (!modelId.isEmpty()) {
-        setCurrentTool("place");
-        emit statusMessage("准备放置: " + modelId);
-    }
 }
 
-
-void CanvasWidget::setCurrentFloorIndex(int index)
+void CanvasWidget::setActiveFloorIndex(int index)
 {
     if (m_project && index >= 0 && index < (int)m_project->floors.size()) {
-        m_currentFloorIndex = index;
-        m_selectedDeviceId.clear();
-        m_drawingWall = false;
-        m_drawingCable = false;
-        m_cableStartDeviceId.clear();
+        m_activeFloorIndex = index;
+        emit activeFloorChanged(index);
         update();
     }
 }
+
 void CanvasWidget::setHeatmap(const zf::HeatmapData& heatmap)
 {
     m_heatmap = heatmap;
@@ -80,14 +79,15 @@ void CanvasWidget::deleteSelectedDevice()
     if (m_selectedDeviceId.isEmpty() || !m_project || m_project->floors.empty()) return;
     emit projectAboutToChange();
     QString deletedId = m_selectedDeviceId;
-    auto& floor = m_project->floors[m_currentFloorIndex];
-    floor.devices.erase(std::remove_if(floor.devices.begin(), floor.devices.end(),
-        [&](const zf::DeviceInstance& d) { return d.instanceId == deletedId.toStdString(); }),
-        floor.devices.end());
-    for (auto& dev : floor.devices) {
-        dev.connections.erase(std::remove_if(dev.connections.begin(), dev.connections.end(),
-            [&](const zf::DeviceInstance::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
-            dev.connections.end());
+    for (auto& floor : m_project->floors) {
+        floor.devices.erase(std::remove_if(floor.devices.begin(), floor.devices.end(),
+            [&](const zf::DeviceInstance& d) { return d.instanceId == deletedId.toStdString(); }),
+            floor.devices.end());
+        for (auto& dev : floor.devices) {
+            dev.connections.erase(std::remove_if(dev.connections.begin(), dev.connections.end(),
+                [&](const zf::DeviceInstance::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
+                dev.connections.end());
+        }
     }
     m_selectedDeviceId.clear();
     emit deviceDeleted(deletedId);
@@ -106,16 +106,97 @@ QPixmap CanvasWidget::exportToImage(int width, int height)
     pixmap.fill(QColor(245, 245, 245));
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    // 计算缩放比例，使内容居中
     double scaleX = (double)width / this->width();
     double scaleY = (double)height / this->height();
     double scale = std::min(scaleX, scaleY);
     painter.translate((width - this->width() * scale) / 2, (height - this->height() * scale) / 2);
     painter.scale(scale, scale);
-    // 渲染画布
     this->render(&painter);
     painter.end();
     return pixmap;
+}
+
+QPointF CanvasWidget::worldToScreen(const QPointF& world) const
+{
+    return QPointF(world.x() * m_zoom + m_panOffset.x(),
+                   height() - (world.y() * m_zoom + m_panOffset.y()));
+}
+
+QPointF CanvasWidget::screenToWorld(const QPointF& screen) const
+{
+    return QPointF((screen.x() - m_panOffset.x()) / m_zoom,
+                   (height() - screen.y() - m_panOffset.y()) / m_zoom);
+}
+
+QPointF CanvasWidget::snapPoint(const QPointF& worldPos) const
+{
+    if (!m_snapEnabled) return worldPos;
+    double grid = 100.0;
+    return QPointF(round(worldPos.x() / grid) * grid,
+                   round(worldPos.y() / grid) * grid);
+}
+
+int CanvasWidget::findFloorAt(const QPointF& worldPos) const
+{
+    if (!m_project) return -1;
+    for (int i = 0; i < (int)m_project->floors.size(); i++) {
+        QRectF bounds = getFloorBounds(i);
+        if (bounds.contains(worldPos)) return i;
+    }
+    return -1;
+}
+
+QRectF CanvasWidget::getFloorBounds(int floorIndex) const
+{
+    if (!m_project || floorIndex < 0 || floorIndex >= (int)m_project->floors.size())
+        return QRectF();
+    const auto& floor = m_project->floors[floorIndex];
+    double ox = floor.origin.x;
+    double oy = floor.origin.y;
+    return QRectF(ox, oy, 30000, 20000);
+}
+
+QRectF CanvasWidget::getAllContentBounds() const
+{
+    if (!m_project || m_project->floors.empty()) return QRectF(0, 0, 30000, 20000);
+    double minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    for (int i = 0; i < (int)m_project->floors.size(); i++) {
+        QRectF b = getFloorBounds(i);
+        minX = std::min(minX, b.left());
+        minY = std::min(minY, b.bottom());
+        maxX = std::max(maxX, b.right());
+        maxY = std::max(maxY, b.top());
+    }
+    double sysX = maxX + 10000;
+    maxX = sysX + 40000;
+    return QRectF(minX, minY, maxX - minX, maxY - minY);
+}
+
+void CanvasWidget::goToFloor(int floorIndex)
+{
+    if (!m_project || floorIndex < 0 || floorIndex >= (int)m_project->floors.size()) return;
+    QRectF bounds = getFloorBounds(floorIndex);
+    double centerX = bounds.center().x();
+    double centerY = bounds.center().y();
+    m_zoom = std::min((double)width() / bounds.width(), (double)height() / bounds.height()) * 0.9;
+    m_panOffset = QPointF(width() / 2 - centerX * m_zoom,
+                          height() / 2 - centerY * m_zoom);
+    m_activeFloorIndex = floorIndex;
+    emit activeFloorChanged(floorIndex);
+    update();
+}
+
+void CanvasWidget::goToSystemDiagram()
+{
+    if (!m_project || m_project->floors.empty()) return;
+    QRectF allBounds = getAllContentBounds();
+    double sysX = allBounds.right() - 40000;
+    double centerX = sysX + 20000;
+    double centerY = allBounds.center().y();
+    m_zoom = std::min((double)width() / 40000.0, (double)height() / allBounds.height()) * 0.9;
+    m_panOffset = QPointF(width() / 2 - centerX * m_zoom,
+                          height() / 2 - centerY * m_zoom);
+    update();
 }
 
 void CanvasWidget::paintEvent(QPaintEvent*)
@@ -126,13 +207,27 @@ void CanvasWidget::paintEvent(QPaintEvent*)
     if (!m_project || m_project->floors.empty()) return;
 
     drawGrid(painter);
-    if (m_hasHeatmap) drawHeatmap(painter);
-    drawWalls(painter);
-    drawCables(painter);
-    drawDevices(painter);
+    drawFloorSeparators(painter);
+
+    for (int i = 0; i < (int)m_project->floors.size(); i++) {
+        const auto& floor = m_project->floors[i];
+        if (m_project->isLayerVisible(zf::LayerType::WALL))
+            drawWallsForFloor(painter, floor);
+        if (m_project->isLayerVisible(zf::LayerType::CABLE))
+            drawCablesForFloor(painter, floor);
+        if (m_project->isLayerVisible(zf::LayerType::DEVICE))
+            drawDevicesForFloor(painter, floor);
+    }
+
+    if (m_hasHeatmap && m_project->isLayerVisible(zf::LayerType::HEATMAP))
+        drawHeatmap(painter);
+
+    if (m_project->isLayerVisible(zf::LayerType::SYSTEM_DIAGRAM))
+        drawSystemDiagramArea(painter);
+
+    drawFloorLabels(painter);
     drawSelectedHighlight(painter);
 
-    // 墙体绘制预览
     if (m_drawingWall) {
         QPen previewPen(QColor(255, 100, 0));
         previewPen.setWidth(2);
@@ -146,18 +241,18 @@ void CanvasWidget::paintEvent(QPaintEvent*)
         painter.drawEllipse(start, 4, 4);
     }
 
-    // 线缆连接预览
     if (m_drawingCable && !m_cableStartDeviceId.isEmpty()) {
-        // 找到起点器件位置
         QPointF startPos;
         bool found = false;
-        const auto& floor = m_project->floors[m_currentFloorIndex];
-        for (const auto& dev : floor.devices) {
-            if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
-                startPos = worldToScreen(QPointF(dev.position.x, dev.position.y));
-                found = true;
-                break;
+        for (const auto& floor : m_project->floors) {
+            for (const auto& dev : floor.devices) {
+                if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
+                    startPos = worldToScreen(QPointF(dev.position.x + floor.origin.x, dev.position.y + floor.origin.y));
+                    found = true;
+                    break;
+                }
             }
+            if (found) break;
         }
         if (found) {
             QPen cablePen(QColor(0, 160, 0));
@@ -172,7 +267,10 @@ void CanvasWidget::paintEvent(QPaintEvent*)
         }
     }
 
-    // 模式指示
+    if (m_selectingPrintWindow) {
+        drawPrintWindowPreview(painter);
+    }
+
     if (m_modeMgr && m_modeMgr->getGlobalWorkMode() == zf::WorkMode::SKETCH_MODE) {
         painter.setPen(QColor(200, 100, 0));
         painter.setFont(QFont("Arial", 12, QFont::Bold));
@@ -183,7 +281,6 @@ void CanvasWidget::paintEvent(QPaintEvent*)
         painter.drawText(10, 25, "正式工程模式");
     }
 
-    // 热力图图例
     if (m_hasHeatmap) {
         int legendX = width() - 180;
         int legendY = 30;
@@ -201,13 +298,16 @@ void CanvasWidget::paintEvent(QPaintEvent*)
 
     painter.setPen(Qt::gray);
     painter.setFont(QFont("Arial", 9));
-    painter.drawText(10, height() - 10, QString("缩放: %1%").arg(m_zoom * 100, 0, 'f', 0));
+    painter.drawText(10, height() - 10, QString("缩放: %1%  楼层: %2")
+        .arg(m_zoom * 100, 0, 'f', 0)
+        .arg(m_activeFloorIndex + 1));
 }
 
 void CanvasWidget::drawGrid(QPainter& painter)
 {
+    if (!m_project || !m_project->isLayerVisible(zf::LayerType::AUXILIARY)) return;
     painter.setPen(QColor(220, 220, 220));
-    double gridSize = 50.0 * m_zoom;
+    double gridSize = 500.0 * m_zoom;
     if (gridSize < 5) gridSize = 5;
     QPointF origin = worldToScreen(QPointF(0, 0));
     double startX = fmod(origin.x(), gridSize);
@@ -216,14 +316,78 @@ void CanvasWidget::drawGrid(QPainter& painter)
         painter.drawLine(QPointF(x, 0), QPointF(x, height()));
     for (double y = startY; y < height(); y += gridSize)
         painter.drawLine(QPointF(0, y), QPointF(width(), y));
-    painter.setPen(QColor(180, 180, 180));
-    painter.drawLine(origin, QPointF(width(), origin.y()));
-    painter.drawLine(origin, QPointF(origin.x(), height()));
+}
+
+void CanvasWidget::drawFloorSeparators(QPainter& painter)
+{
+    if (!m_project || !m_project->isLayerVisible(zf::LayerType::AUXILIARY)) return;
+    QPen sepPen(QColor(200, 100, 100));
+    sepPen.setStyle(Qt::DashLine);
+    sepPen.setWidth(1);
+    painter.setPen(sepPen);
+    for (int i = 0; i < (int)m_project->floors.size(); i++) {
+        QRectF bounds = getFloorBounds(i);
+        QPointF tl = worldToScreen(QPointF(bounds.left(), bounds.top()));
+        QPointF br = worldToScreen(QPointF(bounds.right(), bounds.bottom()));
+        painter.drawRect(QRectF(tl, br));
+    }
+    if (!m_project->floors.empty()) {
+        QRectF allBounds = getAllContentBounds();
+        double sysX = allBounds.right() - 40000;
+        QPointF tl = worldToScreen(QPointF(sysX, allBounds.top()));
+        QPointF br = worldToScreen(QPointF(allBounds.right(), allBounds.bottom()));
+        painter.setPen(QPen(QColor(100, 100, 200), 1, Qt::DashLine));
+        painter.drawRect(QRectF(tl, br));
+    }
+}
+
+void CanvasWidget::drawFloorLabels(QPainter& painter)
+{
+    if (!m_project || !m_project->isLayerVisible(zf::LayerType::ANNOTATION)) return;
+    QFont labelFont("Arial", 14, QFont::Bold);
+    painter.setFont(labelFont);
+    for (int i = 0; i < (int)m_project->floors.size(); i++) {
+        const auto& floor = m_project->floors[i];
+        QRectF bounds = getFloorBounds(i);
+        QPointF labelPos = worldToScreen(QPointF(bounds.left() + 500, bounds.top() - 500));
+        painter.setPen(i == m_activeFloorIndex ? QColor(200, 50, 50) : QColor(80, 80, 80));
+        QString label = QString::fromStdString(floor.floorName.empty() ?
+            ("楼层 " + std::to_string(i + 1)) : floor.floorName);
+        painter.drawText(labelPos, label + " (双击定位)");
+    }
+    if (!m_project->floors.empty()) {
+        QRectF allBounds = getAllContentBounds();
+        double sysX = allBounds.right() - 40000;
+        QPointF labelPos = worldToScreen(QPointF(sysX + 500, allBounds.top() - 500));
+        painter.setPen(QColor(50, 50, 200));
+        painter.drawText(labelPos, "系统图 (双击定位)");
+    }
+}
+
+void CanvasWidget::drawSystemDiagramArea(QPainter& painter)
+{
+    if (!m_project || m_project->systemDiagrams.empty()) return;
+    QRectF allBounds = getAllContentBounds();
+    double sysX = allBounds.right() - 40000;
+    double sysY = allBounds.bottom() + 1000;
+
+    painter.setPen(QColor(80, 80, 180));
+    painter.setFont(QFont("Arial", 11));
+    QPointF pos = worldToScreen(QPointF(sysX + 1000, sysY + 1000));
+    painter.drawText(pos, QString("系统图区域 (%1 个)").arg(m_project->systemDiagrams.size()));
+
+    for (size_t di = 0; di < m_project->systemDiagrams.size(); di++) {
+        double yOffset = di * 3000;
+        QPointF srcScreen = worldToScreen(QPointF(sysX + 2000, sysY + 2000 + yOffset));
+        painter.setBrush(QColor(255, 200, 100));
+        painter.setPen(QColor(0, 0, 0));
+        painter.drawRect(QRectF(srcScreen.x() - 20, srcScreen.y() - 15, 40, 30));
+        painter.drawText(srcScreen + QPointF(-15, 5), "信源");
+    }
 }
 
 QColor CanvasWidget::rsrpToColor(double rsrp) const
 {
-    // -140 (红) -> -100 (黄) -> -60 (绿)
     double t;
     if (rsrp <= -140) return QColor(180, 30, 30, 120);
     if (rsrp >= -60) return QColor(30, 180, 30, 120);
@@ -239,38 +403,37 @@ QColor CanvasWidget::rsrpToColor(double rsrp) const
 void CanvasWidget::drawHeatmap(QPainter& painter)
 {
     if (m_heatmap.points.empty()) return;
-    double cellSize = m_heatmap.gridResolution_m * m_zoom;
+    double cellSize = m_heatmap.gridResolution_m * 1000 * m_zoom;
     if (cellSize < 2) cellSize = 2;
     for (const auto& pt : m_heatmap.points) {
-        QPointF screen = worldToScreen(QPointF(pt.position.x, pt.position.y));
+        QPointF screen = worldToScreen(QPointF(pt.position.x * 1000, pt.position.y * 1000));
         painter.fillRect(QRectF(screen.x() - cellSize/2, screen.y() - cellSize/2,
                                  cellSize, cellSize), rsrpToColor(pt.rsrp_dBm));
     }
 }
 
-void CanvasWidget::drawWalls(QPainter& painter)
+void CanvasWidget::drawWallsForFloor(QPainter& painter, const zf::Floor& floor)
 {
-    if (!m_project) return;
-    const auto& floor = m_project->floors[m_currentFloorIndex];
+    double ox = floor.origin.x;
+    double oy = floor.origin.y;
     QPen wallPen(QColor(80, 80, 80));
     wallPen.setWidth(3);
     painter.setPen(wallPen);
     for (const auto& wall : floor.walls) {
         for (size_t i = 0; i + 1 < wall.points.size(); i++) {
-            QPointF p1 = worldToScreen(QPointF(wall.points[i].x, wall.points[i].y));
-            QPointF p2 = worldToScreen(QPointF(wall.points[i+1].x, wall.points[i+1].y));
+            QPointF p1 = worldToScreen(QPointF(wall.points[i].x + ox, wall.points[i].y + oy));
+            QPointF p2 = worldToScreen(QPointF(wall.points[i+1].x + ox, wall.points[i+1].y + oy));
             painter.drawLine(p1, p2);
         }
     }
 }
 
-void CanvasWidget::drawCables(QPainter& painter)
+void CanvasWidget::drawCablesForFloor(QPainter& painter, const zf::Floor& floor)
 {
-    if (!m_project) return;
-    const auto& floor = m_project->floors[m_currentFloorIndex];
+    double ox = floor.origin.x;
+    double oy = floor.origin.y;
     QPen cablePen(QColor(0, 150, 0));
     cablePen.setWidth(2);
-    cablePen.setStyle(Qt::DashLine);
     painter.setPen(cablePen);
     for (const auto& dev : floor.devices) {
         for (const auto& conn : dev.connections) {
@@ -279,52 +442,79 @@ void CanvasWidget::drawCables(QPainter& painter)
                 if (d.instanceId == conn.targetInstanceId) { target = &d; break; }
             }
             if (target) {
-                QPointF p1 = worldToScreen(QPointF(dev.position.x, dev.position.y));
-                QPointF p2 = worldToScreen(QPointF(target->position.x, target->position.y));
+                QPointF p1 = worldToScreen(QPointF(dev.position.x + ox, dev.position.y + oy));
+                QPointF p2 = worldToScreen(QPointF(target->position.x + ox, target->position.y + oy));
                 painter.drawLine(p1, p2);
             }
         }
     }
+    QPen feederPen(QColor(0, 150, 150));
+    feederPen.setWidth(2);
+    painter.setPen(feederPen);
+    for (const auto& cable : floor.cables) {
+        QPointF p1 = worldToScreen(QPointF(cable.startPoint.x + ox, cable.startPoint.y + oy));
+        QPointF p2 = worldToScreen(QPointF(cable.endPoint.x + ox, cable.endPoint.y + oy));
+        painter.drawLine(p1, p2);
+        if (m_project->isLayerVisible(zf::LayerType::ANNOTATION) && cable.length_m > 0) {
+            QPointF mid = (p1 + p2) / 2;
+            painter.setPen(QColor(0, 100, 100));
+            painter.setFont(QFont("Arial", 8));
+            painter.drawText(mid + QPointF(2, -2), QString("%1m").arg(cable.length_m, 0, 'f', 1));
+            painter.setPen(feederPen);
+        }
+    }
 }
 
-void CanvasWidget::drawDevices(QPainter& painter)
+void CanvasWidget::drawDevicesForFloor(QPainter& painter, const zf::Floor& floor)
 {
-    if (!m_project) return;
-    const auto& floor = m_project->floors[m_currentFloorIndex];
+    double ox = floor.origin.x;
+    double oy = floor.origin.y;
     for (const auto& dev : floor.devices) {
-        QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
-        double r = 12 * m_zoom;
-        if (r < 4) r = 4;
-        QColor color;
-        QString label;
-        auto it = std::find_if(m_project->deviceLibrary.begin(), m_project->deviceLibrary.end(),
-            [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
-        if (it != m_project->deviceLibrary.end()) {
-            switch (it->category) {
-                case zf::DeviceCategory::SIGNAL_SOURCE: color = QColor(200, 50, 50); label = "信源"; break;
-                case zf::DeviceCategory::ANTENNA: color = QColor(50, 100, 200); label = "天线"; break;
-                case zf::DeviceCategory::SPLITTER: color = QColor(200, 150, 50); label = "功分"; break;
-                case zf::DeviceCategory::COUPLER: color = QColor(150, 50, 200); label = "耦合"; break;
-                case zf::DeviceCategory::COMBINER: color = QColor(50, 180, 180); label = "合路"; break;
-                default: color = QColor(100, 100, 100); label = "器件"; break;
-            }
+        QPointF pos = worldToScreen(QPointF(dev.position.x + ox, dev.position.y + oy));
+        QString modelId = QString::fromStdString(dev.modelId);
+        QColor color = QColor(0, 180, 0);
+        double size = 12;
+
+        if (modelId.contains("ANT", Qt::CaseInsensitive) || modelId.contains("antenna", Qt::CaseInsensitive)) {
+            color = QColor(0, 100, 255);
+            painter.setBrush(color);
+            painter.setPen(QPen(Qt::black, 1));
+            painter.drawEllipse(pos, size, size);
+            painter.drawLine(pos - QPointF(size, 0), pos + QPointF(size, 0));
+            painter.drawLine(pos - QPointF(0, size), pos + QPointF(0, size));
+        } else if (modelId.contains("PS", Qt::CaseInsensitive) || modelId.contains("power", Qt::CaseInsensitive)) {
+            color = QColor(255, 150, 0);
+            painter.setBrush(color);
+            painter.setPen(QPen(Qt::black, 1));
+            painter.drawRect(QRectF(pos.x() - size, pos.y() - size*0.7, size*2, size*1.4));
+        } else if (modelId.contains("T", Qt::CaseInsensitive) || modelId.contains("coupler", Qt::CaseInsensitive)) {
+            color = QColor(200, 50, 200);
+            painter.setBrush(color);
+            painter.setPen(QPen(Qt::black, 1));
+            painter.drawRect(QRectF(pos.x() - size*0.7, pos.y() - size, size*1.4, size*2));
+        } else if (modelId.contains("CB", Qt::CaseInsensitive) || modelId.contains("combiner", Qt::CaseInsensitive)) {
+            color = QColor(255, 200, 0);
+            painter.setBrush(color);
+            painter.setPen(QPen(Qt::black, 1));
+            painter.drawEllipse(pos, size*0.8, size*0.8);
+        } else if (modelId.contains("SRC", Qt::CaseInsensitive) || modelId.contains("source", Qt::CaseInsensitive)) {
+            color = QColor(255, 80, 80);
+            painter.setBrush(color);
+            painter.setPen(QPen(Qt::black, 2));
+            painter.drawRect(QRectF(pos.x() - size*1.2, pos.y() - size, size*2.4, size*2));
+            painter.setPen(Qt::white);
+            painter.setFont(QFont("Arial", 8, QFont::Bold));
+            painter.drawText(pos - QPointF(8, 3), "信源");
         } else {
-            color = QColor(100, 100, 100); label = "?";
+            painter.setBrush(color);
+            painter.setPen(QPen(Qt::black, 1));
+            painter.drawEllipse(pos, size*0.7, size*0.7);
         }
-        painter.setBrush(color);
-        painter.setPen(QPen(Qt::black, 1));
-        painter.drawEllipse(pos, r, r);
-        painter.setPen(Qt::black);
-        painter.setFont(QFont("Arial", 8));
-        painter.drawText(pos + QPointF(r + 2, 4), QString::fromStdString(dev.instanceId));
-        if (m_modeMgr && m_modeMgr->getGlobalWorkMode() == zf::WorkMode::FORMAL_MODE) {
-            if (!dev.outputPower_dBm.empty()) {
-                auto pit = dev.outputPower_dBm.begin();
-                painter.setPen(QColor(0, 100, 0));
-                painter.setFont(QFont("Arial", 7));
-                painter.drawText(pos + QPointF(-r, -r - 2),
-                    QString::number(pit->second, 'f', 1) + "dBm");
-            }
+
+        if (m_project->isLayerVisible(zf::LayerType::ANNOTATION) && !dev.instanceId.empty()) {
+            painter.setPen(QColor(0, 0, 0));
+            painter.setFont(QFont("Arial", 7));
+            painter.drawText(pos + QPointF(size + 2, 4), QString::fromStdString(dev.instanceId));
         }
     }
 }
@@ -332,264 +522,299 @@ void CanvasWidget::drawDevices(QPainter& painter)
 void CanvasWidget::drawSelectedHighlight(QPainter& painter)
 {
     if (m_selectedDeviceId.isEmpty() || !m_project) return;
-    const auto& floor = m_project->floors[m_currentFloorIndex];
-    for (const auto& dev : floor.devices) {
-        if (dev.instanceId == m_selectedDeviceId.toStdString()) {
-            QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
-            double r = 18 * m_zoom;
-            painter.setBrush(Qt::NoBrush);
-            QPen pen(QColor(255, 150, 0));
-            pen.setWidth(2);
-            pen.setStyle(Qt::DashLine);
-            painter.setPen(pen);
-            painter.drawEllipse(pos, r, r);
-            break;
+    for (const auto& floor : m_project->floors) {
+        double ox = floor.origin.x;
+        double oy = floor.origin.y;
+        for (const auto& dev : floor.devices) {
+            if (dev.instanceId == m_selectedDeviceId.toStdString()) {
+                QPointF pos = worldToScreen(QPointF(dev.position.x + ox, dev.position.y + oy));
+                QPen highlightPen(QColor(255, 0, 0));
+                highlightPen.setWidth(2);
+                highlightPen.setStyle(Qt::DashLine);
+                painter.setPen(highlightPen);
+                painter.setBrush(Qt::NoBrush);
+                painter.drawEllipse(pos, 20, 20);
+                return;
+            }
         }
     }
 }
 
-QPointF CanvasWidget::worldToScreen(const QPointF& world) const
+void CanvasWidget::drawPrintWindowPreview(QPainter& painter)
 {
-    return QPointF(
-        world.x() * m_zoom + m_panOffset.x() + width() / 2.0,
-        world.y() * m_zoom + m_panOffset.y() + height() / 2.0
-    );
-}
-
-QPointF CanvasWidget::screenToWorld(const QPointF& screen) const
-{
-    return QPointF(
-        (screen.x() - m_panOffset.x() - width() / 2.0) / m_zoom,
-        (screen.y() - m_panOffset.y() - height() / 2.0) / m_zoom
-    );
-}
-
-QString CanvasWidget::findDeviceAt(const QPointF& worldPos)
-{
-    if (!m_project || m_project->floors.empty()) return "";
-    const auto& floor = m_project->floors[m_currentFloorIndex];
-    double threshold = 15.0 / m_zoom;
-    for (const auto& dev : floor.devices) {
-        double dx = dev.position.x - worldPos.x();
-        double dy = dev.position.y - worldPos.y();
-        if (std::sqrt(dx*dx + dy*dy) < threshold)
-            return QString::fromStdString(dev.instanceId);
-    }
-    return "";
+    if (m_printWindowRect.isNull()) return;
+    QPointF tl = worldToScreen(QPointF(m_printWindowRect.left(), m_printWindowRect.top()));
+    QPointF br = worldToScreen(QPointF(m_printWindowRect.right(), m_printWindowRect.bottom()));
+    QPen pen(QColor(255, 0, 0));
+    pen.setWidth(2);
+    pen.setStyle(Qt::DashLine);
+    painter.setPen(pen);
+    painter.setBrush(QColor(255, 0, 0, 30));
+    painter.drawRect(QRectF(tl, br));
 }
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event)
 {
-    m_lastMousePos = event->localPos();
-    if (event->button() == Qt::MiddleButton) {
+    QPointF worldPos = screenToWorld(event->position().toPoint());
+    m_lastWorldPos = worldPos;
+    emit cursorPositionChanged(worldPos);
+
+    if (m_selectingPrintWindow) {
+        m_printWindowStart = worldPos;
+        m_printWindowRect = QRectF();
+        return;
+    }
+
+    if (event->button() == Qt::MiddleButton || m_currentTool == "pan") {
         m_panning = true;
+        m_lastMousePos = event->position().toPoint();
         setCursor(Qt::ClosedHandCursor);
         return;
     }
-    QPointF worldPos = screenToWorld(event->localPos());
-    if (m_currentTool == "select" && event->button() == Qt::LeftButton) {
+
+    if (m_currentTool == "select") {
         QString devId = findDeviceAt(worldPos);
-        m_selectedDeviceId = devId;
         if (!devId.isEmpty()) {
+            m_selectedDeviceId = devId;
             emit deviceSelected(devId);
-            emit projectAboutToChange();
             m_dragging = true;
+            m_lastMousePos = event->position().toPoint();
+        } else {
+            m_selectedDeviceId.clear();
+            emit deviceSelected("");
         }
         update();
-    }
-    else if (m_currentTool == "place" && event->button() == Qt::LeftButton) {
-        if (!m_project || m_placeModelId.isEmpty()) {
-            emit statusMessage("请先从器件库选择要放置的器件");
-            return;
-        }
-        zf::DeviceInstance dev;
+    } else if (m_currentTool == "place" && !m_placeModelId.isEmpty()) {
+        if (!m_project || m_project->floors.empty()) return;
+        int floorIdx = findFloorAt(worldPos);
+        if (floorIdx < 0) floorIdx = m_activeFloorIndex;
+        m_activeFloorIndex = floorIdx;
+        emit activeFloorChanged(floorIdx);
+
         emit projectAboutToChange();
-        dev.instanceId = "DEV_" + std::to_string(m_project->floors[m_currentFloorIndex].devices.size() + 1);
+        zf::DeviceInstance dev;
+        dev.instanceId = "DEV_" + std::to_string(m_project->floors[floorIdx].devices.size() + 1);
         dev.modelId = m_placeModelId.toStdString();
-        dev.position = {worldPos.x(), worldPos.y()};
-        m_project->floors[m_currentFloorIndex].devices.push_back(dev);
-        emit statusMessage("已放置: " + m_placeModelId + " at (" +
-            QString::number(worldPos.x(), 'f', 0) + ", " +
-            QString::number(worldPos.y(), 'f', 0) + ")");
+        double ox = m_project->floors[floorIdx].origin.x;
+        double oy = m_project->floors[floorIdx].origin.y;
+        dev.position.x = worldPos.x() - ox;
+        dev.position.y = worldPos.y() - oy;
+        m_project->floors[floorIdx].devices.push_back(dev);
         emit projectChanged("放置器件");
         update();
-    }
-    else if (m_currentTool == "wall" && event->button() == Qt::LeftButton) {
-        if (!m_project) return;
-        if (!m_drawingWall) {
-            // 开始绘制墙体
-            m_wallStartPoint = worldPos;
-            m_wallPreviewPoint = worldPos;
-            m_drawingWall = true;
-            emit statusMessage("墙体绘制中: 点击设置终点，右键/Esc结束");
-        } else {
-            // 完成一段墙体
-            zf::Wall wall;
-            emit projectAboutToChange();
-            wall.wallId = "WALL_" + std::to_string(m_project->floors[m_currentFloorIndex].walls.size() + 1);
-            wall.points.push_back({m_wallStartPoint.x(), m_wallStartPoint.y()});
-            wall.points.push_back({worldPos.x(), worldPos.y()});
-            wall.attenuation_dB = 10.0; // 默认墙体损耗
-            wall.thickness_mm = 240.0;
-            m_project->floors[m_currentFloorIndex].walls.push_back(wall);
-            emit projectChanged("绘制墙体");
-            double len = std::sqrt(std::pow(worldPos.x() - m_wallStartPoint.x(), 2) +
-                                    std::pow(worldPos.y() - m_wallStartPoint.y(), 2));
-            emit statusMessage(QString("已添加墙体段 (长度: %1m)，继续点击添加下一段，右键结束").arg(len, 0, 'f', 1));
-            // 连续绘制：当前终点作为下一段起点
-            m_wallStartPoint = worldPos;
-            m_wallPreviewPoint = worldPos;
-        }
-        update();
-    }
-    else if (m_currentTool == "wall" && event->button() == Qt::RightButton) {
-        if (m_drawingWall) {
-            m_drawingWall = false;
-            emit statusMessage("墙体绘制结束");
-            update();
-        }
-    }
-    else if (m_currentTool == "cable" && event->button() == Qt::LeftButton) {
-        if (!m_project) return;
+    } else if (m_currentTool == "wall") {
+        m_drawingWall = true;
+        m_wallStartPoint = snapPoint(worldPos);
+        m_wallPreviewPoint = m_wallStartPoint;
+    } else if (m_currentTool == "cable") {
         QString devId = findDeviceAt(worldPos);
-        if (devId.isEmpty()) {
-            emit statusMessage("请点击器件来创建连接");
-            return;
-        }
-        if (!m_drawingCable) {
-            // 第一次点击：设置起点
+        if (!devId.isEmpty()) {
             m_drawingCable = true;
             m_cableStartDeviceId = devId;
             m_cablePreviewPoint = worldPos;
-            emit statusMessage("线缆连接: 已选起点 " + devId + "，点击目标器件完成连接");
-        } else {
-            // 第二次点击：创建连接
-            if (devId == m_cableStartDeviceId) {
-                emit statusMessage("不能连接到自身，请选择其他器件");
-                return;
-            }
-            auto& floor = m_project->floors[m_currentFloorIndex];
-            // 在起点器件的connections中添加指向目标的连接
-            for (auto& dev : floor.devices) {
-                if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
-                    // 检查是否已存在连接
-                    bool exists = false;
-                    for (const auto& conn : dev.connections) {
-                        if (conn.targetInstanceId == devId.toStdString()) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        zf::DeviceInstance::Connection conn;
-                        emit projectAboutToChange();
-                        conn.targetInstanceId = devId.toStdString();
-                        conn.fromPortId = "out";
-                        conn.toPortId = "in";
-                        dev.connections.push_back(conn);
-                        emit projectChanged("线缆连接");
-                    }
-                    break;
-                }
-            }
-            emit statusMessage("已创建连接: " + m_cableStartDeviceId + " → " + devId + "，可继续点击下一个目标，右键结束");
-            // 连续连接：当前目标作为下一个起点
-            m_cableStartDeviceId = devId;
-            m_cablePreviewPoint = worldPos;
-        }
-        update();
-    }
-    else if (m_currentTool == "cable" && event->button() == Qt::RightButton) {
-        if (m_drawingCable) {
-            m_drawingCable = false;
-            m_cableStartDeviceId.clear();
-            emit statusMessage("线缆连接结束");
-            update();
         }
     }
 }
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    QPointF delta = event->localPos() - m_lastMousePos;
-    if (m_panning) {
-        m_panOffset += delta;
+    QPointF worldPos = screenToWorld(event->position().toPoint());
+    m_lastWorldPos = worldPos;
+    emit cursorPositionChanged(worldPos);
+
+    if (m_selectingPrintWindow) {
+        m_printWindowRect = QRectF(m_printWindowStart, worldPos).normalized();
         update();
+        return;
     }
-    else if (m_dragging && !m_selectedDeviceId.isEmpty() && m_project) {
-        QPointF worldPos = screenToWorld(event->localPos());
-        auto& floor = m_project->floors[m_currentFloorIndex];
-        for (auto& dev : floor.devices) {
-            if (dev.instanceId == m_selectedDeviceId.toStdString()) {
-                dev.position = {worldPos.x(), worldPos.y()};
-                break;
+
+    if (m_panning) {
+        QPointF delta = event->position().toPoint() - m_lastMousePos;
+        m_panOffset += delta;
+        m_lastMousePos = event->position().toPoint();
+        update();
+        return;
+    }
+
+    if (m_dragging && !m_selectedDeviceId.isEmpty()) {
+        QPointF delta = (worldPos - screenToWorld(m_lastMousePos));
+        m_lastMousePos = event->position().toPoint();
+        if (m_project) {
+            for (auto& floor : m_project->floors) {
+                for (auto& dev : floor.devices) {
+                    if (dev.instanceId == m_selectedDeviceId.toStdString()) {
+                        dev.position.x += delta.x();
+                        dev.position.y += delta.y();
+                        update();
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    if (m_drawingWall) {
+        m_wallPreviewPoint = snapPoint(worldPos);
+        if (m_orthoEnabled) {
+            double dx = m_wallPreviewPoint.x() - m_wallStartPoint.x();
+            double dy = m_wallPreviewPoint.y() - m_wallStartPoint.y();
+            if (fabs(dx) > fabs(dy)) {
+                m_wallPreviewPoint.setY(m_wallStartPoint.y());
+            } else {
+                m_wallPreviewPoint.setX(m_wallStartPoint.x());
             }
         }
         update();
     }
-    else if (m_drawingWall) {
-        m_wallPreviewPoint = screenToWorld(event->localPos());
+
+    if (m_drawingCable) {
+        m_cablePreviewPoint = worldPos;
         update();
     }
-    else if (m_drawingCable) {
-        m_cablePreviewPoint = screenToWorld(event->localPos());
-        update();
-    }
-    m_lastMousePos = event->localPos();
 }
 
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::MiddleButton) {
-        m_panning = false;
-        setCurrentTool(m_currentTool);
+    if (m_selectingPrintWindow) {
+        m_selectingPrintWindow = false;
+        emit statusMessage("打印窗口已选择");
+        update();
+        return;
     }
-    if (event->button() == Qt::LeftButton) {
-        if (m_dragging && !m_selectedDeviceId.isEmpty()) {
-            emit statusMessage("已移动器件: " + m_selectedDeviceId);
-            emit projectChanged("移动器件");
-        }
+
+    if (m_panning) {
+        m_panning = false;
+        setCursor(m_currentTool == "pan" ? Qt::OpenHandCursor : Qt::ArrowCursor);
+        return;
+    }
+
+    if (m_dragging) {
         m_dragging = false;
+        return;
+    }
+
+    if (m_drawingWall) {
+        m_drawingWall = false;
+        if (m_project && !m_project->floors.empty()) {
+            int floorIdx = findFloorAt(m_wallStartPoint);
+            if (floorIdx < 0) floorIdx = m_activeFloorIndex;
+            double ox = m_project->floors[floorIdx].origin.x;
+            double oy = m_project->floors[floorIdx].origin.y;
+            emit projectAboutToChange();
+            zf::Wall wall;
+            wall.wallId = "WALL_" + std::to_string(m_project->floors[floorIdx].walls.size() + 1);
+            wall.points.push_back({m_wallStartPoint.x() - ox, m_wallStartPoint.y() - oy});
+            wall.points.push_back({m_wallPreviewPoint.x() - ox, m_wallPreviewPoint.y() - oy});
+            wall.thickness_mm = 240;
+            m_project->floors[floorIdx].walls.push_back(wall);
+            emit projectChanged("绘制墙体");
+        }
+        update();
+    }
+
+    if (m_drawingCable) {
+        m_drawingCable = false;
+        QString targetId = findDeviceAt(screenToWorld(event->position().toPoint()));
+        if (!targetId.isEmpty() && targetId != m_cableStartDeviceId && m_project) {
+            emit projectAboutToChange();
+            for (auto& floor : m_project->floors) {
+                for (auto& dev : floor.devices) {
+                    if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
+                        zf::DeviceInstance::Connection conn;
+                        conn.targetInstanceId = targetId.toStdString();
+                        conn.cableType = "1/2\"";
+                        dev.connections.push_back(conn);
+                        break;
+                    }
+                }
+            }
+            emit projectChanged("连接馈线");
+        }
+        m_cableStartDeviceId.clear();
+        update();
+    }
+}
+
+void CanvasWidget::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (!m_project) return;
+    QPointF worldPos = screenToWorld(event->position().toPoint());
+    for (int i = 0; i < (int)m_project->floors.size(); i++) {
+        QRectF bounds = getFloorBounds(i);
+        QRectF labelArea(bounds.left(), bounds.top() - 1500, bounds.width(), 1500);
+        if (labelArea.contains(worldPos)) {
+            goToFloor(i);
+            emit statusMessage(QString("已定位到楼层 %1").arg(i + 1));
+            return;
+        }
+    }
+    if (!m_project->floors.empty()) {
+        QRectF allBounds = getAllContentBounds();
+        double sysX = allBounds.right() - 40000;
+        QRectF sysLabelArea(sysX, allBounds.top() - 1500, 40000, 1500);
+        if (sysLabelArea.contains(worldPos)) {
+            goToSystemDiagram();
+            emit statusMessage("已定位到系统图区域");
+            return;
+        }
     }
 }
 
 void CanvasWidget::wheelEvent(QWheelEvent *event)
 {
+    QPointF screenPos = event->position().toPoint();
+    QPointF worldBefore = screenToWorld(screenPos);
     double factor = event->angleDelta().y() > 0 ? 1.15 : 0.87;
-    double newZoom = m_zoom * factor;
-    if (newZoom < 0.1) newZoom = 0.1;
-    if (newZoom > 20) newZoom = 20;
-    QPointF mousePos = event->pos();
-    QPointF worldBefore = screenToWorld(mousePos);
-    m_zoom = newZoom;
-    QPointF worldAfter = screenToWorld(mousePos);
-    m_panOffset += (worldAfter - worldBefore) * m_zoom;
+    m_zoom *= factor;
+    if (m_zoom < 0.01) m_zoom = 0.01;
+    if (m_zoom > 100) m_zoom = 100;
+    QPointF worldAfter = screenToWorld(screenPos);
+    m_panOffset += QPointF((worldAfter.x() - worldBefore.x()) * m_zoom,
+                           (worldAfter.y() - worldBefore.y()) * m_zoom);
     update();
 }
 
 void CanvasWidget::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
-        if (!m_selectedDeviceId.isEmpty()) {
-            deleteSelectedDevice();
-        }
+        deleteSelectedDevice();
     } else if (event->key() == Qt::Key_Escape) {
-        if (m_drawingWall) {
-            m_drawingWall = false;
-            emit statusMessage("墙体绘制已取消");
-            update();
-        } else if (m_drawingCable) {
-            m_drawingCable = false;
-            m_cableStartDeviceId.clear();
-            emit statusMessage("线缆连接已取消");
-            update();
-        } else {
-            m_selectedDeviceId.clear();
-            m_placeModelId.clear();
-            setCurrentTool("select");
-            update();
-        }
-    } else {
-        QWidget::keyPressEvent(event);
+        m_drawingWall = false;
+        m_drawingCable = false;
+        m_selectingPrintWindow = false;
+        m_selectedDeviceId.clear();
+        emit deviceSelected("");
+        update();
+    } else if (event->key() == Qt::Key_F8) {
+        m_orthoEnabled = !m_orthoEnabled;
+        emit statusMessage(m_orthoEnabled ? "正交模式: 开" : "正交模式: 关");
+    } else if (event->key() == Qt::Key_F3) {
+        m_snapEnabled = !m_snapEnabled;
+        emit statusMessage(m_snapEnabled ? "捕捉: 开" : "捕捉: 关");
     }
+}
+
+QString CanvasWidget::findDeviceAt(const QPointF& worldPos)
+{
+    if (!m_project) return QString();
+    double threshold = 15 / m_zoom;
+    for (const auto& floor : m_project->floors) {
+        double ox = floor.origin.x;
+        double oy = floor.origin.y;
+        for (const auto& dev : floor.devices) {
+            double dx = dev.position.x + ox - worldPos.x();
+            double dy = dev.position.y + oy - worldPos.y();
+            if (sqrt(dx*dx + dy*dy) < threshold) {
+                return QString::fromStdString(dev.instanceId);
+            }
+        }
+    }
+    return QString();
+}
+
+void CanvasWidget::startPrintWindowSelection()
+{
+    m_selectingPrintWindow = true;
+    m_printWindowRect = QRectF();
+    emit statusMessage("拖拽选择打印窗口区域...");
 }
