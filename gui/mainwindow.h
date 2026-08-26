@@ -51,6 +51,7 @@ private slots:
     void onPrint();
     void onPrintWindow();
     void onBatchPrint();
+    void onPrintWindowSelected(const QRectF& windowRect);
     void onZoomIn();
     void onZoomOut();
     void onZoomFit();

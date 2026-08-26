@@ -69,6 +69,40 @@ private:
             floors.push_back(fj);
         }
         j["floors"] = floors;
+
+        // 图层
+        json layers = json::array();
+        for (const auto& l : p->layers) {
+            json lj;
+            lj["layerId"] = l.layerId;
+            lj["name"] = l.name;
+            lj["type"] = static_cast<int>(l.type);
+            lj["color"] = l.color;
+            lj["visible"] = l.visible;
+            lj["locked"] = l.locked;
+            lj["frozen"] = l.frozen;
+            lj["lineWidth"] = l.lineWidth;
+            lj["order"] = l.order;
+            layers.push_back(lj);
+        }
+        j["layers"] = layers;
+
+        // 打印窗口
+        json printWins = json::array();
+        for (const auto& pw : p->printWindows) {
+            json pj;
+            pj["name"] = pw.name;
+            pj["minX"] = pw.minPt.x;
+            pj["minY"] = pw.minPt.y;
+            pj["maxX"] = pw.maxPt.x;
+            pj["maxY"] = pw.maxPt.y;
+            pj["paperSize"] = pw.paperSize;
+            pj["scale"] = pw.scale;
+            pj["color"] = pw.color;
+            printWins.push_back(pj);
+        }
+        j["printWindows"] = printWins;
+
         serializeAudit(p->globalAuditLog, j["globalAuditLog"]);
     }
 
@@ -95,6 +129,49 @@ private:
                 p->floors.push_back(std::move(f));
             }
         }
+        // 自动排列楼层origin（如果都是0）
+        bool allOriginZero = true;
+        for (const auto& f : p->floors) {
+            if (f.origin.x != 0 || f.origin.y != 0) { allOriginZero = false; break; }
+        }
+        if (allOriginZero) {
+            for (size_t i = 0; i < p->floors.size(); i++) {
+                p->floors[i].origin.x = i * 35000.0;
+                p->floors[i].origin.y = 0;
+            }
+        }
+        // 图层
+        if (j.contains("layers") && j["layers"].is_array()) {
+            for (const auto& lj : j["layers"]) {
+                Layer l;
+                l.layerId = lj.value("layerId", "");
+                l.name = lj.value("name", "");
+                l.type = static_cast<LayerType>(lj.value("type", 8));
+                l.color = lj.value("color", 0xFFFFFF);
+                l.visible = lj.value("visible", true);
+                l.locked = lj.value("locked", false);
+                l.frozen = lj.value("frozen", false);
+                l.lineWidth = lj.value("lineWidth", 0.1);
+                l.order = lj.value("order", 0);
+                p->layers.push_back(l);
+            }
+        }
+        if (p->layers.empty()) p->initDefaultLayers();
+        // 打印窗口
+        if (j.contains("printWindows") && j["printWindows"].is_array()) {
+            for (const auto& pj : j["printWindows"]) {
+                PrintWindow pw;
+                pw.name = pj.value("name", "");
+                pw.minPt.x = pj.value("minX", 0.0);
+                pw.minPt.y = pj.value("minY", 0.0);
+                pw.maxPt.x = pj.value("maxX", 0.0);
+                pw.maxPt.y = pj.value("maxY", 0.0);
+                pw.paperSize = pj.value("paperSize", "A1");
+                pw.scale = pj.value("scale", 100.0);
+                pw.color = pj.value("color", true);
+                p->printWindows.push_back(pw);
+            }
+        }
         if (j.contains("globalAuditLog"))
             deserializeAudit(j["globalAuditLog"], p->globalAuditLog);
     }
@@ -107,6 +184,44 @@ private:
         j["height_m"] = f.height_m;
         j["netHeight_m"] = f.netHeight_m;
         j["isStandardFloor"] = f.isStandardFloor;
+        j["origin_x"] = f.origin.x;
+        j["origin_y"] = f.origin.y;
+        j["drawingScale"] = f.drawingScale;
+        // 墙体
+        json walls = json::array();
+        for (const auto& w : f.walls) {
+            json wj;
+            wj["wallId"] = w.wallId;
+            wj["material"] = static_cast<int>(w.material);
+            wj["thickness_mm"] = w.thickness_mm;
+            wj["height_m"] = w.height_m;
+            wj["attenuation_dB"] = w.attenuation_dB;
+            json pts = json::array();
+            for (const auto& pt : w.points) {
+                pts.push_back({pt.x, pt.y});
+            }
+            wj["points"] = pts;
+            walls.push_back(wj);
+        }
+        j["walls"] = walls;
+        // 馈线段
+        json cables = json::array();
+        for (const auto& c : f.cables) {
+            json cj;
+            cj["segmentId"] = c.segmentId;
+            cj["modelId"] = c.modelId;
+            cj["floorId"] = c.floorId;
+            cj["length_m"] = c.length_m;
+            cj["fromDeviceId"] = c.fromDeviceId;
+            cj["toDeviceId"] = c.toDeviceId;
+            json pts = json::array();
+            for (const auto& pt : c.routePoints) {
+                pts.push_back({pt.x, pt.y});
+            }
+            cj["routePoints"] = pts;
+            cables.push_back(cj);
+        }
+        j["cables"] = cables;
         json devs = json::array();
         for (const auto& d : f.devices) {
             json dj;
@@ -125,6 +240,50 @@ private:
         f.height_m = j.value("height_m", 3.0);
         f.netHeight_m = j.value("netHeight_m", 2.8);
         f.isStandardFloor = j.value("isStandardFloor", false);
+        f.origin.x = j.value("origin_x", 0.0);
+        f.origin.y = j.value("origin_y", 0.0);
+        f.drawingScale = j.value("drawingScale", 100.0);
+        // 墙体
+        if (j.contains("walls") && j["walls"].is_array()) {
+            for (const auto& wj : j["walls"]) {
+                Wall w;
+                w.wallId = wj.value("wallId", "");
+                w.material = static_cast<WallMaterial>(wj.value("material", 0));
+                w.thickness_mm = wj.value("thickness_mm", 200.0);
+                w.height_m = wj.value("height_m", 3.0);
+                w.attenuation_dB = wj.value("attenuation_dB", 0.0);
+                if (wj.contains("points") && wj["points"].is_array()) {
+                    for (const auto& pt : wj["points"]) {
+                        Point2D p;
+                        p.x = pt[0].get<double>();
+                        p.y = pt[1].get<double>();
+                        w.points.push_back(p);
+                    }
+                }
+                f.walls.push_back(w);
+            }
+        }
+        // 馈线段
+        if (j.contains("cables") && j["cables"].is_array()) {
+            for (const auto& cj : j["cables"]) {
+                CableSegment c;
+                c.segmentId = cj.value("segmentId", "");
+                c.modelId = cj.value("modelId", "");
+                c.floorId = cj.value("floorId", "");
+                c.length_m = cj.value("length_m", 0.0);
+                c.fromDeviceId = cj.value("fromDeviceId", "");
+                c.toDeviceId = cj.value("toDeviceId", "");
+                if (cj.contains("routePoints") && cj["routePoints"].is_array()) {
+                    for (const auto& pt : cj["routePoints"]) {
+                        Point2D p;
+                        p.x = pt[0].get<double>();
+                        p.y = pt[1].get<double>();
+                        c.routePoints.push_back(p);
+                    }
+                }
+                f.cables.push_back(c);
+            }
+        }
         if (j.contains("devices") && j["devices"].is_array()) {
             for (const auto& dj : j["devices"]) {
                 DeviceInstance d;

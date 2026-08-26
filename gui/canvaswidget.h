@@ -63,6 +63,7 @@ signals:
     void projectChanged(const QString& description);
     void cursorPositionChanged(const QPointF& worldPos);
     void activeFloorChanged(int floorIndex);
+    void printWindowSelected(const QRectF& windowRect);
 
 protected:
     void paintEvent(QPaintEvent *event) override;

@@ -77,6 +77,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_canvas, &CanvasWidget::projectChanged, this, &MainWindow::onProjectChanged);
     connect(m_canvas, &CanvasWidget::cursorPositionChanged, this, &MainWindow::onCursorPositionChanged);
     connect(m_canvas, &CanvasWidget::activeFloorChanged, this, &MainWindow::onActiveFloorChanged);
+    connect(m_canvas, &CanvasWidget::printWindowSelected, this, &MainWindow::onPrintWindowSelected);
     if (m_layerPanel) {
         connect(m_layerPanel, &LayerPanel::layerChanged, m_canvas, &CanvasWidget::refresh);
         connect(m_devicePanel, &DeviceListPanel::deviceModelSelected,
@@ -383,6 +384,10 @@ void MainWindow::onNewProject()
     m_actHeatmap->setChecked(false);
     m_canvas->refresh();
     m_propertyPanel->clear();
+    if (m_layerPanel) {
+        m_layerPanel->setProject(&m_project);
+        m_layerPanel->refresh();
+    }
     refreshFloorCombo();
     setWindowTitle(QString("智分Design V3.1.0 - %1").arg(selected));
     statusBar()->showMessage("新建工程完成: " + selected);
@@ -429,6 +434,10 @@ void MainWindow::onOpenProject()
         m_actHeatmap->setChecked(false);
         m_canvas->refresh();
         m_propertyPanel->clear();
+        if (m_layerPanel) {
+            m_layerPanel->setProject(&m_project);
+            m_layerPanel->refresh();
+        }
         setWindowTitle(QString("智分Design V3.1.0 - %1").arg(QString::fromStdString(m_project.projectName)));
         refreshFloorCombo();
         statusBar()->showMessage("工程已加载: " + path);
@@ -1183,16 +1192,12 @@ void MainWindow::onPrint()
 
 void MainWindow::onPrintWindow()
 {
-    // 启动窗口选择
     m_canvas->startPrintWindowSelection();
     statusBar()->showMessage("请在画布上拖拽选择打印窗口区域...");
+}
 
-    // 用一个事件循环等待用户选择完成
-    QEventLoop loop;
-    QTimer::singleShot(3000, &loop, &QEventLoop::quit); // 超时3秒
-    loop.exec();
-
-    QRectF windowRect = m_canvas->selectedPrintWindow();
+void MainWindow::onPrintWindowSelected(const QRectF& windowRect)
+{
     if (windowRect.isNull() || windowRect.width() < 100 || windowRect.height() < 100) {
         QMessageBox::information(this, "窗口打印", "未选择有效的打印窗口，请重新操作。");
         return;
@@ -1210,12 +1215,10 @@ void MainWindow::onPrintWindow()
         QPainter painter(&printer);
         QRect pageRect = printer.pageRect();
 
-        // 计算缩放，使选中区域填满页面
         double scaleX = (double)pageRect.width() / (windowRect.width() * m_canvas->zoom());
         double scaleY = (double)pageRect.height() / (windowRect.height() * m_canvas->zoom());
         double scale = std::min(scaleX, scaleY);
 
-        // 平移到选中区域
         QPointF windowScreen = m_canvas->worldToScreen(windowRect.topLeft());
         painter.translate(pageRect.x() + (pageRect.width() - windowRect.width() * m_canvas->zoom() * scale) / 2,
                           pageRect.y() + (pageRect.height() - windowRect.height() * m_canvas->zoom() * scale) / 2);
@@ -1449,6 +1452,15 @@ zf::Project MainWindow::generateTemplate(const QString& templateName)
             proj.floors.push_back(floor);
         }
     }
+
+    // 初始化图层
+    proj.initDefaultLayers();
+    // 排列楼层origin（横向排列，间距35000mm）
+    for (size_t i = 0; i < proj.floors.size(); i++) {
+        proj.floors[i].origin.x = i * 35000.0;
+        proj.floors[i].origin.y = 0;
+    }
+
     return proj;
 }
 

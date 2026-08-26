@@ -678,7 +678,10 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
 {
     if (m_selectingPrintWindow) {
         m_selectingPrintWindow = false;
-        emit statusMessage("打印窗口已选择");
+        if (!m_printWindowRect.isNull() && m_printWindowRect.width() > 100 && m_printWindowRect.height() > 100) {
+            emit printWindowSelected(m_printWindowRect);
+        }
+        emit statusMessage("打印窗口选择完成");
         update();
         return;
     }
