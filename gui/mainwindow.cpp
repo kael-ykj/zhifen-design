@@ -540,6 +540,8 @@ void MainWindow::onCostEstimate()
         QMessageBox::warning(this, "造价概算", QString("概算失败，错误码: %1").arg(result));
     }
 }
+
+void MainWindow::onGenerateReport()
 {
     if (m_project.floors.empty()) {
         QMessageBox::warning(this, "生成报告", "工程为空");
