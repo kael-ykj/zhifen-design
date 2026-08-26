@@ -14,6 +14,9 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QPrinter>
+#include <QPrintPreviewDialog>
+#include <QPrintDialog>
 #include <QInputDialog>
 #include <QLabel>
 #include <QApplication>
@@ -124,6 +127,16 @@ void MainWindow::createActions()
     m_actBatchExportDxf = new QAction("批量出图", this);
     connect(m_actBatchExportDxf, &QAction::triggered, this, &MainWindow::onBatchExportDxf);
 
+    m_actExportImage = new QAction("导出图片", this);
+    connect(m_actExportImage, &QAction::triggered, this, &MainWindow::onExportImage);
+
+    m_actPrintPreview = new QAction("打印预览", this);
+    connect(m_actPrintPreview, &QAction::triggered, this, &MainWindow::onPrintPreview);
+
+    m_actPrint = new QAction("打印", this);
+    m_actPrint->setShortcut(QKeySequence::Print);
+    connect(m_actPrint, &QAction::triggered, this, &MainWindow::onPrint);
+
 
     m_actAddFloor = new QAction("新增楼层", this);
     connect(m_actAddFloor, &QAction::triggered, this, &MainWindow::onAddFloor);
@@ -176,6 +189,10 @@ void MainWindow::createMenus()
     fileMenu->addAction(m_actSave);
     fileMenu->addSeparator();
     fileMenu->addAction(m_actExport);
+    fileMenu->addAction(m_actExportImage);
+    fileMenu->addSeparator();
+    fileMenu->addAction(m_actPrintPreview);
+    fileMenu->addAction(m_actPrint);
     fileMenu->addSeparator();
     fileMenu->addAction("退出", this, &QWidget::close);
 
@@ -214,6 +231,10 @@ void MainWindow::createToolBars()
     fileTool->addAction(m_actNew);
     fileTool->addAction(m_actOpen);
     fileTool->addAction(m_actSave);
+    fileTool->addSeparator();
+    fileTool->addAction(m_actExportImage);
+    fileTool->addAction(m_actPrintPreview);
+    fileTool->addAction(m_actPrint);
 
     // 楼层工具栏
     QToolBar* floorTool = addToolBar("楼层");
@@ -916,4 +937,66 @@ void MainWindow::updateUndoButtons()
 {
     if (m_actUndo) m_actUndo->setEnabled(m_undoStack.canUndo());
     if (m_actRedo) m_actRedo->setEnabled(m_undoStack.canRedo());
+}
+
+void MainWindow::onExportImage()
+{
+    QString path = QFileDialog::getSaveFileName(this, "导出图片", "", "PNG Images (*.png);;JPEG Images (*.jpg)");
+    if (path.isEmpty()) return;
+
+    QPixmap pixmap = m_canvas->exportToImage(2400, 1800);
+    if (pixmap.save(path)) {
+        QMessageBox::information(this, "导出成功", "图片已导出:\n" + path);
+        statusBar()->showMessage("图片已导出: " + path);
+    } else {
+        QMessageBox::warning(this, "导出失败", "图片导出失败");
+    }
+}
+
+void MainWindow::onPrintPreview()
+{
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageSize(QPrinter::A4);
+    printer.setOrientation(QPrinter::Landscape);
+
+    QPrintPreviewDialog preview(&printer, this);
+    preview.setWindowTitle("打印预览");
+    connect(&preview, &QPrintPreviewDialog::paintRequested, this, [this](QPrinter* printer) {
+        QPainter painter(printer);
+        QRect pageRect = printer->pageRect();
+        // 计算缩放比例
+        double scaleX = (double)pageRect.width() / m_canvas->width();
+        double scaleY = (double)pageRect.height() / m_canvas->height();
+        double scale = std::min(scaleX, scaleY);
+        // 居中
+        painter.translate(pageRect.x() + (pageRect.width() - m_canvas->width() * scale) / 2,
+                            pageRect.y() + (pageRect.height() - m_canvas->height() * scale) / 2);
+        painter.scale(scale, scale);
+        m_canvas->render(&painter);
+        painter.end();
+    });
+    preview.exec();
+}
+
+void MainWindow::onPrint()
+{
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageSize(QPrinter::A4);
+    printer.setOrientation(QPrinter::Landscape);
+
+    QPrintDialog dialog(&printer, this);
+    dialog.setWindowTitle("打印");
+    if (dialog.exec() == QDialog::Accepted) {
+        QPainter painter(&printer);
+        QRect pageRect = printer.pageRect();
+        double scaleX = (double)pageRect.width() / m_canvas->width();
+        double scaleY = (double)pageRect.height() / m_canvas->height();
+        double scale = std::min(scaleX, scaleY);
+        painter.translate(pageRect.x() + (pageRect.width() - m_canvas->width() * scale) / 2,
+                            pageRect.y() + (pageRect.height() - m_canvas->height() * scale) / 2);
+        painter.scale(scale, scale);
+        m_canvas->render(&painter);
+        painter.end();
+        statusBar()->showMessage("已发送到打印机");
+    }
 }

@@ -5,6 +5,7 @@
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QPointF>
+#include <QPixmap>
 #include "core/zf_types.h"
 #include "mode_control/mode_control_layer.h"
 #include "engine/propagation_engine.h"
@@ -25,6 +26,7 @@ public:
     void clearHeatmap();
     void deleteSelectedDevice();
     void refresh();
+    QPixmap exportToImage(int width = 1600, int height = 1200);
     QString selectedDeviceId() const { return m_selectedDeviceId; }
 
 signals:

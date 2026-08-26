@@ -100,6 +100,24 @@ void CanvasWidget::refresh()
     update();
 }
 
+QPixmap CanvasWidget::exportToImage(int width, int height)
+{
+    QPixmap pixmap(width, height);
+    pixmap.fill(QColor(245, 245, 245));
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    // 计算缩放比例，使内容居中
+    double scaleX = (double)width / this->width();
+    double scaleY = (double)height / this->height();
+    double scale = std::min(scaleX, scaleY);
+    painter.translate((width - this->width() * scale) / 2, (height - this->height() * scale) / 2);
+    painter.scale(scale, scale);
+    // 渲染画布
+    this->render(&painter);
+    painter.end();
+    return pixmap;
+}
+
 void CanvasWidget::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
