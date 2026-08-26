@@ -24,6 +24,7 @@ public:
     void setPlaceModel(const QString& modelId);
     void setFeederType(const QString& type) { m_feederType = type; }
     QString feederType() const { return m_feederType; }
+    void setInsertDeviceType(const QString& type, int db = 10) { m_insertDeviceType = type; m_couplerDb = db; }
     void setActiveFloorIndex(int index);
     int activeFloorIndex() const { return m_activeFloorIndex; }
     void setHeatmap(const zf::HeatmapData& heatmap);
@@ -119,6 +120,10 @@ private:
     QPointF m_feederStartPoint;
     QPointF m_feederPreviewPoint;
     QString m_feederType{"1/2\""};
+    // 自动插器件
+    bool m_insertingDevice{false};
+    QString m_insertDeviceType{"splitter"}; // splitter/coupler
+    int m_couplerDb{10}; // 耦合器dB值
 
     // CAD状态栏
     bool m_snapEnabled{true};

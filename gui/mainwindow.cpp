@@ -238,6 +238,14 @@ void MainWindow::createActions()
     m_actToolFeeder->setCheckable(true);
     m_actToolFeeder->setShortcut(QKeySequence("F"));
     connect(m_actToolFeeder, &QAction::triggered, this, &MainWindow::onToolSelect);
+
+    m_actInsertSplitter = new QAction("插功分器", this);
+    m_actInsertSplitter->setCheckable(true);
+    connect(m_actInsertSplitter, &QAction::triggered, this, &MainWindow::onToolSelect);
+
+    m_actInsertCoupler = new QAction("插耦合器", this);
+    m_actInsertCoupler->setCheckable(true);
+    connect(m_actInsertCoupler, &QAction::triggered, this, &MainWindow::onToolSelect);
 }
 
 void MainWindow::createMenus()
@@ -326,6 +334,8 @@ void MainWindow::createToolBars()
     toolBar->addAction(m_actToolWall);
     toolBar->addAction(m_actToolCable);
     toolBar->addAction(m_actToolFeeder);
+    toolBar->addAction(m_actInsertSplitter);
+    toolBar->addAction(m_actInsertCoupler);
     toolBar->addSeparator();
     toolBar->addAction(m_actMode);
 
@@ -485,6 +495,14 @@ void MainWindow::onToolSelect()
     } else if (m_actToolFeeder->isChecked()) {
         m_canvas->setCurrentTool("feeder");
         statusBar()->showMessage("当前工具: 画馈线 (点击起点→点击终点，F8正交，ESC取消)");
+    } else if (m_actInsertSplitter->isChecked()) {
+        m_canvas->setCurrentTool("insert");
+        m_canvas->setInsertDeviceType("splitter");
+        statusBar()->showMessage("当前工具: 插功分器 (点击馈线上的点插入二功分器)");
+    } else if (m_actInsertCoupler->isChecked()) {
+        m_canvas->setCurrentTool("insert");
+        m_canvas->setInsertDeviceType("coupler", 10);
+        statusBar()->showMessage("当前工具: 插耦合器 (点击馈线上的点插入10dB耦合器)");
     }
 }
 

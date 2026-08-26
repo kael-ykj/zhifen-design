@@ -134,6 +134,8 @@ private:
     QAction* m_actToolWall{nullptr};
     QAction* m_actToolCable{nullptr};
     QAction* m_actToolFeeder{nullptr};
+    QAction* m_actInsertSplitter{nullptr};
+    QAction* m_actInsertCoupler{nullptr};
 
     // 楼层管理
     QComboBox* m_floorCombo{nullptr};

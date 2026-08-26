@@ -39,7 +39,7 @@ void CanvasWidget::setCurrentTool(const QString& tool)
     m_currentTool = tool;
     if (tool == "select") {
         setCursor(Qt::ArrowCursor);
-    } else if (tool == "place" || tool == "wall" || tool == "cable" || tool == "feeder") {
+    } else if (tool == "place" || tool == "wall" || tool == "cable" || tool == "feeder" || tool == "insert") {
         setCursor(Qt::CrossCursor);
     } else if (tool == "pan") {
         setCursor(Qt::OpenHandCursor);
@@ -638,6 +638,79 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
         m_drawingFeeder = true;
         m_feederStartPoint = snapPoint(worldPos);
         m_feederPreviewPoint = m_feederStartPoint;
+    } else if (m_currentTool == "insert") {
+        // 自动插器件：在点击位置附近的馈线上插入器件
+        if (!m_project || m_project->floors.empty()) return;
+        int floorIdx = findFloorAt(worldPos);
+        if (floorIdx < 0) floorIdx = m_activeFloorIndex;
+        auto& floor = m_project->floors[floorIdx];
+        double ox = floor.origin.x;
+        double oy = floor.origin.y;
+        double threshold = 10 / m_zoom;
+
+        // 查找最近的馈线
+        int cableIdx = -1;
+        double minDist = 1e9;
+        for (size_t i = 0; i < floor.cables.size(); i++) {
+            const auto& c = floor.cables[i];
+            if (c.routePoints.size() < 2) continue;
+            QPointF p1(c.routePoints[0].x + ox, c.routePoints[0].y + oy);
+            QPointF p2(c.routePoints.back().x + ox, c.routePoints.back().y + oy);
+            // 点到线段的距离
+            double dx = p2.x() - p1.x();
+            double dy = p2.y() - p1.y();
+            double len2 = dx*dx + dy*dy;
+            double t = len2 > 0 ? ((worldPos.x() - p1.x())*dx + (worldPos.y() - p1.y())*dy) / len2 : 0;
+            t = std::max(0.0, std::min(1.0, t));
+            QPointF proj(p1.x() + t*dx, p1.y() + t*dy);
+            double dist = sqrt(pow(worldPos.x() - proj.x(), 2) + pow(worldPos.y() - proj.y(), 2));
+            if (dist < threshold && dist < minDist) {
+                minDist = dist;
+                cableIdx = i;
+            }
+        }
+
+        if (cableIdx >= 0) {
+            emit projectAboutToChange();
+            auto& cable = floor.cables[cableIdx];
+            QPointF p1(cable.routePoints[0].x + ox, cable.routePoints[0].y + oy);
+            QPointF p2(cable.routePoints.back().x + ox, cable.routePoints.back().y + oy);
+            double dx = p2.x() - p1.x();
+            double dy = p2.y() - p1.y();
+            double len2 = dx*dx + dy*dy;
+            double t = len2 > 0 ? ((worldPos.x() - p1.x())*dx + (worldPos.y() - p1.y())*dy) / len2 : 0.5;
+            t = std::max(0.1, std::min(0.9, t));
+            QPointF insertPos(p1.x() + t*dx, p1.y() + t*dy);
+
+            // 打断馈线为两段
+            double origLen = cable.length_m;
+            zf::CableSegment seg2 = cable;
+            seg2.segmentId = "CABLE_" + std::to_string(floor.cables.size() + 1);
+            // 第一段：从起点到插入点
+            cable.routePoints[1] = {insertPos.x() - ox, insertPos.y() - oy};
+            cable.length_m = origLen * t;
+            // 第二段：从插入点到终点
+            seg2.routePoints[0] = {insertPos.x() - ox, insertPos.y() - oy};
+            seg2.length_m = origLen * (1 - t);
+            floor.cables.push_back(seg2);
+
+            // 插入器件
+            zf::DeviceInstance dev;
+            dev.instanceId = (m_insertDeviceType == "coupler" ? "T" : "PS") +
+                             std::to_string(floor.devices.size() + 1) + "-" +
+                             std::to_string(floorIdx + 1) + "F";
+            dev.modelId = m_insertDeviceType == "coupler" ?
+                          ("COUPLER_" + std::to_string(m_couplerDb) + "dB") : "SPLITTER_2";
+            dev.position.x = insertPos.x() - ox;
+            dev.position.y = insertPos.y() - oy;
+            floor.devices.push_back(dev);
+
+            emit projectChanged(QString("插入%1").arg(m_insertDeviceType == "coupler" ?
+                QString("%1dB耦合器").arg(m_couplerDb) : "二功分器"));
+            update();
+        } else {
+            emit statusMessage("未找到附近的馈线，请点击馈线上的点");
+        }
     }
 }
 
