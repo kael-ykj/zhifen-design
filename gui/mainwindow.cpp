@@ -653,9 +653,12 @@ void MainWindow::onShowSystemDiagram()
     zf::SystemDiagram diagram;
     int result = engine.generateFromFloor(&m_project.floors[m_canvas->activeFloorIndex()], &m_project, diagram);
     if (result == zf::ZF_ERR_OK) {
-        SystemDiagramDialog dlg(diagram, this);
-        dlg.exec();
-        statusBar()->showMessage("系统图已生成");
+        // 保存到工程中
+        m_project.systemDiagrams.clear();
+        m_project.systemDiagrams.push_back(diagram);
+        m_canvas->goToSystemDiagram();
+        m_canvas->refresh();
+        statusBar()->showMessage(QString("系统图已生成 (%1 个节点, %2 条连接)").arg(diagram.nodes.size()).arg(diagram.links.size()));
     } else {
         QMessageBox::warning(this, "系统图", QString("生成失败，错误码: %1 (需要信源器件和连接关系)").arg(result));
     }

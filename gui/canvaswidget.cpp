@@ -388,21 +388,67 @@ void CanvasWidget::drawSystemDiagramArea(QPainter& painter)
 {
     if (!m_project || m_project->systemDiagrams.empty()) return;
     QRectF allBounds = getAllContentBounds();
-    double sysX = allBounds.right() - 40000;
-    double sysY = allBounds.bottom() + 1000;
+    double sysX = allBounds.right() + 5000;
+    double sysY = allBounds.top();
+
+    // 系统图区域背景
+    QRectF sysRect(sysX, sysY, 40000, allBounds.height() + 2000);
+    painter.setPen(QPen(QColor(100, 100, 200), 1, Qt::DashLine));
+    painter.setBrush(QColor(240, 240, 255, 50));
+    painter.drawRect(worldToScreen(QPointF(sysRect.left(), sysRect.top())).x(),
+                     worldToScreen(QPointF(sysRect.left(), sysRect.top())).y(),
+                     sysRect.width() * m_zoom, sysRect.height() * m_zoom);
 
     painter.setPen(QColor(80, 80, 180));
-    painter.setFont(QFont("Arial", 11));
-    QPointF pos = worldToScreen(QPointF(sysX + 1000, sysY + 1000));
-    painter.drawText(pos, QString("系统图区域 (%1 个)").arg(m_project->systemDiagrams.size()));
+    painter.setFont(QFont("Arial", 12, QFont::Bold));
+    painter.drawText(worldToScreen(QPointF(sysX + 1000, sysY + 1500)), "系统图区域");
 
-    for (size_t di = 0; di < m_project->systemDiagrams.size(); di++) {
-        double yOffset = di * 3000;
-        QPointF srcScreen = worldToScreen(QPointF(sysX + 2000, sysY + 2000 + yOffset));
-        painter.setBrush(QColor(255, 200, 100));
-        painter.setPen(QColor(0, 0, 0));
-        painter.drawRect(QRectF(srcScreen.x() - 20, srcScreen.y() - 15, 40, 30));
-        painter.drawText(srcScreen + QPointF(-15, 5), "信源");
+    for (const auto& diagram : m_project->systemDiagrams) {
+        // 绘制连接线
+        painter.setPen(QPen(QColor(0, 100, 100), 2));
+        for (const auto& link : diagram.links) {
+            const zf::SystemNode* fromNode = nullptr;
+            const zf::SystemNode* toNode = nullptr;
+            for (const auto& n : diagram.nodes) {
+                if (n.nodeId == link.fromNodeId) fromNode = &n;
+                if (n.nodeId == link.toNodeId) toNode = &n;
+            }
+            if (fromNode && toNode) {
+                QPointF p1 = worldToScreen(QPointF(sysX + fromNode->layoutPos.x, sysY + fromNode->layoutPos.y));
+                QPointF p2 = worldToScreen(QPointF(sysX + toNode->layoutPos.x, sysY + toNode->layoutPos.y));
+                painter.drawLine(p1, p2);
+                // 标注线损
+                QPointF mid = (p1 + p2) / 2;
+                painter.setPen(QColor(0, 80, 80));
+                painter.setFont(QFont("Arial", 7));
+                painter.drawText(mid + QPointF(3, -3), QString("%1dB/%2m").arg(link.loss_dB, 0, 'f', 1).arg(link.length_m, 0, 'f', 1));
+                painter.setPen(QPen(QColor(0, 100, 100), 2));
+            }
+        }
+
+        // 绘制节点
+        for (const auto& node : diagram.nodes) {
+            QPointF pos = worldToScreen(QPointF(sysX + node.layoutPos.x, sysY + node.layoutPos.y));
+            QColor color;
+            QString shape;
+            if (node.type == zf::NodeType::SOURCE) { color = QColor(255, 200, 100); shape = "信源"; }
+            else if (node.type == zf::NodeType::SPLITTER) { color = QColor(100, 200, 255); shape = "功分"; }
+            else if (node.type == zf::NodeType::COUPLER) { color = QColor(255, 150, 100); shape = "耦合"; }
+            else if (node.type == zf::NodeType::ANTENNA) { color = QColor(100, 255, 100); shape = "天线"; }
+            else if (node.type == zf::NodeType::LOAD) { color = QColor(200, 200, 200); shape = "负载"; }
+            else { color = QColor(200, 200, 200); shape = "?"; }
+
+            painter.setBrush(color);
+            painter.setPen(QColor(0, 0, 0));
+            painter.drawRect(QRectF(pos.x() - 18, pos.y() - 12, 36, 24));
+            painter.setPen(QColor(0, 0, 0));
+            painter.setFont(QFont("Arial", 7));
+            painter.drawText(pos + QPointF(-12, 4), shape);
+            if (!node.label.empty()) {
+                painter.setFont(QFont("Arial", 6));
+                painter.drawText(pos + QPointF(-15, 20), QString::fromStdString(node.label));
+            }
+        }
     }
 }
 
