@@ -104,7 +104,7 @@ void PropertyPanel::refresh()
     m_modelEdit->setText(QString::fromStdString(dev.modelId));
     m_xEdit->setText(QString::number(dev.position.x, 'f', 1));
     m_yEdit->setText(QString::number(dev.position.y, 'f', 1));
-    m_noteEdit->setText(QString::fromStdString(dev.notes));
+    m_noteEdit->setText(QString::fromStdString(dev.userNote));
 
     // 查找型号信息
     auto mit = std::find_if(m_project->deviceLibrary.begin(), m_project->deviceLibrary.end(),
@@ -162,7 +162,7 @@ void PropertyPanel::onApply()
         if (dev.instanceId == m_currentDeviceId.toStdString()) {
             dev.position.x = x;
             dev.position.y = y;
-            dev.notes = m_noteEdit->text().toStdString();
+            dev.userNote = m_noteEdit->text().toStdString();
             break;
         }
     }
@@ -187,7 +187,7 @@ void PropertyPanel::onDelete()
     // 同时清理连接
     for (auto& dev : floor.devices) {
         dev.connections.erase(std::remove_if(dev.connections.begin(), dev.connections.end(),
-            [&](const zf::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
+            [&](const zf::DeviceInstance::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
             dev.connections.end());
     }
 

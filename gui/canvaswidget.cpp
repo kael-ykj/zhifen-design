@@ -68,7 +68,7 @@ void CanvasWidget::deleteSelectedDevice()
         floor.devices.end());
     for (auto& dev : floor.devices) {
         dev.connections.erase(std::remove_if(dev.connections.begin(), dev.connections.end(),
-            [&](const zf::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
+            [&](const zf::DeviceInstance::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
             dev.connections.end());
     }
     m_selectedDeviceId.clear();

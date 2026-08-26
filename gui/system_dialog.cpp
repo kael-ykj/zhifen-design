@@ -30,7 +30,6 @@ QColor SystemDiagramView::nodeColor(zf::NodeType type) const
         case zf::NodeType::SOURCE: return QColor(200, 50, 50);
         case zf::NodeType::SPLITTER: return QColor(200, 150, 50);
         case zf::NodeType::COUPLER: return QColor(150, 50, 200);
-        case zf::NodeType::COMBINER: return QColor(50, 180, 180);
         case zf::NodeType::ANTENNA: return QColor(50, 100, 200);
         case zf::NodeType::LOAD: return QColor(100, 100, 100);
         default: return QColor(128, 128, 128);
@@ -43,7 +42,6 @@ QString SystemDiagramView::nodeLabel(zf::NodeType type) const
         case zf::NodeType::SOURCE: return "信源";
         case zf::NodeType::SPLITTER: return "功分";
         case zf::NodeType::COUPLER: return "耦合";
-        case zf::NodeType::COMBINER: return "合路";
         case zf::NodeType::ANTENNA: return "天线";
         case zf::NodeType::LOAD: return "负载";
         default: return "器件";
