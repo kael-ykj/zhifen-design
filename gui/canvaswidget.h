@@ -10,6 +10,7 @@
 #include "core/zf_types.h"
 #include "mode_control/mode_control_layer.h"
 #include "engine/propagation_engine.h"
+#include "engine/link_calculator.h"
 
 class CanvasWidget : public QWidget
 {
@@ -29,6 +30,10 @@ public:
     int activeFloorIndex() const { return m_activeFloorIndex; }
     void setHeatmap(const zf::HeatmapData& heatmap);
     void clearHeatmap();
+    void setLinkReport(const zf::LinkReport& report) { m_linkReport = report; m_hasLinkReport = true; update(); }
+    void clearLinkReport() { m_hasLinkReport = false; update(); }
+    void setShowPowerLabels(bool show) { m_showPowerLabels = show; update(); }
+    bool showPowerLabels() const { return m_showPowerLabels; }
     void deleteSelectedDevice();
     void refresh();
     QPixmap exportToImage(int width = 1600, int height = 1200);
@@ -100,6 +105,9 @@ private:
     QString m_selectedDeviceId;
     zf::HeatmapData m_heatmap;
     bool m_hasHeatmap{false};
+    zf::LinkReport m_linkReport;
+    bool m_hasLinkReport{false};
+    bool m_showPowerLabels{true};
 
     // 视图变换
     double m_zoom{1.0};

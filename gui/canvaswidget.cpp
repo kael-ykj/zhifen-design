@@ -536,6 +536,25 @@ void CanvasWidget::drawDevicesForFloor(QPainter& painter, const zf::Floor& floor
             painter.setPen(QColor(0, 0, 0));
             painter.setFont(QFont("Arial", 7));
             painter.drawText(pos + QPointF(size + 2, 4), QString::fromStdString(dev.instanceId));
+
+            // 功率标注
+            if (m_hasLinkReport && m_showPowerLabels) {
+                for (const auto& r : m_linkReport.results) {
+                    if (r.deviceInstanceId == dev.instanceId) {
+                        QString powerText;
+                        if (r.isAntenna) {
+                            powerText = QString("%1dBm").arg(r.outputPower_dBm, 0, 'f', 1);
+                            painter.setPen(r.powerOverLimit ? QColor(255, 0, 0) : QColor(0, 100, 0));
+                        } else {
+                            powerText = QString("%1→%2dBm").arg(r.inputPower_dBm, 0, 'f', 1).arg(r.outputPower_dBm, 0, 'f', 1);
+                            painter.setPen(QColor(0, 0, 180));
+                        }
+                        painter.setFont(QFont("Arial", 7, QFont::Bold));
+                        painter.drawText(pos + QPointF(size + 2, 14), powerText);
+                        break;
+                    }
+                }
+            }
         }
     }
 }

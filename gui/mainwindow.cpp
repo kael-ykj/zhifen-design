@@ -524,6 +524,7 @@ void MainWindow::onRunLinkCalc()
             .arg(report.minAntennaPower_dBm).arg(report.maxAntennaPower_dBm)
             .arg(report.avgAntennaPower_dBm);
         QMessageBox::information(this, "链路预算", msg);
+        m_canvas->setLinkReport(report);
         m_canvas->refresh();
         m_propertyPanel->refresh();
         statusBar()->showMessage("链路预算完成");
