@@ -367,7 +367,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             wall.points.push_back({m_wallStartPoint.x(), m_wallStartPoint.y()});
             wall.points.push_back({worldPos.x(), worldPos.y()});
             wall.attenuation_dB = 10.0; // 默认墙体损耗
-            wall.thickness_m = 0.24;
+            wall.thickness_mm = 240.0;
             m_project->floors[0].walls.push_back(wall);
             double len = std::sqrt(std::pow(worldPos.x() - m_wallStartPoint.x(), 2) +
                                     std::pow(worldPos.y() - m_wallStartPoint.y(), 2));
