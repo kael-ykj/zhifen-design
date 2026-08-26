@@ -31,6 +31,7 @@ private slots:
     void onShowSystemDiagram();
     void onCostEstimate();
     void onGenerateReport();
+    void onExportMaterialList();
     void onExportDxf();
     void onZoomIn();
     void onZoomOut();
@@ -71,6 +72,7 @@ private:
     QAction* m_actSystemDiagram{nullptr};
     QAction* m_actCostEstimate{nullptr};
     QAction* m_actGenerateReport{nullptr};
+    QAction* m_actExportMaterial{nullptr};
     QAction* m_actExport{nullptr};
     QAction* m_actZoomIn{nullptr};
     QAction* m_actZoomOut{nullptr};

@@ -28,6 +28,9 @@ void CanvasWidget::setModeManager(zf::ModeManager* mgr)
 
 void CanvasWidget::setCurrentTool(const QString& tool)
 {
+    if (m_currentTool != tool) {
+        m_drawingWall = false;
+    }
     m_currentTool = tool;
     if (tool == "select") setCursor(Qt::ArrowCursor);
     else if (tool == "place") setCursor(Qt::CrossCursor);
@@ -94,6 +97,21 @@ void CanvasWidget::paintEvent(QPaintEvent*)
     drawCables(painter);
     drawDevices(painter);
     drawSelectedHighlight(painter);
+
+    // 墙体绘制预览
+    if (m_drawingWall) {
+        QPen previewPen(QColor(255, 100, 0));
+        previewPen.setWidth(2);
+        previewPen.setStyle(Qt::DashLine);
+        painter.setPen(previewPen);
+        painter.setBrush(Qt::NoBrush);
+        QPointF start = worldToScreen(m_wallStartPoint);
+        QPointF end = worldToScreen(m_wallPreviewPoint);
+        painter.drawLine(start, end);
+        // 起点标记
+        painter.setBrush(QColor(255, 100, 0));
+        painter.drawEllipse(start, 4, 4);
+    }
 
     // 模式指示
     if (m_modeMgr && m_modeMgr->getGlobalWorkMode() == zf::WorkMode::SKETCH_MODE) {
@@ -334,6 +352,39 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             QString::number(worldPos.y(), 'f', 0) + ")");
         update();
     }
+    else if (m_currentTool == "wall" && event->button() == Qt::LeftButton) {
+        if (!m_project) return;
+        if (!m_drawingWall) {
+            // 开始绘制墙体
+            m_wallStartPoint = worldPos;
+            m_wallPreviewPoint = worldPos;
+            m_drawingWall = true;
+            emit statusMessage("墙体绘制中: 点击设置终点，右键/Esc结束");
+        } else {
+            // 完成一段墙体
+            zf::Wall wall;
+            wall.wallId = "WALL_" + std::to_string(m_project->floors[0].walls.size() + 1);
+            wall.points.push_back({m_wallStartPoint.x(), m_wallStartPoint.y()});
+            wall.points.push_back({worldPos.x(), worldPos.y()});
+            wall.attenuation_dB = 10.0; // 默认墙体损耗
+            wall.thickness_m = 0.24;
+            m_project->floors[0].walls.push_back(wall);
+            double len = std::sqrt(std::pow(worldPos.x() - m_wallStartPoint.x(), 2) +
+                                    std::pow(worldPos.y() - m_wallStartPoint.y(), 2));
+            emit statusMessage(QString("已添加墙体段 (长度: %1m)，继续点击添加下一段，右键结束").arg(len, 0, 'f', 1));
+            // 连续绘制：当前终点作为下一段起点
+            m_wallStartPoint = worldPos;
+            m_wallPreviewPoint = worldPos;
+        }
+        update();
+    }
+    else if (m_currentTool == "wall" && event->button() == Qt::RightButton) {
+        if (m_drawingWall) {
+            m_drawingWall = false;
+            emit statusMessage("墙体绘制结束");
+            update();
+        }
+    }
 }
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
@@ -352,6 +403,10 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
                 break;
             }
         }
+        update();
+    }
+    else if (m_drawingWall) {
+        m_wallPreviewPoint = screenToWorld(event->localPos());
         update();
     }
     m_lastMousePos = event->localPos();
@@ -392,10 +447,16 @@ void CanvasWidget::keyPressEvent(QKeyEvent *event)
             deleteSelectedDevice();
         }
     } else if (event->key() == Qt::Key_Escape) {
-        m_selectedDeviceId.clear();
-        m_placeModelId.clear();
-        setCurrentTool("select");
-        update();
+        if (m_drawingWall) {
+            m_drawingWall = false;
+            emit statusMessage("墙体绘制已取消");
+            update();
+        } else {
+            m_selectedDeviceId.clear();
+            m_placeModelId.clear();
+            setCurrentTool("select");
+            update();
+        }
     } else {
         QWidget::keyPressEvent(event);
     }

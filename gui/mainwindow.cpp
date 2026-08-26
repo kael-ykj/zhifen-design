@@ -9,6 +9,7 @@
 #include "engine/cost_estimator.h"
 #include "engine/report_generator.h"
 #include "io/drawing_exporter.h"
+#include "io/project_io.h"
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QFileDialog>
@@ -112,6 +113,9 @@ void MainWindow::createActions()
     m_actGenerateReport = new QAction("生成报告", this);
     connect(m_actGenerateReport, &QAction::triggered, this, &MainWindow::onGenerateReport);
 
+    m_actExportMaterial = new QAction("材料表导出", this);
+    connect(m_actExportMaterial, &QAction::triggered, this, &MainWindow::onExportMaterialList);
+
     m_actExport = new QAction("导出DXF", this);
     connect(m_actExport, &QAction::triggered, this, &MainWindow::onExportDxf);
 
@@ -179,6 +183,8 @@ void MainWindow::createMenus()
     calcMenu->addSeparator();
     calcMenu->addAction(m_actCostEstimate);
     calcMenu->addAction(m_actGenerateReport);
+    calcMenu->addSeparator();
+    calcMenu->addAction(m_actExportMaterial);
 
     QMenu* helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction(m_actAbout);
@@ -218,6 +224,8 @@ void MainWindow::createToolBars()
     calcTool->addSeparator();
     calcTool->addAction(m_actCostEstimate);
     calcTool->addAction(m_actGenerateReport);
+    calcTool->addSeparator();
+    calcTool->addAction(m_actExportMaterial);
     calcTool->addAction(m_actExport);
 }
 
@@ -257,14 +265,53 @@ void MainWindow::onNewProject()
     statusBar()->showMessage("新建工程完成");
 }
 
-void MainWindow::onOpenProject()
-{
-    QMessageBox::information(this, "打开工程", "工程文件打开功能开发中");
-}
-
 void MainWindow::onSaveProject()
 {
-    QMessageBox::information(this, "保存工程", "工程保存功能开发中");
+    QString path = QFileDialog::getSaveFileName(this, "保存工程", "", "智分工程文件 (*.zfp *.json)");
+    if (path.isEmpty()) return;
+    zf::ProjectIO io;
+    int result = io.saveProject(path.toStdString(), &m_project);
+    if (result == zf::ZF_ERR_OK) {
+        statusBar()->showMessage("工程已保存: " + path);
+        QMessageBox::information(this, "保存成功", "工程文件已保存:\n" + path);
+    } else {
+        QMessageBox::warning(this, "保存失败", QString("保存失败，错误码: %1").arg(result));
+    }
+}
+
+void MainWindow::onOpenProject()
+{
+    QString path = QFileDialog::getOpenFileName(this, "打开工程", "", "智分工程文件 (*.zfp *.json)");
+    if (path.isEmpty()) return;
+    zf::ProjectIO io;
+    auto loaded = io.loadProject(path.toStdString());
+    if (loaded) {
+        m_project = *loaded;
+        // 确保器件库完整
+        if (m_project.deviceLibrary.empty()) {
+            for (const auto& cat : {zf::DeviceCategory::SIGNAL_SOURCE, zf::DeviceCategory::SPLITTER,
+                                    zf::DeviceCategory::COUPLER, zf::DeviceCategory::ANTENNA,
+                                    zf::DeviceCategory::CABLE, zf::DeviceCategory::COMBINER}) {
+                auto models = m_devLib.getModelsByCategory(cat);
+                for (const auto& m : models) m_project.deviceLibrary.push_back(m);
+            }
+        }
+        if (m_project.floors.empty()) {
+            zf::Floor floor;
+            floor.floorId = "F1";
+            floor.floorName = "1F";
+            m_project.floors.push_back(floor);
+        }
+        m_canvas->clearHeatmap();
+        m_heatmapVisible = false;
+        m_actHeatmap->setChecked(false);
+        m_canvas->refresh();
+        m_propertyPanel->clear();
+        setWindowTitle(QString("智分Design V3.1.0 - %1").arg(QString::fromStdString(m_project.projectName)));
+        statusBar()->showMessage("工程已加载: " + path);
+    } else {
+        QMessageBox::warning(this, "打开失败", "无法打开工程文件，文件可能已损坏或格式不兼容");
+    }
 }
 
 void MainWindow::onModeToggle()
@@ -491,6 +538,51 @@ void MainWindow::onGenerateReport()
     } else {
         QMessageBox::warning(this, "报告生成", QString("生成失败，错误码: %1").arg(result));
     }
+}
+
+void MainWindow::onExportMaterialList()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "材料表导出", "工程为空");
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(this, "导出材料表", "", "CSV Files (*.csv)");
+    if (path.isEmpty()) return;
+
+    zf::CostEstimator estimator;
+    zf::CostSummary summary;
+    estimator.estimateProject(&m_project, summary);
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "材料表导出", "文件写入失败");
+        return;
+    }
+    QTextStream out(&file);
+    out.setCodec("UTF-8");
+
+    out << "序号,类别,型号,名称,数量,单价(元),总价(元),备注\n";
+    int idx = 1;
+    double total = 0;
+    for (const auto& item : summary.items) {
+        out << idx++ << ","
+            << QString::fromStdString(item.category) << ","
+            << QString::fromStdString(item.modelId) << ","
+            << QString::fromStdString(item.itemName) << ","
+            << item.quantity << ","
+            << QString::number(item.unitPrice, 'f', 2) << ","
+            << QString::number(item.totalPrice, 'f', 2) << ","
+            << QString::fromStdString(item.remark) << "\n";
+        total += item.totalPrice;
+    }
+    out << ",,,,,合计," << QString::number(total, 'f', 2) << ",\n";
+    out << ",,,,,含税总价(9%)," << QString::number(summary.total, 'f', 2) << ",\n";
+    file.close();
+
+    QMessageBox::information(this, "材料表导出",
+        QString("材料表已导出:\n%1\n\n共 %2 项，含税总价: %3 元")
+        .arg(path).arg(summary.items.size()).arg(summary.total, 0, 'f', 2));
+    statusBar()->showMessage("材料表已导出: " + path);
 }
 
 void MainWindow::onExportDxf()

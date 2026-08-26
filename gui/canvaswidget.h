@@ -62,4 +62,7 @@ private:
     QPointF m_lastMousePos;
     bool m_panning{false};
     bool m_dragging{false};
+    bool m_drawingWall{false};
+    QPointF m_wallStartPoint;
+    QPointF m_wallPreviewPoint;
 };
