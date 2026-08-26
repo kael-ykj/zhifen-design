@@ -51,6 +51,10 @@ public:
     void startPrintWindowSelection();
     QRectF selectedPrintWindow() const { return m_printWindowRect; }
 
+    // 坐标转换（公共）
+    QPointF worldToScreen(const QPointF& world) const;
+    QPointF screenToWorld(const QPointF& screen) const;
+
 signals:
     void deviceSelected(const QString& deviceId);
     void statusMessage(const QString& message);
@@ -81,8 +85,6 @@ private:
     void drawSelectedHighlight(QPainter& painter);
     void drawPrintWindowPreview(QPainter& painter);
     QColor rsrpToColor(double rsrp) const;
-    QPointF worldToScreen(const QPointF& world) const;
-    QPointF screenToWorld(const QPointF& screen) const;
     QString findDeviceAt(const QPointF& worldPos);
     QPointF snapPoint(const QPointF& worldPos) const;
 
