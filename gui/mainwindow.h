@@ -1,5 +1,7 @@
 #pragma once
 #include <QMainWindow>
+#include <QSettings>
+#include <QStringList>
 #include <QAction>
 #include <QToolBar>
 #include <QStatusBar>
@@ -24,6 +26,7 @@ public:
 
 private slots:
     void onNewProject();
+    zf::Project generateTemplate(const QString& templateName);
     void onOpenProject();
     void onSaveProject();
     void onModeToggle();
@@ -65,6 +68,11 @@ private:
     void updateModeIndicator();
     void refreshFloorCombo();
     void updateUndoButtons();
+    void loadRecentFiles();
+    void saveRecentFiles();
+    void addRecentFile(const QString& path);
+    void updateRecentMenu();
+    void openRecentFile();
     void onProjectAboutToChange();
     void onProjectChanged(const QString& description);
 
@@ -73,6 +81,9 @@ private:
     zf::ModeControlLayer m_modeLayer;
     zf::UndoRedoDoubleStack m_undoStack;
     zf::Project m_undoSnapshot;
+    QSettings m_settings;
+    QStringList m_recentFiles;
+    QMenu* m_recentMenu{nullptr};
 
     CanvasWidget* m_canvas{nullptr};
     DeviceListPanel* m_devicePanel{nullptr};

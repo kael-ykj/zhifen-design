@@ -186,6 +186,9 @@ void MainWindow::createMenus()
     QMenu* fileMenu = menuBar()->addMenu("文件");
     fileMenu->addAction(m_actNew);
     fileMenu->addAction(m_actOpen);
+    m_recentMenu = fileMenu->addMenu("最近打开");
+    loadRecentFiles();
+    updateRecentMenu();
     fileMenu->addAction(m_actSave);
     fileMenu->addSeparator();
     fileMenu->addAction(m_actExport);
@@ -306,20 +309,21 @@ void MainWindow::createDockPanels()
 
 void MainWindow::onNewProject()
 {
-    m_project.floors.clear();
-    zf::Floor floor;
-    floor.floorId = "F1";
-    floor.floorName = "1F";
-    m_project.floors.push_back(floor);
+    QStringList templates = {"空白工程", "小型办公室", "大型商场", "酒店客房层"};
+    bool ok = false;
+    QString selected = QInputDialog::getItem(this, "新建工程", "选择工程模板:", templates, 0, false, &ok);
+    if (!ok) return;
+
+    m_project = generateTemplate(selected);
     m_canvas->clearHeatmap();
     m_heatmapVisible = false;
     m_actHeatmap->setChecked(false);
     m_canvas->refresh();
     m_propertyPanel->clear();
     refreshFloorCombo();
-    statusBar()->showMessage("新建工程完成");
+    setWindowTitle(QString("智分Design V3.1.0 - %1").arg(selected));
+    statusBar()->showMessage("新建工程完成: " + selected);
 }
-
 void MainWindow::onSaveProject()
 {
     QString path = QFileDialog::getSaveFileName(this, "保存工程", "", "智分工程文件 (*.zfp *.json)");
@@ -365,6 +369,7 @@ void MainWindow::onOpenProject()
         setWindowTitle(QString("智分Design V3.1.0 - %1").arg(QString::fromStdString(m_project.projectName)));
         refreshFloorCombo();
         statusBar()->showMessage("工程已加载: " + path);
+        addRecentFile(path);
     } else {
         QMessageBox::warning(this, "打开失败", "无法打开工程文件，文件可能已损坏或格式不兼容");
     }
@@ -999,4 +1004,188 @@ void MainWindow::onPrint()
         painter.end();
         statusBar()->showMessage("已发送到打印机");
     }
+}
+
+void MainWindow::loadRecentFiles()
+{
+    m_recentFiles = m_settings.value("recentFiles", QStringList()).toStringList();
+}
+
+void MainWindow::saveRecentFiles()
+{
+    m_settings.setValue("recentFiles", m_recentFiles);
+}
+
+void MainWindow::addRecentFile(const QString& path)
+{
+    m_recentFiles.removeAll(path);
+    m_recentFiles.prepend(path);
+    if (m_recentFiles.size() > 10) m_recentFiles = m_recentFiles.mid(0, 10);
+    saveRecentFiles();
+    updateRecentMenu();
+}
+
+void MainWindow::updateRecentMenu()
+{
+    if (!m_recentMenu) return;
+    m_recentMenu->clear();
+    if (m_recentFiles.isEmpty()) {
+        QAction* empty = m_recentMenu->addAction("（无最近文件）");
+        empty->setEnabled(false);
+        return;
+    }
+    for (int i = 0; i < m_recentFiles.size(); ++i) {
+        QString text = QString("%1. %2").arg(i + 1).arg(QFileInfo(m_recentFiles[i]).fileName());
+        QAction* act = m_recentMenu->addAction(text);
+        act->setData(m_recentFiles[i]);
+        connect(act, &QAction::triggered, this, &MainWindow::openRecentFile);
+    }
+    m_recentMenu->addSeparator();
+    QAction* clear = m_recentMenu->addAction("清空最近列表");
+    connect(clear, &QAction::triggered, this, [this]() {
+        m_recentFiles.clear();
+        saveRecentFiles();
+        updateRecentMenu();
+    });
+}
+
+void MainWindow::openRecentFile()
+{
+    QAction* act = qobject_cast<QAction*>(sender());
+    if (!act) return;
+    QString path = act->data().toString();
+    if (QFile::exists(path)) {
+        zf::ProjectIO io;
+        auto loaded = io.loadProject(path.toStdString());
+        if (loaded) {
+            m_project = *loaded;
+            if (m_project.deviceLibrary.empty()) {
+                for (const auto& cat : {zf::DeviceCategory::SIGNAL_SOURCE, zf::DeviceCategory::SPLITTER,
+                                        zf::DeviceCategory::COUPLER, zf::DeviceCategory::ANTENNA,
+                                        zf::DeviceCategory::CABLE, zf::DeviceCategory::COMBINER}) {
+                    auto models = m_devLib.getModelsByCategory(cat);
+                    for (const auto& m : models) m_project.deviceLibrary.push_back(m);
+                }
+            }
+            if (m_project.floors.empty()) {
+                zf::Floor floor;
+                floor.floorId = "F1";
+                floor.floorName = "1F";
+                m_project.floors.push_back(floor);
+            }
+            m_canvas->clearHeatmap();
+            m_heatmapVisible = false;
+            m_actHeatmap->setChecked(false);
+            m_canvas->refresh();
+            m_propertyPanel->clear();
+            setWindowTitle(QString("智分Design V3.1.0 - %1").arg(QString::fromStdString(m_project.projectName)));
+            refreshFloorCombo();
+            addRecentFile(path);
+            statusBar()->showMessage("工程已加载: " + path);
+        } else {
+            QMessageBox::warning(this, "打开失败", "无法打开工程文件，文件可能已损坏或格式不兼容");
+            m_recentFiles.removeAll(path);
+            saveRecentFiles();
+            updateRecentMenu();
+        }
+    } else {
+        QMessageBox::warning(this, "文件不存在", "该文件已被移动或删除: " + path);
+        m_recentFiles.removeAll(path);
+        saveRecentFiles();
+        updateRecentMenu();
+    }
+}
+
+zf::Project MainWindow::generateTemplate(const QString& templateName)
+{
+    zf::Project proj;
+    proj.projectId = "TEMPLATE_" + templateName.toStdString();
+    proj.projectName = templateName.toStdString();
+
+    // 加载默认器件库
+    for (const auto& cat : {zf::DeviceCategory::SIGNAL_SOURCE, zf::DeviceCategory::SPLITTER,
+                            zf::DeviceCategory::COUPLER, zf::DeviceCategory::ANTENNA,
+                            zf::DeviceCategory::CABLE, zf::DeviceCategory::COMBINER}) {
+        auto models = m_devLib.getModelsByCategory(cat);
+        for (const auto& m : models) proj.deviceLibrary.push_back(m);
+    }
+
+    if (templateName == "空白工程") {
+        zf::Floor floor;
+        floor.floorId = "F1";
+        floor.floorName = "1F";
+        proj.floors.push_back(floor);
+    }
+    else if (templateName == "小型办公室") {
+        zf::Floor floor;
+        floor.floorId = "F1";
+        floor.floorName = "1F 办公层";
+        // 外墙
+        zf::Wall w1, w2, w3, w4;
+        w1.wallId = "WALL_EXT1"; w1.points = {{0,0},{800,0}}; w1.attenuation_dB = 15; w1.thickness_mm = 240;
+        w2.wallId = "WALL_EXT2"; w2.points = {{800,0},{800,600}}; w2.attenuation_dB = 15; w2.thickness_mm = 240;
+        w3.wallId = "WALL_EXT3"; w3.points = {{800,600},{0,600}}; w3.attenuation_dB = 15; w3.thickness_mm = 240;
+        w4.wallId = "WALL_EXT4"; w4.points = {{0,600},{0,0}}; w4.attenuation_dB = 15; w4.thickness_mm = 240;
+        // 内部隔墙
+        zf::Wall w5, w6;
+        w5.wallId = "WALL_INT1"; w5.points = {{400,0},{400,300}}; w5.attenuation_dB = 8; w5.thickness_mm = 120;
+        w6.wallId = "WALL_INT2"; w6.points = {{0,300},{400,300}}; w6.attenuation_dB = 8; w6.thickness_mm = 120;
+        floor.walls = {w1, w2, w3, w4, w5, w6};
+        proj.floors.push_back(floor);
+    }
+    else if (templateName == "大型商场") {
+        for (int f = 1; f <= 3; ++f) {
+            zf::Floor floor;
+            floor.floorId = "F" + std::to_string(f);
+            floor.floorName = std::to_string(f) + "F 商场层";
+            // 外墙
+            zf::Wall w1, w2, w3, w4;
+            w1.wallId = "WALL_F" + std::to_string(f) + "_EXT1"; w1.points = {{0,0},{1200,0}}; w1.attenuation_dB = 15; w1.thickness_mm = 240;
+            w2.wallId = "WALL_F" + std::to_string(f) + "_EXT2"; w2.points = {{1200,0},{1200,800}}; w2.attenuation_dB = 15; w2.thickness_mm = 240;
+            w3.wallId = "WALL_F" + std::to_string(f) + "_EXT3"; w3.points = {{1200,800},{0,800}}; w3.attenuation_dB = 15; w3.thickness_mm = 240;
+            w4.wallId = "WALL_F" + std::to_string(f) + "_EXT4"; w4.points = {{0,800},{0,0}}; w4.attenuation_dB = 15; w4.thickness_mm = 240;
+            // 中庭
+            zf::Wall w5, w6, w7, w8;
+            w5.wallId = "WALL_F" + std::to_string(f) + "_AT1"; w5.points = {{400,200},{800,200}}; w5.attenuation_dB = 5; w5.thickness_mm = 100;
+            w6.wallId = "WALL_F" + std::to_string(f) + "_AT2"; w6.points = {{800,200},{800,600}}; w6.attenuation_dB = 5; w6.thickness_mm = 100;
+            w7.wallId = "WALL_F" + std::to_string(f) + "_AT3"; w7.points = {{800,600},{400,600}}; w7.attenuation_dB = 5; w7.thickness_mm = 100;
+            w8.wallId = "WALL_F" + std::to_string(f) + "_AT4"; w8.points = {{400,600},{400,200}}; w8.attenuation_dB = 5; w8.thickness_mm = 100;
+            floor.walls = {w1, w2, w3, w4, w5, w6, w7, w8};
+            proj.floors.push_back(floor);
+        }
+    }
+    else if (templateName == "酒店客房层") {
+        for (int f = 1; f <= 2; ++f) {
+            zf::Floor floor;
+            floor.floorId = "F" + std::to_string(f);
+            floor.floorName = std::to_string(f) + "F 客房层";
+            // 外墙
+            zf::Wall w1, w2, w3, w4;
+            w1.wallId = "WALL_F" + std::to_string(f) + "_EXT1"; w1.points = {{0,0},{1000,0}}; w1.attenuation_dB = 15; w1.thickness_mm = 240;
+            w2.wallId = "WALL_F" + std::to_string(f) + "_EXT2"; w2.points = {{1000,0},{1000,500}}; w2.attenuation_dB = 15; w2.thickness_mm = 240;
+            w3.wallId = "WALL_F" + std::to_string(f) + "_EXT3"; w3.points = {{1000,500},{0,500}}; w3.attenuation_dB = 15; w3.thickness_mm = 240;
+            w4.wallId = "WALL_F" + std::to_string(f) + "_EXT4"; w4.points = {{0,500},{0,0}}; w4.attenuation_dB = 15; w4.thickness_mm = 240;
+            // 走廊两侧客房隔墙
+            std::vector<zf::Wall> walls = {w1, w2, w3, w4};
+            for (int i = 1; i <= 5; ++i) {
+                double x = i * 180;
+                zf::Wall wa, wb;
+                wa.wallId = "WALL_F" + std::to_string(f) + "_R" + std::to_string(i) + "A";
+                wa.points = {{x,0},{x,200}}; wa.attenuation_dB = 10; wa.thickness_mm = 120;
+                wb.wallId = "WALL_F" + std::to_string(f) + "_R" + std::to_string(i) + "B";
+                wb.points = {{x,300},{x,500}}; wb.attenuation_dB = 10; wb.thickness_mm = 120;
+                walls.push_back(wa);
+                walls.push_back(wb);
+            }
+            // 走廊边界
+            zf::Wall wc, wd;
+            wc.wallId = "WALL_F" + std::to_string(f) + "_COR1"; wc.points = {{0,200},{1000,200}}; wc.attenuation_dB = 8; wc.thickness_mm = 100;
+            wd.wallId = "WALL_F" + std::to_string(f) + "_COR2"; wd.points = {{0,300},{1000,300}}; wd.attenuation_dB = 8; wd.thickness_mm = 100;
+            walls.push_back(wc);
+            walls.push_back(wd);
+            floor.walls = walls;
+            proj.floors.push_back(floor);
+        }
+    }
+    return proj;
 }
