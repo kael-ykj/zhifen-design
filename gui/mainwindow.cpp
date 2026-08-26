@@ -1197,7 +1197,7 @@ zf::Project MainWindow::generateTemplate(const QString& templateName)
 
 void MainWindow::onAutoPlace()
 {
-    if (!m_project || m_project.floors.empty()) {
+    if (m_project.floors.empty()) {
         QMessageBox::warning(this, "无法布放", "请先创建楼层");
         return;
     }
@@ -1216,7 +1216,7 @@ void MainWindow::onAutoPlace()
     zf::AutoPlaceParams params;
     params.coverageRadius_m = radius;
     zf::AutoPlacer placer;
-    auto result = placer.place(m_project.floors[m_currentFloorIndex], params);
+    auto result = placer.place(m_project.floors[m_floorCombo->currentIndex()], params);
 
     if (result.success) {
         // 发出修改后信号
