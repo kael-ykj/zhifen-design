@@ -13,6 +13,7 @@ public:
     explicit SystemDiagramView(const zf::SystemDiagram& diagram, QWidget *parent = nullptr);
     QSize sizeHint() const override;
     QPixmap exportToImage(int margin = 40);
+    void drawDiagram(QPainter& painter, const QRect& rect);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -22,7 +23,6 @@ private:
     double m_scale{1.0};
     QColor nodeColor(zf::NodeType type) const;
     QString nodeLabel(zf::NodeType type) const;
-    void drawDiagram(QPainter& painter, const QRect& rect);
 };
 
 class SystemDiagramDialog : public QDialog
