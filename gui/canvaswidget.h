@@ -19,6 +19,8 @@ public:
     void setModeManager(zf::ModeManager* mgr);
     void setCurrentTool(const QString& tool);
     void setPlaceModel(const QString& modelId);
+    void setCurrentFloorIndex(int index);
+    int currentFloorIndex() const { return m_currentFloorIndex; }
     void setHeatmap(const zf::HeatmapData& heatmap);
     void clearHeatmap();
     void deleteSelectedDevice();
@@ -52,6 +54,7 @@ private:
 
     zf::Project* m_project{nullptr};
     zf::ModeManager* m_modeMgr{nullptr};
+    int m_currentFloorIndex{0};
     QString m_currentTool{"select"};
     QString m_placeModelId;
     QString m_selectedDeviceId;

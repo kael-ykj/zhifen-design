@@ -50,6 +50,18 @@ void CanvasWidget::setPlaceModel(const QString& modelId)
     }
 }
 
+
+void CanvasWidget::setCurrentFloorIndex(int index)
+{
+    if (m_project && index >= 0 && index < (int)m_project->floors.size()) {
+        m_currentFloorIndex = index;
+        m_selectedDeviceId.clear();
+        m_drawingWall = false;
+        m_drawingCable = false;
+        m_cableStartDeviceId.clear();
+        update();
+    }
+}
 void CanvasWidget::setHeatmap(const zf::HeatmapData& heatmap)
 {
     m_heatmap = heatmap;
@@ -67,7 +79,7 @@ void CanvasWidget::deleteSelectedDevice()
 {
     if (m_selectedDeviceId.isEmpty() || !m_project || m_project->floors.empty()) return;
     QString deletedId = m_selectedDeviceId;
-    auto& floor = m_project->floors[0];
+    auto& floor = m_project->floors[m_currentFloorIndex];
     floor.devices.erase(std::remove_if(floor.devices.begin(), floor.devices.end(),
         [&](const zf::DeviceInstance& d) { return d.instanceId == deletedId.toStdString(); }),
         floor.devices.end());
@@ -119,7 +131,7 @@ void CanvasWidget::paintEvent(QPaintEvent*)
         // 找到起点器件位置
         QPointF startPos;
         bool found = false;
-        const auto& floor = m_project->floors[0];
+        const auto& floor = m_project->floors[m_currentFloorIndex];
         for (const auto& dev : floor.devices) {
             if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
                 startPos = worldToScreen(QPointF(dev.position.x, dev.position.y));
@@ -219,7 +231,7 @@ void CanvasWidget::drawHeatmap(QPainter& painter)
 void CanvasWidget::drawWalls(QPainter& painter)
 {
     if (!m_project) return;
-    const auto& floor = m_project->floors[0];
+    const auto& floor = m_project->floors[m_currentFloorIndex];
     QPen wallPen(QColor(80, 80, 80));
     wallPen.setWidth(3);
     painter.setPen(wallPen);
@@ -235,7 +247,7 @@ void CanvasWidget::drawWalls(QPainter& painter)
 void CanvasWidget::drawCables(QPainter& painter)
 {
     if (!m_project) return;
-    const auto& floor = m_project->floors[0];
+    const auto& floor = m_project->floors[m_currentFloorIndex];
     QPen cablePen(QColor(0, 150, 0));
     cablePen.setWidth(2);
     cablePen.setStyle(Qt::DashLine);
@@ -258,7 +270,7 @@ void CanvasWidget::drawCables(QPainter& painter)
 void CanvasWidget::drawDevices(QPainter& painter)
 {
     if (!m_project) return;
-    const auto& floor = m_project->floors[0];
+    const auto& floor = m_project->floors[m_currentFloorIndex];
     for (const auto& dev : floor.devices) {
         QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
         double r = 12 * m_zoom;
@@ -300,7 +312,7 @@ void CanvasWidget::drawDevices(QPainter& painter)
 void CanvasWidget::drawSelectedHighlight(QPainter& painter)
 {
     if (m_selectedDeviceId.isEmpty() || !m_project) return;
-    const auto& floor = m_project->floors[0];
+    const auto& floor = m_project->floors[m_currentFloorIndex];
     for (const auto& dev : floor.devices) {
         if (dev.instanceId == m_selectedDeviceId.toStdString()) {
             QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
@@ -335,7 +347,7 @@ QPointF CanvasWidget::screenToWorld(const QPointF& screen) const
 QString CanvasWidget::findDeviceAt(const QPointF& worldPos)
 {
     if (!m_project || m_project->floors.empty()) return "";
-    const auto& floor = m_project->floors[0];
+    const auto& floor = m_project->floors[m_currentFloorIndex];
     double threshold = 15.0 / m_zoom;
     for (const auto& dev : floor.devices) {
         double dx = dev.position.x - worldPos.x();
@@ -370,10 +382,10 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             return;
         }
         zf::DeviceInstance dev;
-        dev.instanceId = "DEV_" + std::to_string(m_project->floors[0].devices.size() + 1);
+        dev.instanceId = "DEV_" + std::to_string(m_project->floors[m_currentFloorIndex].devices.size() + 1);
         dev.modelId = m_placeModelId.toStdString();
         dev.position = {worldPos.x(), worldPos.y()};
-        m_project->floors[0].devices.push_back(dev);
+        m_project->floors[m_currentFloorIndex].devices.push_back(dev);
         emit statusMessage("已放置: " + m_placeModelId + " at (" +
             QString::number(worldPos.x(), 'f', 0) + ", " +
             QString::number(worldPos.y(), 'f', 0) + ")");
@@ -390,12 +402,12 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
         } else {
             // 完成一段墙体
             zf::Wall wall;
-            wall.wallId = "WALL_" + std::to_string(m_project->floors[0].walls.size() + 1);
+            wall.wallId = "WALL_" + std::to_string(m_project->floors[m_currentFloorIndex].walls.size() + 1);
             wall.points.push_back({m_wallStartPoint.x(), m_wallStartPoint.y()});
             wall.points.push_back({worldPos.x(), worldPos.y()});
             wall.attenuation_dB = 10.0; // 默认墙体损耗
             wall.thickness_mm = 240.0;
-            m_project->floors[0].walls.push_back(wall);
+            m_project->floors[m_currentFloorIndex].walls.push_back(wall);
             double len = std::sqrt(std::pow(worldPos.x() - m_wallStartPoint.x(), 2) +
                                     std::pow(worldPos.y() - m_wallStartPoint.y(), 2));
             emit statusMessage(QString("已添加墙体段 (长度: %1m)，继续点击添加下一段，右键结束").arg(len, 0, 'f', 1));
@@ -431,7 +443,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
                 emit statusMessage("不能连接到自身，请选择其他器件");
                 return;
             }
-            auto& floor = m_project->floors[0];
+            auto& floor = m_project->floors[m_currentFloorIndex];
             // 在起点器件的connections中添加指向目标的连接
             for (auto& dev : floor.devices) {
                 if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
@@ -479,7 +491,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
     }
     else if (m_dragging && !m_selectedDeviceId.isEmpty() && m_project) {
         QPointF worldPos = screenToWorld(event->localPos());
-        auto& floor = m_project->floors[0];
+        auto& floor = m_project->floors[m_currentFloorIndex];
         for (auto& dev : floor.devices) {
             if (dev.instanceId == m_selectedDeviceId.toStdString()) {
                 dev.position = {worldPos.x(), worldPos.y()};

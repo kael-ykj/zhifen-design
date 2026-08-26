@@ -8,12 +8,14 @@
 #include "engine/system_diagram_engine.h"
 #include "engine/cost_estimator.h"
 #include "engine/report_generator.h"
+#include "engine/floor_cloner.h"
 #include "io/drawing_exporter.h"
 #include "io/project_io.h"
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QLabel>
 #include <QApplication>
 #include <QWheelEvent>
 #include <QFile>
@@ -30,6 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     createMenus();
     createToolBars();
     createDockPanels();
+    refreshFloorCombo();
 
     m_canvas = new CanvasWidget(this);
     m_canvas->setProject(&m_project);
@@ -116,6 +119,15 @@ void MainWindow::createActions()
     m_actExportMaterial = new QAction("材料表导出", this);
     connect(m_actExportMaterial, &QAction::triggered, this, &MainWindow::onExportMaterialList);
 
+
+    m_actAddFloor = new QAction("新增楼层", this);
+    connect(m_actAddFloor, &QAction::triggered, this, &MainWindow::onAddFloor);
+
+    m_actDeleteFloor = new QAction("删除楼层", this);
+    connect(m_actDeleteFloor, &QAction::triggered, this, &MainWindow::onDeleteFloor);
+
+    m_actCloneFloor = new QAction("标准层复制", this);
+    connect(m_actCloneFloor, &QAction::triggered, this, &MainWindow::onCloneFloor);
     m_actExport = new QAction("导出DXF", this);
     connect(m_actExport, &QAction::triggered, this, &MainWindow::onExportDxf);
 
@@ -197,6 +209,20 @@ void MainWindow::createToolBars()
     fileTool->addAction(m_actOpen);
     fileTool->addAction(m_actSave);
 
+    // 楼层工具栏
+    QToolBar* floorTool = addToolBar("楼层");
+    QLabel* floorLabel = new QLabel(" 楼层: ", this);
+    floorTool->addWidget(floorLabel);
+    m_floorCombo = new QComboBox(this);
+    m_floorCombo->setMinimumWidth(120);
+    floorTool->addWidget(m_floorCombo);
+    floorTool->addAction(m_actAddFloor);
+    floorTool->addAction(m_actDeleteFloor);
+    floorTool->addSeparator();
+    floorTool->addAction(m_actCloneFloor);
+    connect(m_floorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::onFloorChanged);
+
     QToolBar* editTool = addToolBar("编辑");
     editTool->addAction(m_actUndo);
     editTool->addAction(m_actRedo);
@@ -262,6 +288,7 @@ void MainWindow::onNewProject()
     m_actHeatmap->setChecked(false);
     m_canvas->refresh();
     m_propertyPanel->clear();
+    refreshFloorCombo();
     statusBar()->showMessage("新建工程完成");
 }
 
@@ -308,6 +335,7 @@ void MainWindow::onOpenProject()
         m_canvas->refresh();
         m_propertyPanel->clear();
         setWindowTitle(QString("智分Design V3.1.0 - %1").arg(QString::fromStdString(m_project.projectName)));
+        refreshFloorCombo();
         statusBar()->showMessage("工程已加载: " + path);
     } else {
         QMessageBox::warning(this, "打开失败", "无法打开工程文件，文件可能已损坏或格式不兼容");
@@ -348,7 +376,7 @@ void MainWindow::onToolSelect()
 
 void MainWindow::onRunLinkCalc()
 {
-    if (m_project.floors.empty() || m_project.floors[0].devices.empty()) {
+    if (m_project.floors.empty() || m_project.floors[m_canvas->currentFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "链路预算", "请先放置器件");
         return;
     }
@@ -374,14 +402,14 @@ void MainWindow::onRunLinkCalc()
 
 void MainWindow::onRunSimulation()
 {
-    if (m_project.floors.empty() || m_project.floors[0].devices.empty()) {
+    if (m_project.floors.empty() || m_project.floors[m_canvas->currentFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "覆盖仿真", "请先放置器件");
         return;
     }
     // 找到第一个天线作为发射点
     zf::Point2D txPos{0, 0};
     bool found = false;
-    for (const auto& dev : m_project.floors[0].devices) {
+    for (const auto& dev : m_project.floors[m_canvas->currentFloorIndex()].devices) {
         auto it = std::find_if(m_project.deviceLibrary.begin(), m_project.deviceLibrary.end(),
             [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
         if (it != m_project.deviceLibrary.end() && it->category == zf::DeviceCategory::ANTENNA) {
@@ -392,7 +420,7 @@ void MainWindow::onRunSimulation()
     }
     if (!found) {
         // 用第一个器件
-        txPos = m_project.floors[0].devices[0].position;
+        txPos = m_project.floors[m_canvas->currentFloorIndex()].devices[0].position;
     }
 
     zf::PropagationEngine engine;
@@ -403,7 +431,7 @@ void MainWindow::onRunSimulation()
     engine.setConfig(cfg);
 
     zf::HeatmapData heatmap;
-    int result = engine.generateHeatmap(&m_project.floors[0], txPos, heatmap);
+    int result = engine.generateHeatmap(&m_project.floors[m_canvas->currentFloorIndex()], txPos, heatmap);
     if (result == zf::ZF_ERR_OK) {
         m_canvas->setHeatmap(heatmap);
         m_heatmapVisible = true;
@@ -438,14 +466,14 @@ void MainWindow::onToggleHeatmap()
 
 void MainWindow::onShowSystemDiagram()
 {
-    if (m_project.floors.empty() || m_project.floors[0].devices.empty()) {
+    if (m_project.floors.empty() || m_project.floors[m_canvas->currentFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "系统图", "请先放置器件");
         return;
     }
     zf::SystemDiagramEngine engine;
     engine.setModeManager(m_modeLayer.modeManager.get());
     zf::SystemDiagram diagram;
-    int result = engine.generateFromFloor(&m_project.floors[0], &m_project, diagram);
+    int result = engine.generateFromFloor(&m_project.floors[m_canvas->currentFloorIndex()], &m_project, diagram);
     if (result == zf::ZF_ERR_OK) {
         SystemDiagramDialog dlg(diagram, this);
         dlg.exec();
@@ -591,7 +619,7 @@ void MainWindow::onExportDxf()
     if (path.isEmpty()) return;
     zf::DrawingExporter exporter;
     exporter.setModeManager(m_modeLayer.modeManager.get());
-    int result = exporter.exportFloorPlanDxf(path.toStdString(), &m_project.floors[0]);
+    int result = exporter.exportFloorPlanDxf(path.toStdString(), &m_project.floors[m_canvas->currentFloorIndex()]);
     if (result == zf::ZF_ERR_OK) {
         QMessageBox::information(this, "导出成功", "DXF文件已导出: " + path);
     } else {
@@ -665,4 +693,120 @@ void MainWindow::onDeviceDeleted(const QString& deviceId)
     m_propertyPanel->clear();
     m_canvas->refresh();
     statusBar()->showMessage("已删除器件: " + deviceId);
+}
+
+void MainWindow::refreshFloorCombo()
+{
+    if (!m_floorCombo) return;
+    m_floorCombo->blockSignals(true);
+    m_floorCombo->clear();
+    for (size_t i = 0; i < m_project.floors.size(); i++) {
+        const auto& floor = m_project.floors[i];
+        QString label = QString("%1 - %2").arg(QString::fromStdString(floor.floorId))
+                                            .arg(QString::fromStdString(floor.floorName));
+        if (floor.isStandardFloor) label += " [标准层]";
+        m_floorCombo->addItem(label);
+    }
+    int idx = m_canvas ? m_canvas->currentFloorIndex() : 0;
+    if (idx >= 0 && idx < m_floorCombo->count()) {
+        m_floorCombo->setCurrentIndex(idx);
+    }
+    m_floorCombo->blockSignals(false);
+    // 删除楼层按钮：只有1层时禁用
+    if (m_actDeleteFloor) {
+        m_actDeleteFloor->setEnabled(m_project.floors.size() > 1);
+    }
+}
+
+void MainWindow::onFloorChanged(int index)
+{
+    if (m_canvas && index >= 0) {
+        m_canvas->setCurrentFloorIndex(index);
+        m_propertyPanel->clear();
+        const auto& floor = m_project.floors[index];
+        statusBar()->showMessage(QString("切换到楼层: %1 - %2 (器件: %3, 墙体: %4)")
+            .arg(QString::fromStdString(floor.floorId))
+            .arg(QString::fromStdString(floor.floorName))
+            .arg(floor.devices.size())
+            .arg(floor.walls.size()));
+    }
+}
+
+void MainWindow::onAddFloor()
+{
+    bool ok;
+    QString floorName = QInputDialog::getText(this, "新增楼层", "楼层名称:", QLineEdit::Normal,
+        QString("F%1").arg(m_project.floors.size() + 1), &ok);
+    if (!ok || floorName.isEmpty()) return;
+
+    zf::Floor newFloor;
+    newFloor.floorId = "F" + std::to_string(m_project.floors.size() + 1);
+    newFloor.floorName = floorName.toStdString();
+    newFloor.floorIndex = (int)m_project.floors.size();
+    newFloor.height_m = 3.0;
+    m_project.floors.push_back(newFloor);
+
+    refreshFloorCombo();
+    m_floorCombo->setCurrentIndex((int)m_project.floors.size() - 1);
+    statusBar()->showMessage("已新增楼层: " + floorName);
+}
+
+void MainWindow::onDeleteFloor()
+{
+    if (m_project.floors.size() <= 1) {
+        QMessageBox::warning(this, "删除楼层", "至少保留一个楼层");
+        return;
+    }
+    int idx = m_floorCombo ? m_floorCombo->currentIndex() : 0;
+    const auto& floor = m_project.floors[idx];
+    if (QMessageBox::question(this, "确认删除",
+        QString("确定要删除楼层 %1 - %2 吗？\n该楼层所有器件和墙体将被删除。")
+        .arg(QString::fromStdString(floor.floorId))
+        .arg(QString::fromStdString(floor.floorName))) != QMessageBox::Yes) {
+        return;
+    }
+    m_project.floors.erase(m_project.floors.begin() + idx);
+    if (idx >= (int)m_project.floors.size()) idx = (int)m_project.floors.size() - 1;
+    refreshFloorCombo();
+    m_floorCombo->setCurrentIndex(idx);
+    statusBar()->showMessage("楼层已删除");
+}
+
+void MainWindow::onCloneFloor()
+{
+    if (m_project.floors.empty()) return;
+    int srcIdx = m_floorCombo ? m_floorCombo->currentIndex() : 0;
+    const auto& srcFloor = m_project.floors[srcIdx];
+
+    bool ok;
+    QString newName = QInputDialog::getText(this, "标准层复制",
+        QString("将楼层 %1 复制为新楼层，新楼层名称:")
+        .arg(QString::fromStdString(srcFloor.floorName)),
+        QLineEdit::Normal, QString("F%1").arg(m_project.floors.size() + 1), &ok);
+    if (!ok || newName.isEmpty()) return;
+
+    zf::FloorCloner cloner;
+    zf::CloneOptions options;
+    options.cloneWalls = true;
+    options.cloneDevices = true;
+    options.cloneCables = true;
+    options.idPrefix = newName.toStdString() + "_";
+    options.offsetX = 0;
+    options.offsetY = 0;
+
+    zf::Floor newFloor;
+    std::string newId = "F" + std::to_string(m_project.floors.size() + 1);
+    int result = cloner.cloneFromStandard(&srcFloor, newId, newName.toStdString(), options, newFloor);
+    if (result == zf::ZF_ERR_OK) {
+        m_project.floors.push_back(newFloor);
+        refreshFloorCombo();
+        m_floorCombo->setCurrentIndex((int)m_project.floors.size() - 1);
+        statusBar()->showMessage(QString("已从 %1 复制到 %2 (器件: %3, 墙体: %4)")
+            .arg(QString::fromStdString(srcFloor.floorName))
+            .arg(newName)
+            .arg(newFloor.devices.size())
+            .arg(newFloor.walls.size()));
+    } else {
+        QMessageBox::warning(this, "复制失败", QString("复制失败，错误码: %1").arg(result));
+    }
 }

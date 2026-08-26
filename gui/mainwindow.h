@@ -4,6 +4,7 @@
 #include <QToolBar>
 #include <QStatusBar>
 #include <QDockWidget>
+#include <QComboBox>
 #include "core/zf_types.h"
 #include "device/device_library.h"
 #include "mode_control/mode_control_layer.h"
@@ -42,6 +43,10 @@ private slots:
     void onStatusMessage(const QString& msg);
     void onPropertyChanged();
     void onDeviceDeleted(const QString& deviceId);
+    void onFloorChanged(int index);
+    void onAddFloor();
+    void onDeleteFloor();
+    void onCloneFloor();
 
 private:
     void createActions();
@@ -50,6 +55,7 @@ private:
     void createDockPanels();
     void initProject();
     void updateModeIndicator();
+    void refreshFloorCombo();
 
     zf::Project m_project;
     zf::DeviceLibrary m_devLib;
@@ -82,6 +88,12 @@ private:
     QAction* m_actToolPlace{nullptr};
     QAction* m_actToolWall{nullptr};
     QAction* m_actToolCable{nullptr};
+
+    // 楼层管理
+    QComboBox* m_floorCombo{nullptr};
+    QAction* m_actAddFloor{nullptr};
+    QAction* m_actDeleteFloor{nullptr};
+    QAction* m_actCloneFloor{nullptr};
 
     bool m_heatmapVisible{false};
 };
