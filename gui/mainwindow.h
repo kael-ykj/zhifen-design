@@ -37,6 +37,7 @@ private slots:
     void onModeToggle();
     void onToolSelect();
     void onRunLinkCalc();
+    void onAutoNumber();
     void onRunSimulation();
     void onToggleHeatmap();
     void onShowSystemDiagram();
@@ -136,6 +137,7 @@ private:
     QAction* m_actToolFeeder{nullptr};
     QAction* m_actInsertSplitter{nullptr};
     QAction* m_actInsertCoupler{nullptr};
+    QAction* m_actAutoNumber{nullptr};
 
     // 楼层管理
     QComboBox* m_floorCombo{nullptr};

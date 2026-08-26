@@ -246,6 +246,9 @@ void MainWindow::createActions()
     m_actInsertCoupler = new QAction("插耦合器", this);
     m_actInsertCoupler->setCheckable(true);
     connect(m_actInsertCoupler, &QAction::triggered, this, &MainWindow::onToolSelect);
+
+    m_actAutoNumber = new QAction("自动编号", this);
+    connect(m_actAutoNumber, &QAction::triggered, this, &MainWindow::onAutoNumber);
 }
 
 void MainWindow::createMenus()
@@ -336,6 +339,7 @@ void MainWindow::createToolBars()
     toolBar->addAction(m_actToolFeeder);
     toolBar->addAction(m_actInsertSplitter);
     toolBar->addAction(m_actInsertCoupler);
+    toolBar->addAction(m_actAutoNumber);
     toolBar->addSeparator();
     toolBar->addAction(m_actMode);
 
@@ -531,6 +535,47 @@ void MainWindow::onRunLinkCalc()
     } else {
         QMessageBox::warning(this, "链路预算", QString("计算失败，错误码: %1").arg(result));
     }
+}
+
+void MainWindow::onAutoNumber()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "自动编号", "请先创建楼层");
+        return;
+    }
+    int total = 0;
+    emit m_canvas->projectAboutToChange();
+    for (size_t fi = 0; fi < m_project.floors.size(); fi++) {
+        auto& floor = m_project.floors[fi];
+        int antCount = 0, psCount = 0, tCount = 0, cbCount = 0, ldCount = 0, atCount = 0;
+        for (auto& dev : floor.devices) {
+            std::string model = dev.modelId;
+            std::string prefix;
+            int* counter = nullptr;
+            if (model.find("ANTENNA") != std::string::npos || model.find("ANT") != std::string::npos) {
+                prefix = "ANT"; counter = &antCount;
+            } else if (model.find("SPLITTER") != std::string::npos || model.find("PS") != std::string::npos) {
+                prefix = "PS"; counter = &psCount;
+            } else if (model.find("COUPLER") != std::string::npos || model.find("T") == 0) {
+                prefix = "T"; counter = &tCount;
+            } else if (model.find("COMBINER") != std::string::npos || model.find("CB") != std::string::npos) {
+                prefix = "CB"; counter = &cbCount;
+            } else if (model.find("LOAD") != std::string::npos || model.find("LD") != std::string::npos) {
+                prefix = "LD"; counter = &ldCount;
+            } else if (model.find("ATTENUATOR") != std::string::npos || model.find("AT") != std::string::npos) {
+                prefix = "AT"; counter = &atCount;
+            } else {
+                continue; // 信源等不编号
+            }
+            (*counter)++;
+            dev.instanceId = prefix + std::to_string(*counter) + "-" + std::to_string(fi + 1) + "F";
+            total++;
+        }
+    }
+    emit m_canvas->projectChanged("自动编号");
+    m_canvas->clearLinkReport();
+    m_canvas->refresh();
+    statusBar()->showMessage(QString("自动编号完成，共编号 %1 个器件").arg(total));
 }
 
 void MainWindow::onRunSimulation()
