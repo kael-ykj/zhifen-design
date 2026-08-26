@@ -2,38 +2,39 @@
 #include "canvaswidget.h"
 #include "devicelistpanel.h"
 #include "propertypanel.h"
+#include "system_dialog.h"
 #include "engine/link_calculator.h"
 #include "engine/propagation_engine.h"
+#include "engine/system_diagram_engine.h"
 #include "io/drawing_exporter.h"
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QApplication>
+#include <QWheelEvent>
+#include <algorithm>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("智分Design V3.1.0 - 室分设计软件");
     resize(1280, 800);
-
     initProject();
     createActions();
     createMenus();
     createToolBars();
     createDockPanels();
 
-    // 中央画布
     m_canvas = new CanvasWidget(this);
     m_canvas->setProject(&m_project);
     setCentralWidget(m_canvas);
 
-    // 状态栏
-    statusBar()->showMessage("就绪 | 当前模式: 草图模式");
+    statusBar()->showMessage("就绪 | 当前模式: 草图模式 | 提示: 左键选择/放置, 中键平移, 滚轮缩放, Delete删除");
 
-    connect(m_canvas, &CanvasWidget::deviceSelected,
-            this, &MainWindow::onDeviceSelected);
-    connect(m_canvas, &CanvasWidget::statusMessage,
-            this, &MainWindow::onStatusMessage);
+    connect(m_canvas, &CanvasWidget::deviceSelected, this, &MainWindow::onDeviceSelected);
+    connect(m_canvas, &CanvasWidget::statusMessage, this, &MainWindow::onStatusMessage);
+    connect(m_canvas, &CanvasWidget::deviceDeleted, this, &MainWindow::onDeviceDeleted);
 }
 
 MainWindow::~MainWindow() {}
@@ -43,21 +44,16 @@ void MainWindow::initProject()
     m_project.projectId = "GUI_PROJECT";
     m_project.projectName = "未命名工程";
     m_devLib.loadDefaultLibrary();
-
-    // 复制器件库到项目
     for (const auto& cat : {zf::DeviceCategory::SIGNAL_SOURCE, zf::DeviceCategory::SPLITTER,
                             zf::DeviceCategory::COUPLER, zf::DeviceCategory::ANTENNA,
                             zf::DeviceCategory::CABLE, zf::DeviceCategory::COMBINER}) {
         auto models = m_devLib.getModelsByCategory(cat);
         for (const auto& m : models) m_project.deviceLibrary.push_back(m);
     }
-
-    // 默认楼层
     zf::Floor floor;
     floor.floorId = "F1";
     floor.floorName = "1F";
     m_project.floors.push_back(floor);
-
     m_modeLayer.init();
 }
 
@@ -75,6 +71,20 @@ void MainWindow::createActions()
     m_actSave->setShortcut(QKeySequence::Save);
     connect(m_actSave, &QAction::triggered, this, &MainWindow::onSaveProject);
 
+    m_actUndo = new QAction("撤销", this);
+    m_actUndo->setShortcut(QKeySequence::Undo);
+    m_actUndo->setEnabled(false);
+    connect(m_actUndo, &QAction::triggered, this, [this](){ statusBar()->showMessage("撤销功能开发中"); });
+
+    m_actRedo = new QAction("重做", this);
+    m_actRedo->setShortcut(QKeySequence::Redo);
+    m_actRedo->setEnabled(false);
+    connect(m_actRedo, &QAction::triggered, this, [this](){ statusBar()->showMessage("重做功能开发中"); });
+
+    m_actDelete = new QAction("删除选中", this);
+    m_actDelete->setShortcut(QKeySequence::Delete);
+    connect(m_actDelete, &QAction::triggered, this, &MainWindow::onDeleteSelected);
+
     m_actMode = new QAction("切换正式模式", this);
     m_actMode->setCheckable(true);
     connect(m_actMode, &QAction::triggered, this, &MainWindow::onModeToggle);
@@ -85,8 +95,26 @@ void MainWindow::createActions()
     m_actSimulate = new QAction("覆盖仿真", this);
     connect(m_actSimulate, &QAction::triggered, this, &MainWindow::onRunSimulation);
 
+    m_actHeatmap = new QAction("热力图", this);
+    m_actHeatmap->setCheckable(true);
+    connect(m_actHeatmap, &QAction::triggered, this, &MainWindow::onToggleHeatmap);
+
+    m_actSystemDiagram = new QAction("系统图", this);
+    connect(m_actSystemDiagram, &QAction::triggered, this, &MainWindow::onShowSystemDiagram);
+
     m_actExport = new QAction("导出DXF", this);
     connect(m_actExport, &QAction::triggered, this, &MainWindow::onExportDxf);
+
+    m_actZoomIn = new QAction("放大", this);
+    m_actZoomIn->setShortcut(QKeySequence::ZoomIn);
+    connect(m_actZoomIn, &QAction::triggered, this, &MainWindow::onZoomIn);
+
+    m_actZoomOut = new QAction("缩小", this);
+    m_actZoomOut->setShortcut(QKeySequence::ZoomOut);
+    connect(m_actZoomOut, &QAction::triggered, this, &MainWindow::onZoomOut);
+
+    m_actZoomFit = new QAction("适应窗口", this);
+    connect(m_actZoomFit, &QAction::triggered, this, &MainWindow::onZoomFit);
 
     m_actAbout = new QAction("关于", this);
     connect(m_actAbout, &QAction::triggered, this, &MainWindow::onAbout);
@@ -121,19 +149,23 @@ void MainWindow::createMenus()
     fileMenu->addAction("退出", this, &QWidget::close);
 
     QMenu* editMenu = menuBar()->addMenu("编辑");
-    QAction* undoAct = new QAction("撤销", this);
-    undoAct->setShortcut(QKeySequence::Undo);
-    editMenu->addAction(undoAct);
-    QAction* redoAct = new QAction("重做", this);
-    redoAct->setShortcut(QKeySequence::Redo);
-    editMenu->addAction(redoAct);
+    editMenu->addAction(m_actUndo);
+    editMenu->addAction(m_actRedo);
+    editMenu->addSeparator();
+    editMenu->addAction(m_actDelete);
+
+    QMenu* viewMenu = menuBar()->addMenu("视图");
+    viewMenu->addAction(m_actZoomIn);
+    viewMenu->addAction(m_actZoomOut);
+    viewMenu->addAction(m_actZoomFit);
+    viewMenu->addSeparator();
+    viewMenu->addAction(m_actHeatmap);
+    viewMenu->addAction(m_actMode);
 
     QMenu* calcMenu = menuBar()->addMenu("计算");
     calcMenu->addAction(m_actLinkCalc);
     calcMenu->addAction(m_actSimulate);
-
-    QMenu* viewMenu = menuBar()->addMenu("视图");
-    viewMenu->addAction(m_actMode);
+    calcMenu->addAction(m_actSystemDiagram);
 
     QMenu* helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction(m_actAbout);
@@ -146,6 +178,11 @@ void MainWindow::createToolBars()
     fileTool->addAction(m_actOpen);
     fileTool->addAction(m_actSave);
 
+    QToolBar* editTool = addToolBar("编辑");
+    editTool->addAction(m_actUndo);
+    editTool->addAction(m_actRedo);
+    editTool->addAction(m_actDelete);
+
     QToolBar* toolBar = addToolBar("工具");
     toolBar->addAction(m_actToolSelect);
     toolBar->addAction(m_actToolPlace);
@@ -154,28 +191,39 @@ void MainWindow::createToolBars()
     toolBar->addSeparator();
     toolBar->addAction(m_actMode);
 
+    QToolBar* viewTool = addToolBar("视图");
+    viewTool->addAction(m_actZoomIn);
+    viewTool->addAction(m_actZoomOut);
+    viewTool->addAction(m_actZoomFit);
+    viewTool->addSeparator();
+    viewTool->addAction(m_actHeatmap);
+
     QToolBar* calcTool = addToolBar("计算");
     calcTool->addAction(m_actLinkCalc);
     calcTool->addAction(m_actSimulate);
+    calcTool->addAction(m_actSystemDiagram);
     calcTool->addAction(m_actExport);
 }
 
 void MainWindow::createDockPanels()
 {
-    // 器件库面板
     QDockWidget* deviceDock = new QDockWidget("器件库", this);
     m_devicePanel = new DeviceListPanel(&m_devLib, deviceDock);
     deviceDock->setWidget(m_devicePanel);
     addDockWidget(Qt::LeftDockWidgetArea, deviceDock);
 
-    // 属性面板
     QDockWidget* propDock = new QDockWidget("属性", this);
     m_propertyPanel = new PropertyPanel(propDock);
+    m_propertyPanel->setProject(&m_project);
     propDock->setWidget(m_propertyPanel);
     addDockWidget(Qt::RightDockWidgetArea, propDock);
 
     connect(m_devicePanel, &DeviceListPanel::deviceModelSelected,
             m_canvas, &CanvasWidget::setPlaceModel);
+    connect(m_propertyPanel, &PropertyPanel::propertyChanged,
+            this, &MainWindow::onPropertyChanged);
+    connect(m_propertyPanel, &PropertyPanel::deviceDeleted,
+            this, &MainWindow::onDeviceDeleted);
 }
 
 void MainWindow::onNewProject()
@@ -185,7 +233,11 @@ void MainWindow::onNewProject()
     floor.floorId = "F1";
     floor.floorName = "1F";
     m_project.floors.push_back(floor);
+    m_canvas->clearHeatmap();
+    m_heatmapVisible = false;
+    m_actHeatmap->setChecked(false);
     m_canvas->refresh();
+    m_propertyPanel->clear();
     statusBar()->showMessage("新建工程完成");
 }
 
@@ -221,46 +273,129 @@ void MainWindow::onToolSelect()
         statusBar()->showMessage("当前工具: 选择");
     } else if (m_actToolPlace->isChecked()) {
         m_canvas->setCurrentTool("place");
-        statusBar()->showMessage("当前工具: 放置器件");
+        statusBar()->showMessage("当前工具: 放置器件 (从左侧器件库选择)");
     } else if (m_actToolWall->isChecked()) {
         m_canvas->setCurrentTool("wall");
-        statusBar()->showMessage("当前工具: 绘制墙体");
+        statusBar()->showMessage("当前工具: 绘制墙体 (开发中)");
     } else if (m_actToolCable->isChecked()) {
         m_canvas->setCurrentTool("cable");
-        statusBar()->showMessage("当前工具: 绘制线缆");
+        statusBar()->showMessage("当前工具: 绘制线缆 (开发中)");
     }
 }
 
 void MainWindow::onRunLinkCalc()
 {
+    if (m_project.floors.empty() || m_project.floors[0].devices.empty()) {
+        QMessageBox::warning(this, "链路预算", "请先放置器件");
+        return;
+    }
     zf::LinkCalculator calc;
     calc.setModeManager(m_modeLayer.modeManager.get());
     int result = calc.calculateProject(&m_project);
     if (result == zf::ZF_ERR_OK) {
         const auto& report = calc.getReport();
-        QString msg = QString("链路预算完成!\n器件: %1/%2\n错误: %3 警告: %4\n"
-                              "天线功率: %5 ~ %6 dBm\n覆盖率相关: 平均 %7 dBm")
+        QString msg = QString("链路预算完成!\n\n器件: %1/%2\n错误: %3  警告: %4\n"
+                              "天线功率: %5 ~ %6 dBm\n平均: %7 dBm")
             .arg(report.calculatedDevices).arg(report.totalDevices)
             .arg(report.errorCount).arg(report.warningCount)
             .arg(report.minAntennaPower_dBm).arg(report.maxAntennaPower_dBm)
             .arg(report.avgAntennaPower_dBm);
         QMessageBox::information(this, "链路预算", msg);
         m_canvas->refresh();
+        m_propertyPanel->refresh();
+        statusBar()->showMessage("链路预算完成");
     } else {
-        QMessageBox::warning(this, "链路预算", QString("计算失败: %1").arg(result));
+        QMessageBox::warning(this, "链路预算", QString("计算失败，错误码: %1").arg(result));
     }
 }
 
 void MainWindow::onRunSimulation()
 {
-    QMessageBox::information(this, "覆盖仿真", "覆盖仿真热力图功能开发中");
+    if (m_project.floors.empty() || m_project.floors[0].devices.empty()) {
+        QMessageBox::warning(this, "覆盖仿真", "请先放置器件");
+        return;
+    }
+    // 找到第一个天线作为发射点
+    zf::Point2D txPos{0, 0};
+    bool found = false;
+    for (const auto& dev : m_project.floors[0].devices) {
+        auto it = std::find_if(m_project.deviceLibrary.begin(), m_project.deviceLibrary.end(),
+            [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
+        if (it != m_project.deviceLibrary.end() && it->category == zf::DeviceCategory::ANTENNA) {
+            txPos = dev.position;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        // 用第一个器件
+        txPos = m_project.floors[0].devices[0].position;
+    }
+
+    zf::PropagationEngine engine;
+    engine.setModeManager(m_modeLayer.modeManager.get());
+    zf::SimulationConfig cfg;
+    cfg.gridResolution_m = 1.0;
+    cfg.maxDistance_m = 80.0;
+    engine.setConfig(cfg);
+
+    zf::HeatmapData heatmap;
+    int result = engine.generateHeatmap(&m_project.floors[0], txPos, heatmap);
+    if (result == zf::ZF_ERR_OK) {
+        m_canvas->setHeatmap(heatmap);
+        m_heatmapVisible = true;
+        m_actHeatmap->setChecked(true);
+        QString msg = QString("覆盖仿真完成!\n\n网格点: %1\n覆盖率(>=-100dBm): %2%\n"
+                              "平均RSRP: %3 dBm\n范围: %4 ~ %5 dBm\n弱覆盖点: %6")
+            .arg(heatmap.points.size())
+            .arg(heatmap.coverageRate * 100, 0, 'f', 1)
+            .arg(heatmap.avgRSRP, 0, 'f', 1)
+            .arg(heatmap.minRSRP, 0, 'f', 1)
+            .arg(heatmap.maxRSRP, 0, 'f', 1)
+            .arg(heatmap.weakCoverageCount);
+        QMessageBox::information(this, "覆盖仿真", msg);
+        statusBar()->showMessage("覆盖仿真完成，热力图已显示");
+    } else {
+        QMessageBox::warning(this, "覆盖仿真", QString("仿真失败，错误码: %1 (草图模式下重型计算受限)").arg(result));
+    }
+}
+
+void MainWindow::onToggleHeatmap()
+{
+    if (m_actHeatmap->isChecked()) {
+        if (!m_heatmapVisible) {
+            onRunSimulation();
+        }
+    } else {
+        m_canvas->clearHeatmap();
+        m_heatmapVisible = false;
+        statusBar()->showMessage("热力图已隐藏");
+    }
+}
+
+void MainWindow::onShowSystemDiagram()
+{
+    if (m_project.floors.empty() || m_project.floors[0].devices.empty()) {
+        QMessageBox::warning(this, "系统图", "请先放置器件");
+        return;
+    }
+    zf::SystemDiagramEngine engine;
+    engine.setModeManager(m_modeLayer.modeManager.get());
+    zf::SystemDiagram diagram;
+    int result = engine.generateFromFloor(&m_project.floors[0], &m_project, diagram);
+    if (result == zf::ZF_ERR_OK) {
+        SystemDiagramDialog dlg(diagram, this);
+        dlg.exec();
+        statusBar()->showMessage("系统图已生成");
+    } else {
+        QMessageBox::warning(this, "系统图", QString("生成失败，错误码: %1 (需要信源器件和连接关系)").arg(result));
+    }
 }
 
 void MainWindow::onExportDxf()
 {
     QString path = QFileDialog::getSaveFileName(this, "导出DXF", "", "DXF Files (*.dxf)");
     if (path.isEmpty()) return;
-
     zf::DrawingExporter exporter;
     exporter.setModeManager(m_modeLayer.modeManager.get());
     int result = exporter.exportFloorPlanDxf(path.toStdString(), &m_project.floors[0]);
@@ -271,16 +406,48 @@ void MainWindow::onExportDxf()
     }
 }
 
+void MainWindow::onZoomIn()
+{
+    // 通过模拟滚轮事件实现缩放
+    QWheelEvent event(QPointF(), QPointF(), QPoint(0, 0), QPoint(0, 120),
+                      Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(m_canvas, &event);
+}
+
+void MainWindow::onZoomOut()
+{
+    QWheelEvent event(QPointF(), QPointF(), QPoint(0, 0), QPoint(0, -120),
+                      Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(m_canvas, &event);
+}
+
+void MainWindow::onZoomFit()
+{
+    statusBar()->showMessage("适应窗口功能开发中");
+}
+
+void MainWindow::onDeleteSelected()
+{
+    m_canvas->deleteSelectedDevice();
+    m_propertyPanel->clear();
+}
+
 void MainWindow::onAbout()
 {
     QMessageBox::about(this, "关于智分Design",
         "智分Design V3.1.0\n\n"
         "室内分布系统设计软件\n"
-        "P2 GUI预览版\n\n"
+        "P2 GUI增强版\n\n"
         "功能模块:\n"
-        "- P0 内核引擎\n"
-        "- P1 专业算法(链路预算/系统图/仿真/出图/批量/标准层/插件)\n"
-        "- P2 图形界面(开发中)");
+        "- P0 内核引擎 (数据结构/错误码/告警/模式控制/撤销重做/器件库/工具系统/图形引擎/项目IO/DWG导出)\n"
+        "- P1 专业算法 (链路预算/系统图/出图引擎/墙体建模/传播仿真/批量编辑/标准层复制/插件框架)\n"
+        "- P2 图形界面 (主窗口/画布/器件库/属性面板/热力图/系统图/工具栏)\n\n"
+        "操作说明:\n"
+        "- 左键: 选择器件 / 放置器件\n"
+        "- 中键拖动: 平移视图\n"
+        "- 滚轮: 缩放视图\n"
+        "- Delete: 删除选中器件\n"
+        "- Esc: 取消选择/放置");
 }
 
 void MainWindow::onDeviceSelected(const QString& deviceId)
@@ -292,4 +459,17 @@ void MainWindow::onDeviceSelected(const QString& deviceId)
 void MainWindow::onStatusMessage(const QString& msg)
 {
     statusBar()->showMessage(msg);
+}
+
+void MainWindow::onPropertyChanged()
+{
+    m_canvas->refresh();
+    statusBar()->showMessage("属性已更新");
+}
+
+void MainWindow::onDeviceDeleted(const QString& deviceId)
+{
+    m_propertyPanel->clear();
+    m_canvas->refresh();
+    statusBar()->showMessage("已删除器件: " + deviceId);
 }

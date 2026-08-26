@@ -41,12 +41,14 @@ if(QT_FOUND)
         gui/canvaswidget.cpp
         gui/devicelistpanel.cpp
         gui/propertypanel.cpp
+        gui/system_dialog.cpp
     )
     set(GUI_HEADERS
         gui/mainwindow.h
         gui/canvaswidget.h
         gui/devicelistpanel.h
         gui/propertypanel.h
+        gui/system_dialog.h
     )
     add_executable(ZhiFenDesign WIN32 ${GUI_SOURCES} ${GUI_HEADERS})
     target_include_directories(ZhiFenDesign PRIVATE

@@ -1,5 +1,7 @@
 #include "canvaswidget.h"
 #include <QPaintEvent>
+#include <QKeyEvent>
+#include <algorithm>
 #include <cmath>
 
 CanvasWidget::CanvasWidget(QWidget *parent)
@@ -43,6 +45,37 @@ void CanvasWidget::setPlaceModel(const QString& modelId)
     }
 }
 
+void CanvasWidget::setHeatmap(const zf::HeatmapData& heatmap)
+{
+    m_heatmap = heatmap;
+    m_hasHeatmap = true;
+    update();
+}
+
+void CanvasWidget::clearHeatmap()
+{
+    m_hasHeatmap = false;
+    update();
+}
+
+void CanvasWidget::deleteSelectedDevice()
+{
+    if (m_selectedDeviceId.isEmpty() || !m_project || m_project->floors.empty()) return;
+    QString deletedId = m_selectedDeviceId;
+    auto& floor = m_project->floors[0];
+    floor.devices.erase(std::remove_if(floor.devices.begin(), floor.devices.end(),
+        [&](const zf::DeviceInstance& d) { return d.instanceId == deletedId.toStdString(); }),
+        floor.devices.end());
+    for (auto& dev : floor.devices) {
+        dev.connections.erase(std::remove_if(dev.connections.begin(), dev.connections.end(),
+            [&](const zf::Connection& c) { return c.targetInstanceId == deletedId.toStdString(); }),
+            dev.connections.end());
+    }
+    m_selectedDeviceId.clear();
+    emit deviceDeleted(deletedId);
+    update();
+}
+
 void CanvasWidget::refresh()
 {
     update();
@@ -52,13 +85,11 @@ void CanvasWidget::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-
-    // 背景
     painter.fillRect(rect(), QColor(245, 245, 245));
-
     if (!m_project || m_project->floors.empty()) return;
 
     drawGrid(painter);
+    if (m_hasHeatmap) drawHeatmap(painter);
     drawWalls(painter);
     drawCables(painter);
     drawDevices(painter);
@@ -75,7 +106,22 @@ void CanvasWidget::paintEvent(QPaintEvent*)
         painter.drawText(10, 25, "正式工程模式");
     }
 
-    // 缩放指示
+    // 热力图图例
+    if (m_hasHeatmap) {
+        int legendX = width() - 180;
+        int legendY = 30;
+        painter.setPen(Qt::black);
+        painter.setFont(QFont("Arial", 9));
+        painter.drawText(legendX, legendY - 5, "信号强度 (RSRP dBm)");
+        for (int i = 0; i < 20; i++) {
+            double rsrp = -140.0 + i * 4.0;
+            painter.fillRect(legendX + i * 8, legendY, 8, 15, rsrpToColor(rsrp));
+        }
+        painter.setPen(Qt::black);
+        painter.drawText(legendX, legendY + 28, "-140");
+        painter.drawText(legendX + 130, legendY + 28, "-60");
+    }
+
     painter.setPen(Qt::gray);
     painter.setFont(QFont("Arial", 9));
     painter.drawText(10, height() - 10, QString("缩放: %1%").arg(m_zoom * 100, 0, 'f', 0));
@@ -86,33 +132,52 @@ void CanvasWidget::drawGrid(QPainter& painter)
     painter.setPen(QColor(220, 220, 220));
     double gridSize = 50.0 * m_zoom;
     if (gridSize < 5) gridSize = 5;
-
     QPointF origin = worldToScreen(QPointF(0, 0));
     double startX = fmod(origin.x(), gridSize);
     double startY = fmod(origin.y(), gridSize);
-
-    for (double x = startX; x < width(); x += gridSize) {
+    for (double x = startX; x < width(); x += gridSize)
         painter.drawLine(QPointF(x, 0), QPointF(x, height()));
-    }
-    for (double y = startY; y < height(); y += gridSize) {
+    for (double y = startY; y < height(); y += gridSize)
         painter.drawLine(QPointF(0, y), QPointF(width(), y));
-    }
-
-    // 坐标轴
     painter.setPen(QColor(180, 180, 180));
     painter.drawLine(origin, QPointF(width(), origin.y()));
     painter.drawLine(origin, QPointF(origin.x(), height()));
+}
+
+QColor CanvasWidget::rsrpToColor(double rsrp) const
+{
+    // -140 (红) -> -100 (黄) -> -60 (绿)
+    double t;
+    if (rsrp <= -140) return QColor(180, 30, 30, 120);
+    if (rsrp >= -60) return QColor(30, 180, 30, 120);
+    if (rsrp < -100) {
+        t = (rsrp + 140) / 40.0;
+        return QColor(180, (int)(30 + t * 180), 30, 120);
+    } else {
+        t = (rsrp + 100) / 40.0;
+        return QColor((int)(180 - t * 150), 180, 30, 120);
+    }
+}
+
+void CanvasWidget::drawHeatmap(QPainter& painter)
+{
+    if (m_heatmap.points.empty()) return;
+    double cellSize = m_heatmap.gridResolution_m * m_zoom;
+    if (cellSize < 2) cellSize = 2;
+    for (const auto& pt : m_heatmap.points) {
+        QPointF screen = worldToScreen(QPointF(pt.position.x, pt.position.y));
+        painter.fillRect(QRectF(screen.x() - cellSize/2, screen.y() - cellSize/2,
+                                 cellSize, cellSize), rsrpToColor(pt.rsrp_dBm));
+    }
 }
 
 void CanvasWidget::drawWalls(QPainter& painter)
 {
     if (!m_project) return;
     const auto& floor = m_project->floors[0];
-
     QPen wallPen(QColor(80, 80, 80));
     wallPen.setWidth(3);
     painter.setPen(wallPen);
-
     for (const auto& wall : floor.walls) {
         for (size_t i = 0; i + 1 < wall.points.size(); i++) {
             QPointF p1 = worldToScreen(QPointF(wall.points[i].x, wall.points[i].y));
@@ -126,12 +191,10 @@ void CanvasWidget::drawCables(QPainter& painter)
 {
     if (!m_project) return;
     const auto& floor = m_project->floors[0];
-
     QPen cablePen(QColor(0, 150, 0));
     cablePen.setWidth(2);
     cablePen.setStyle(Qt::DashLine);
     painter.setPen(cablePen);
-
     for (const auto& dev : floor.devices) {
         for (const auto& conn : dev.connections) {
             const zf::DeviceInstance* target = nullptr;
@@ -151,41 +214,32 @@ void CanvasWidget::drawDevices(QPainter& painter)
 {
     if (!m_project) return;
     const auto& floor = m_project->floors[0];
-
     for (const auto& dev : floor.devices) {
         QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
         double r = 12 * m_zoom;
         if (r < 4) r = 4;
-
-        // 根据类型画不同颜色
         QColor color;
         QString label;
         auto it = std::find_if(m_project->deviceLibrary.begin(), m_project->deviceLibrary.end(),
             [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
-
         if (it != m_project->deviceLibrary.end()) {
             switch (it->category) {
                 case zf::DeviceCategory::SIGNAL_SOURCE: color = QColor(200, 50, 50); label = "信源"; break;
                 case zf::DeviceCategory::ANTENNA: color = QColor(50, 100, 200); label = "天线"; break;
                 case zf::DeviceCategory::SPLITTER: color = QColor(200, 150, 50); label = "功分"; break;
                 case zf::DeviceCategory::COUPLER: color = QColor(150, 50, 200); label = "耦合"; break;
+                case zf::DeviceCategory::COMBINER: color = QColor(50, 180, 180); label = "合路"; break;
                 default: color = QColor(100, 100, 100); label = "器件"; break;
             }
         } else {
-            color = QColor(100, 100, 100);
-            label = "?";
+            color = QColor(100, 100, 100); label = "?";
         }
-
         painter.setBrush(color);
         painter.setPen(QPen(Qt::black, 1));
         painter.drawEllipse(pos, r, r);
-
-        // 标签
         painter.setPen(Qt::black);
         painter.setFont(QFont("Arial", 8));
         painter.drawText(pos + QPointF(r + 2, 4), QString::fromStdString(dev.instanceId));
-
-        // 功率标注（正式模式）
         if (m_modeMgr && m_modeMgr->getGlobalWorkMode() == zf::WorkMode::FORMAL_MODE) {
             if (!dev.outputPower_dBm.empty()) {
                 auto pit = dev.outputPower_dBm.begin();
@@ -202,7 +256,6 @@ void CanvasWidget::drawSelectedHighlight(QPainter& painter)
 {
     if (m_selectedDeviceId.isEmpty() || !m_project) return;
     const auto& floor = m_project->floors[0];
-
     for (const auto& dev : floor.devices) {
         if (dev.instanceId == m_selectedDeviceId.toStdString()) {
             QPointF pos = worldToScreen(QPointF(dev.position.x, dev.position.y));
@@ -238,14 +291,12 @@ QString CanvasWidget::findDeviceAt(const QPointF& worldPos)
 {
     if (!m_project || m_project->floors.empty()) return "";
     const auto& floor = m_project->floors[0];
-
     double threshold = 15.0 / m_zoom;
     for (const auto& dev : floor.devices) {
         double dx = dev.position.x - worldPos.x();
         double dy = dev.position.y - worldPos.y();
-        if (std::sqrt(dx*dx + dy*dy) < threshold) {
+        if (std::sqrt(dx*dx + dy*dy) < threshold)
             return QString::fromStdString(dev.instanceId);
-        }
     }
     return "";
 }
@@ -253,15 +304,12 @@ QString CanvasWidget::findDeviceAt(const QPointF& worldPos)
 void CanvasWidget::mousePressEvent(QMouseEvent *event)
 {
     m_lastMousePos = event->localPos();
-
     if (event->button() == Qt::MiddleButton) {
         m_panning = true;
         setCursor(Qt::ClosedHandCursor);
         return;
     }
-
     QPointF worldPos = screenToWorld(event->localPos());
-
     if (m_currentTool == "select" && event->button() == Qt::LeftButton) {
         QString devId = findDeviceAt(worldPos);
         m_selectedDeviceId = devId;
@@ -291,7 +339,6 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
 {
     QPointF delta = event->localPos() - m_lastMousePos;
-
     if (m_panning) {
         m_panOffset += delta;
         update();
@@ -307,7 +354,6 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
         }
         update();
     }
-
     m_lastMousePos = event->localPos();
 }
 
@@ -318,6 +364,9 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
         setCurrentTool(m_currentTool);
     }
     if (event->button() == Qt::LeftButton) {
+        if (m_dragging && !m_selectedDeviceId.isEmpty()) {
+            emit statusMessage("已移动器件: " + m_selectedDeviceId);
+        }
         m_dragging = false;
     }
 }
@@ -328,13 +377,26 @@ void CanvasWidget::wheelEvent(QWheelEvent *event)
     double newZoom = m_zoom * factor;
     if (newZoom < 0.1) newZoom = 0.1;
     if (newZoom > 20) newZoom = 20;
-
-    // 以鼠标位置为中心缩放
     QPointF mousePos = event->pos();
     QPointF worldBefore = screenToWorld(mousePos);
     m_zoom = newZoom;
     QPointF worldAfter = screenToWorld(mousePos);
     m_panOffset += (worldAfter - worldBefore) * m_zoom;
-
     update();
+}
+
+void CanvasWidget::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
+        if (!m_selectedDeviceId.isEmpty()) {
+            deleteSelectedDevice();
+        }
+    } else if (event->key() == Qt::Key_Escape) {
+        m_selectedDeviceId.clear();
+        m_placeModelId.clear();
+        setCurrentTool("select");
+        update();
+    } else {
+        QWidget::keyPressEvent(event);
+    }
 }
