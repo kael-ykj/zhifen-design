@@ -12,6 +12,7 @@
 #include "mode_control/mode_control_layer.h"
 #include "undo/undo_redo_stack.h"
 #include "undo/project_snapshot_transaction.h"
+#include "engine/auto_placer.h"
 
 class CanvasWidget;
 class DeviceListPanel;
@@ -36,6 +37,7 @@ private slots:
     void onToggleHeatmap();
     void onShowSystemDiagram();
     void onCostEstimate();
+    void onAutoPlace();
     void onGenerateReport();
     void onExportMaterialList();
     void onBatchExportDxf();
@@ -101,6 +103,7 @@ private:
     QAction* m_actHeatmap{nullptr};
     QAction* m_actSystemDiagram{nullptr};
     QAction* m_actCostEstimate{nullptr};
+    QAction* m_actAutoPlace{nullptr};
     QAction* m_actGenerateReport{nullptr};
     QAction* m_actExportMaterial{nullptr};
     QAction* m_actBatchExportDxf{nullptr};

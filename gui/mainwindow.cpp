@@ -118,6 +118,9 @@ void MainWindow::createActions()
     m_actCostEstimate = new QAction("造价概算", this);
     connect(m_actCostEstimate, &QAction::triggered, this, &MainWindow::onCostEstimate);
 
+    m_actAutoPlace = new QAction("自动布放", this);
+    connect(m_actAutoPlace, &QAction::triggered, this, &MainWindow::onAutoPlace);
+
     m_actGenerateReport = new QAction("生成报告", this);
     connect(m_actGenerateReport, &QAction::triggered, this, &MainWindow::onGenerateReport);
 
@@ -219,6 +222,7 @@ void MainWindow::createMenus()
     calcMenu->addAction(m_actSystemDiagram);
     calcMenu->addSeparator();
     calcMenu->addAction(m_actCostEstimate);
+    calcMenu->addAction(m_actAutoPlace);
     calcMenu->addAction(m_actGenerateReport);
     calcMenu->addSeparator();
     calcMenu->addAction(m_actExportMaterial);
@@ -280,6 +284,7 @@ void MainWindow::createToolBars()
     calcTool->addSeparator();
     calcTool->addAction(m_actCostEstimate);
     calcTool->addAction(m_actGenerateReport);
+    calcTool->addAction(m_actAutoPlace);
     calcTool->addSeparator();
     calcTool->addAction(m_actExportMaterial);
     calcTool->addAction(m_actBatchExportDxf);
@@ -1188,4 +1193,51 @@ zf::Project MainWindow::generateTemplate(const QString& templateName)
         }
     }
     return proj;
+}
+
+void MainWindow::onAutoPlace()
+{
+    if (!m_project || m_project.floors.empty()) {
+        QMessageBox::warning(this, "无法布放", "请先创建楼层");
+        return;
+    }
+
+    // 参数对话框
+    bool ok = false;
+    double radius = QInputDialog::getDouble(this, "自动布放参数",
+        "天线覆盖半径（米）:\n（建议: 室内5-10米，半径越小天线越密）",
+        8.0, 3.0, 30.0, 1, &ok);
+    if (!ok) return;
+
+    // 发出修改前信号（用于Undo）
+    emit m_canvas->projectAboutToChange();
+
+    // 执行自动布放
+    zf::AutoPlaceParams params;
+    params.coverageRadius_m = radius;
+    zf::AutoPlacer placer;
+    auto result = placer.place(m_project.floors[m_currentFloorIndex], params);
+
+    if (result.success) {
+        // 发出修改后信号
+        emit m_canvas->projectChanged("自动布放");
+        m_canvas->refresh();
+        m_propertyPanel->clear();
+        QMessageBox::information(this, "自动布放完成",
+            QString("当前楼层自动布放完成:\n\n"
+                    "天线数量: %1 个\n"
+                    "功分器数量: %2 个\n"
+                    "信源数量: %3 个\n"
+                    "线缆连接: %4 条\n\n"
+                    "覆盖半径: %5 米")
+                .arg(result.antennaCount)
+                .arg(result.splitterCount)
+                .arg(result.sourceCount)
+                .arg(result.connectionCount)
+                .arg(radius));
+        statusBar()->showMessage(QString("自动布放完成: %1个天线, %2个功分器")
+            .arg(result.antennaCount).arg(result.splitterCount));
+    } else {
+        QMessageBox::warning(this, "自动布放失败", QString::fromStdString(result.message));
+    }
 }
