@@ -19,6 +19,7 @@
 class CanvasWidget;
 class DeviceListPanel;
 class PropertyPanel;
+class LayerPanel;
 
 class MainWindow : public QMainWindow
 {
@@ -47,6 +48,8 @@ private slots:
     void onExportImage();
     void onPrintPreview();
     void onPrint();
+    void onPrintWindow();
+    void onBatchPrint();
     void onZoomIn();
     void onZoomOut();
     void onZoomFit();
@@ -94,6 +97,7 @@ private:
     CanvasWidget* m_canvas{nullptr};
     DeviceListPanel* m_devicePanel{nullptr};
     PropertyPanel* m_propertyPanel{nullptr};
+    LayerPanel* m_layerPanel{nullptr};
 
     QAction* m_actNew{nullptr};
     QAction* m_actOpen{nullptr};
@@ -114,6 +118,8 @@ private:
     QAction* m_actExportImage{nullptr};
     QAction* m_actPrintPreview{nullptr};
     QAction* m_actPrint{nullptr};
+    QAction* m_actPrintWindow{nullptr};
+    QAction* m_actBatchPrint{nullptr};
     QAction* m_actExport{nullptr};
     QAction* m_actZoomIn{nullptr};
     QAction* m_actZoomOut{nullptr};

@@ -2,6 +2,7 @@
 #include "canvaswidget.h"
 #include "devicelistpanel.h"
 #include "propertypanel.h"
+#include "layerpanel.h"
 #include "system_dialog.h"
 #include "engine/link_calculator.h"
 #include "engine/propagation_engine.h"
@@ -18,6 +19,8 @@
 #include <QPrintPreviewDialog>
 #include <QPrintDialog>
 #include <QInputDialog>
+#include <QEventLoop>
+#include <QTimer>
 #include <QLabel>
 #include <QApplication>
 #include <QWheelEvent>
@@ -73,6 +76,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_canvas, &CanvasWidget::projectChanged, this, &MainWindow::onProjectChanged);
     connect(m_canvas, &CanvasWidget::cursorPositionChanged, this, &MainWindow::onCursorPositionChanged);
     connect(m_canvas, &CanvasWidget::activeFloorChanged, this, &MainWindow::onActiveFloorChanged);
+    if (m_layerPanel) {
+        connect(m_layerPanel, &LayerPanel::layerChanged, m_canvas, &CanvasWidget::refresh);
+        connect(m_devicePanel, &DeviceListPanel::deviceModelSelected,
+                m_canvas, &CanvasWidget::setPlaceModel);
+    }
     updateUndoButtons();
 }
 
@@ -164,9 +172,16 @@ void MainWindow::createActions()
     m_actPrintPreview = new QAction("打印预览", this);
     connect(m_actPrintPreview, &QAction::triggered, this, &MainWindow::onPrintPreview);
 
-    m_actPrint = new QAction("打印", this);
+    m_actPrint = new QAction("打印全部", this);
     m_actPrint->setShortcut(QKeySequence::Print);
     connect(m_actPrint, &QAction::triggered, this, &MainWindow::onPrint);
+
+    m_actPrintWindow = new QAction("窗口打印", this);
+    m_actPrintWindow->setShortcut(QKeySequence("Ctrl+P"));
+    connect(m_actPrintWindow, &QAction::triggered, this, &MainWindow::onPrintWindow);
+
+    m_actBatchPrint = new QAction("批量打印", this);
+    connect(m_actBatchPrint, &QAction::triggered, this, &MainWindow::onBatchPrint);
 
 
     m_actAddFloor = new QAction("新增楼层", this);
@@ -227,6 +242,8 @@ void MainWindow::createMenus()
     fileMenu->addSeparator();
     fileMenu->addAction(m_actPrintPreview);
     fileMenu->addAction(m_actPrint);
+    fileMenu->addAction(m_actPrintWindow);
+    fileMenu->addAction(m_actBatchPrint);
     fileMenu->addSeparator();
     fileMenu->addAction("退出", this, &QWidget::close);
 
@@ -326,14 +343,20 @@ void MainWindow::createDockPanels()
     deviceDock->setWidget(m_devicePanel);
     addDockWidget(Qt::LeftDockWidgetArea, deviceDock);
 
+    m_layerPanel = new LayerPanel(this);
+    m_layerPanel->setProject(&m_project);
+    addDockWidget(Qt::LeftDockWidgetArea, m_layerPanel);
+
     QDockWidget* propDock = new QDockWidget("属性", this);
     m_propertyPanel = new PropertyPanel(propDock);
     m_propertyPanel->setProject(&m_project);
     propDock->setWidget(m_propertyPanel);
     addDockWidget(Qt::RightDockWidgetArea, propDock);
 
-    connect(m_devicePanel, &DeviceListPanel::deviceModelSelected,
-            m_canvas, &CanvasWidget::setPlaceModel);
+    if (m_canvas) {
+        connect(m_devicePanel, &DeviceListPanel::deviceModelSelected,
+                m_canvas, &CanvasWidget::setPlaceModel);
+    }
     connect(m_propertyPanel, &PropertyPanel::propertyChanged,
             this, &MainWindow::onPropertyChanged);
     connect(m_propertyPanel, &PropertyPanel::deviceDeleted,
@@ -1044,7 +1067,7 @@ void MainWindow::onPrint()
     printer.setOrientation(QPrinter::Landscape);
 
     QPrintDialog dialog(&printer, this);
-    dialog.setWindowTitle("打印");
+    dialog.setWindowTitle("打印全部");
     if (dialog.exec() == QDialog::Accepted) {
         QPainter painter(&printer);
         QRect pageRect = printer.pageRect();
@@ -1058,6 +1081,93 @@ void MainWindow::onPrint()
         painter.end();
         statusBar()->showMessage("已发送到打印机");
     }
+}
+
+void MainWindow::onPrintWindow()
+{
+    // 启动窗口选择
+    m_canvas->startPrintWindowSelection();
+    statusBar()->showMessage("请在画布上拖拽选择打印窗口区域...");
+
+    // 用一个事件循环等待用户选择完成
+    QEventLoop loop;
+    QTimer::singleShot(3000, &loop, &QEventLoop::quit); // 超时3秒
+    loop.exec();
+
+    QRectF windowRect = m_canvas->selectedPrintWindow();
+    if (windowRect.isNull() || windowRect.width() < 100 || windowRect.height() < 100) {
+        QMessageBox::information(this, "窗口打印", "未选择有效的打印窗口，请重新操作。");
+        return;
+    }
+
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageSize(QPrinter::A1);
+    printer.setOrientation(QPrinter::Landscape);
+
+    QPrintDialog dialog(&printer, this);
+    dialog.setWindowTitle(QString("窗口打印 (%1 x %2 mm)")
+        .arg(windowRect.width() / 100, 0, 'f', 0)
+        .arg(windowRect.height() / 100, 0, 'f', 0));
+    if (dialog.exec() == QDialog::Accepted) {
+        QPainter painter(&printer);
+        QRect pageRect = printer.pageRect();
+
+        // 计算缩放，使选中区域填满页面
+        double scaleX = (double)pageRect.width() / (windowRect.width() * m_canvas->zoom());
+        double scaleY = (double)pageRect.height() / (windowRect.height() * m_canvas->zoom());
+        double scale = std::min(scaleX, scaleY);
+
+        // 平移到选中区域
+        QPointF windowScreen = m_canvas->worldToScreen(windowRect.topLeft());
+        painter.translate(pageRect.x() + (pageRect.width() - windowRect.width() * m_canvas->zoom() * scale) / 2,
+                          pageRect.y() + (pageRect.height() - windowRect.height() * m_canvas->zoom() * scale) / 2);
+        painter.scale(scale, scale);
+        painter.translate(-windowScreen.x(), -windowScreen.y());
+
+        m_canvas->render(&painter);
+        painter.end();
+        statusBar()->showMessage("窗口打印已发送到打印机");
+    }
+}
+
+void MainWindow::onBatchPrint()
+{
+    if (m_project.printWindows.empty()) {
+        QMessageBox::information(this, "批量打印",
+            "暂无打印窗口。\n请先使用'窗口打印'功能选择并保存打印区域。");
+        return;
+    }
+
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageSize(QPrinter::A1);
+    printer.setOrientation(QPrinter::Landscape);
+
+    QPrintDialog dialog(&printer, this);
+    dialog.setWindowTitle(QString("批量打印 (%1 个窗口)").arg(m_project.printWindows.size()));
+    if (dialog.exec() != QDialog::Accepted) return;
+
+    QPainter painter(&printer);
+    for (size_t i = 0; i < m_project.printWindows.size(); i++) {
+        const auto& pw = m_project.printWindows[i];
+        QRectF windowRect(pw.minPt.x, pw.minPt.y,
+                          pw.maxPt.x - pw.minPt.x,
+                          pw.maxPt.y - pw.minPt.y);
+        if (i > 0) printer.newPage();
+
+        QRect pageRect = printer.pageRect();
+        double scaleX = (double)pageRect.width() / (windowRect.width() * m_canvas->zoom());
+        double scaleY = (double)pageRect.height() / (windowRect.height() * m_canvas->zoom());
+        double scale = std::min(scaleX, scaleY);
+        QPointF windowScreen = m_canvas->worldToScreen(windowRect.topLeft());
+        painter.translate(pageRect.x() + (pageRect.width() - windowRect.width() * m_canvas->zoom() * scale) / 2,
+                          pageRect.y() + (pageRect.height() - windowRect.height() * m_canvas->zoom() * scale) / 2);
+        painter.scale(scale, scale);
+        painter.translate(-windowScreen.x(), -windowScreen.y());
+        m_canvas->render(&painter);
+        painter.resetTransform();
+    }
+    painter.end();
+    statusBar()->showMessage(QString("批量打印完成: %1 个窗口").arg(m_project.printWindows.size()));
 }
 
 void MainWindow::loadRecentFiles()

@@ -44,6 +44,7 @@ public:
     void setSnapEnabled(bool e) { m_snapEnabled = e; }
     void setOrthoEnabled(bool e) { m_orthoEnabled = e; }
     double currentScale() const { return m_currentScale; }
+    double zoom() const { return m_zoom; }
     QPointF lastWorldPos() const { return m_lastWorldPos; }
 
     // 打印窗口

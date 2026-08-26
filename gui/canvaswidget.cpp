@@ -452,8 +452,9 @@ void CanvasWidget::drawCablesForFloor(QPainter& painter, const zf::Floor& floor)
     feederPen.setWidth(2);
     painter.setPen(feederPen);
     for (const auto& cable : floor.cables) {
-        QPointF p1 = worldToScreen(QPointF(cable.startPoint.x + ox, cable.startPoint.y + oy));
-        QPointF p2 = worldToScreen(QPointF(cable.endPoint.x + ox, cable.endPoint.y + oy));
+        if (cable.routePoints.size() < 2) continue;
+        QPointF p1 = worldToScreen(QPointF(cable.routePoints[0].x + ox, cable.routePoints[0].y + oy));
+        QPointF p2 = worldToScreen(QPointF(cable.routePoints.back().x + ox, cable.routePoints.back().y + oy));
         painter.drawLine(p1, p2);
         if (m_project->isLayerVisible(zf::LayerType::ANNOTATION) && cable.length_m > 0) {
             QPointF mid = (p1 + p2) / 2;
@@ -555,7 +556,7 @@ void CanvasWidget::drawPrintWindowPreview(QPainter& painter)
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event)
 {
-    QPointF worldPos = screenToWorld(event->position().toPoint());
+    QPointF worldPos = screenToWorld(event->pos().toPoint());
     m_lastWorldPos = worldPos;
     emit cursorPositionChanged(worldPos);
 
@@ -567,7 +568,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
 
     if (event->button() == Qt::MiddleButton || m_currentTool == "pan") {
         m_panning = true;
-        m_lastMousePos = event->position().toPoint();
+        m_lastMousePos = event->pos().toPoint();
         setCursor(Qt::ClosedHandCursor);
         return;
     }
@@ -578,7 +579,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
             m_selectedDeviceId = devId;
             emit deviceSelected(devId);
             m_dragging = true;
-            m_lastMousePos = event->position().toPoint();
+            m_lastMousePos = event->pos().toPoint();
         } else {
             m_selectedDeviceId.clear();
             emit deviceSelected("");
@@ -618,7 +619,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event)
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    QPointF worldPos = screenToWorld(event->position().toPoint());
+    QPointF worldPos = screenToWorld(event->pos().toPoint());
     m_lastWorldPos = worldPos;
     emit cursorPositionChanged(worldPos);
 
@@ -629,16 +630,16 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event)
     }
 
     if (m_panning) {
-        QPointF delta = event->position().toPoint() - m_lastMousePos;
+        QPointF delta = event->pos().toPoint() - m_lastMousePos;
         m_panOffset += delta;
-        m_lastMousePos = event->position().toPoint();
+        m_lastMousePos = event->pos().toPoint();
         update();
         return;
     }
 
     if (m_dragging && !m_selectedDeviceId.isEmpty()) {
         QPointF delta = (worldPos - screenToWorld(m_lastMousePos));
-        m_lastMousePos = event->position().toPoint();
+        m_lastMousePos = event->pos().toPoint();
         if (m_project) {
             for (auto& floor : m_project->floors) {
                 for (auto& dev : floor.devices) {
@@ -714,7 +715,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
 
     if (m_drawingCable) {
         m_drawingCable = false;
-        QString targetId = findDeviceAt(screenToWorld(event->position().toPoint()));
+        QString targetId = findDeviceAt(screenToWorld(event->pos().toPoint()));
         if (!targetId.isEmpty() && targetId != m_cableStartDeviceId && m_project) {
             emit projectAboutToChange();
             for (auto& floor : m_project->floors) {
@@ -722,7 +723,6 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
                     if (dev.instanceId == m_cableStartDeviceId.toStdString()) {
                         zf::DeviceInstance::Connection conn;
                         conn.targetInstanceId = targetId.toStdString();
-                        conn.cableType = "1/2\"";
                         dev.connections.push_back(conn);
                         break;
                     }
@@ -738,7 +738,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event)
 void CanvasWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     if (!m_project) return;
-    QPointF worldPos = screenToWorld(event->position().toPoint());
+    QPointF worldPos = screenToWorld(event->pos().toPoint());
     for (int i = 0; i < (int)m_project->floors.size(); i++) {
         QRectF bounds = getFloorBounds(i);
         QRectF labelArea(bounds.left(), bounds.top() - 1500, bounds.width(), 1500);
@@ -762,7 +762,7 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent *event)
 
 void CanvasWidget::wheelEvent(QWheelEvent *event)
 {
-    QPointF screenPos = event->position().toPoint();
+    QPointF screenPos = event->pos().toPoint();
     QPointF worldBefore = screenToWorld(screenPos);
     double factor = event->angleDelta().y() > 0 ? 1.15 : 0.87;
     m_zoom *= factor;
