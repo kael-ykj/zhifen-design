@@ -29,6 +29,8 @@ private slots:
     void onRunSimulation();
     void onToggleHeatmap();
     void onShowSystemDiagram();
+    void onCostEstimate();
+    void onGenerateReport();
     void onExportDxf();
     void onZoomIn();
     void onZoomOut();
@@ -67,6 +69,8 @@ private:
     QAction* m_actSimulate{nullptr};
     QAction* m_actHeatmap{nullptr};
     QAction* m_actSystemDiagram{nullptr};
+    QAction* m_actCostEstimate{nullptr};
+    QAction* m_actGenerateReport{nullptr};
     QAction* m_actExport{nullptr};
     QAction* m_actZoomIn{nullptr};
     QAction* m_actZoomOut{nullptr};

@@ -6,6 +6,8 @@
 #include "engine/link_calculator.h"
 #include "engine/propagation_engine.h"
 #include "engine/system_diagram_engine.h"
+#include "engine/cost_estimator.h"
+#include "engine/report_generator.h"
 #include "io/drawing_exporter.h"
 #include <QMenuBar>
 #include <QMessageBox>
@@ -13,6 +15,8 @@
 #include <QInputDialog>
 #include <QApplication>
 #include <QWheelEvent>
+#include <QFile>
+#include <QTextStream>
 #include <algorithm>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -102,6 +106,12 @@ void MainWindow::createActions()
     m_actSystemDiagram = new QAction("系统图", this);
     connect(m_actSystemDiagram, &QAction::triggered, this, &MainWindow::onShowSystemDiagram);
 
+    m_actCostEstimate = new QAction("造价概算", this);
+    connect(m_actCostEstimate, &QAction::triggered, this, &MainWindow::onCostEstimate);
+
+    m_actGenerateReport = new QAction("生成报告", this);
+    connect(m_actGenerateReport, &QAction::triggered, this, &MainWindow::onGenerateReport);
+
     m_actExport = new QAction("导出DXF", this);
     connect(m_actExport, &QAction::triggered, this, &MainWindow::onExportDxf);
 
@@ -166,6 +176,9 @@ void MainWindow::createMenus()
     calcMenu->addAction(m_actLinkCalc);
     calcMenu->addAction(m_actSimulate);
     calcMenu->addAction(m_actSystemDiagram);
+    calcMenu->addSeparator();
+    calcMenu->addAction(m_actCostEstimate);
+    calcMenu->addAction(m_actGenerateReport);
 
     QMenu* helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction(m_actAbout);
@@ -202,6 +215,9 @@ void MainWindow::createToolBars()
     calcTool->addAction(m_actLinkCalc);
     calcTool->addAction(m_actSimulate);
     calcTool->addAction(m_actSystemDiagram);
+    calcTool->addSeparator();
+    calcTool->addAction(m_actCostEstimate);
+    calcTool->addAction(m_actGenerateReport);
     calcTool->addAction(m_actExport);
 }
 
@@ -389,6 +405,91 @@ void MainWindow::onShowSystemDiagram()
         statusBar()->showMessage("系统图已生成");
     } else {
         QMessageBox::warning(this, "系统图", QString("生成失败，错误码: %1 (需要信源器件和连接关系)").arg(result));
+    }
+}
+
+void MainWindow::onCostEstimate()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "造价概算", "工程为空");
+        return;
+    }
+    zf::CostEstimator estimator;
+    zf::CostSummary summary;
+    int result = estimator.estimateProject(&m_project, summary);
+    if (result == zf::ZF_ERR_OK) {
+        QString msg = QString("工程造价概算完成!\n\n"
+                              "器件总数: %1 个\n"
+                              "线缆总长: %2 米\n\n"
+                              "材料费:   %3 元\n"
+                              "线缆费:   %4 元\n"
+                              "人工费:   %5 元\n"
+                              "其他费:   %6 元\n"
+                              "小计:     %7 元\n"
+                              "税金(9%%): %8 元\n"
+                              "========================\n"
+                              "含税总价: %9 元")
+            .arg(summary.deviceCount)
+            .arg(summary.cableLength_m, 0, 'f', 1)
+            .arg(summary.materialCost, 0, 'f', 2)
+            .arg(summary.cableCost, 0, 'f', 2)
+            .arg(summary.laborCost, 0, 'f', 2)
+            .arg(summary.otherCost, 0, 'f', 2)
+            .arg(summary.subtotal, 0, 'f', 2)
+            .arg(summary.tax, 0, 'f', 2)
+            .arg(summary.total, 0, 'f', 2);
+        QMessageBox::information(this, "造价概算", msg);
+        statusBar()->showMessage(QString("造价概算完成，含税总价: %1 元").arg(summary.total, 0, 'f', 2));
+    } else {
+        QMessageBox::warning(this, "造价概算", QString("概算失败，错误码: %1").arg(result));
+    }
+}
+
+void MainWindow::onGenerateReport()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "生成报告", "工程为空");
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(this, "保存设计报告", "", "HTML Files (*.html)");
+    if (path.isEmpty()) return;
+
+    // 先运行链路预算
+    zf::LinkCalculator calc;
+    calc.setModeManager(m_modeLayer.modeManager.get());
+    zf::LinkReport linkReport;
+    bool hasLinkReport = (calc.calculateProject(&m_project) == zf::ZF_ERR_OK);
+    if (hasLinkReport) linkReport = calc.getReport();
+
+    // 造价概算
+    zf::CostEstimator estimator;
+    zf::CostSummary costSummary;
+    bool hasCost = (estimator.estimateProject(&m_project, costSummary) == zf::ZF_ERR_OK);
+
+    // 生成报告
+    zf::ReportGenerator reporter;
+    zf::ReportConfig cfg;
+    reporter.setConfig(cfg);
+
+    std::string html;
+    int result = reporter.generateHtmlReport(
+        &m_project,
+        hasLinkReport ? &linkReport : nullptr,
+        hasCost ? &costSummary : nullptr,
+        html);
+
+    if (result == zf::ZF_ERR_OK) {
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            file.write(html.c_str(), html.size());
+            file.close();
+            QMessageBox::information(this, "报告生成", "设计报告已生成:\n" + path);
+            statusBar()->showMessage("设计报告已生成: " + path);
+        } else {
+            QMessageBox::warning(this, "报告生成", "文件写入失败");
+        }
+    } else {
+        QMessageBox::warning(this, "报告生成", QString("生成失败，错误码: %1").arg(result));
     }
 }
 
