@@ -4,13 +4,17 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollBar>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QPrinter>
+#include <QPrintDialog>
+#include <QPainter>
 #include <algorithm>
 #include <cmath>
 
 SystemDiagramView::SystemDiagramView(const zf::SystemDiagram& diagram, QWidget *parent)
     : QWidget(parent), m_diagram(diagram)
 {
-    // 计算边界
     double maxX = 200, maxY = 200;
     for (const auto& node : m_diagram.nodes) {
         maxX = std::max(maxX, node.layoutPos.x + 150);
@@ -48,16 +52,23 @@ QString SystemDiagramView::nodeLabel(zf::NodeType type) const
     }
 }
 
-void SystemDiagramView::paintEvent(QPaintEvent*)
+void SystemDiagramView::drawDiagram(QPainter& painter, const QRect& rect)
 {
-    QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.fillRect(rect(), QColor(250, 250, 250));
+    painter.fillRect(rect, QColor(250, 250, 250));
 
-    double ox = 20, oy = 20;
+    // 计算缩放比例，使内容适配rect
+    double contentW = width() - 40;
+    double contentH = height() - 40;
+    double scaleX = (double)rect.width() / contentW;
+    double scaleY = (double)rect.height() / contentH;
+    double scale = std::min(scaleX, scaleY);
+
+    double ox = rect.x() + (rect.width() - contentW * scale) / 2 + 20 * scale;
+    double oy = rect.y() + (rect.height() - contentH * scale) / 2 + 20 * scale;
 
     // 绘制连接线
-    painter.setPen(QPen(QColor(80, 80, 80), 2));
+    painter.setPen(QPen(QColor(80, 80, 80), 2 * scale));
     for (const auto& link : m_diagram.links) {
         const zf::SystemNode* from = nullptr;
         const zf::SystemNode* to = nullptr;
@@ -66,43 +77,61 @@ void SystemDiagramView::paintEvent(QPaintEvent*)
             if (n.nodeId == link.toNodeId) to = &n;
         }
         if (from && to) {
-            QPointF p1(ox + from->layoutPos.x * m_scale, oy + from->layoutPos.y * m_scale);
-            QPointF p2(ox + to->layoutPos.x * m_scale, oy + to->layoutPos.y * m_scale);
+            QPointF p1(ox + from->layoutPos.x * m_scale * scale, oy + from->layoutPos.y * m_scale * scale);
+            QPointF p2(ox + to->layoutPos.x * m_scale * scale, oy + to->layoutPos.y * m_scale * scale);
             painter.drawLine(p1, p2);
-            // 损耗标注
             if (link.loss_dB > 0) {
                 QPointF mid = (p1 + p2) / 2;
                 painter.setPen(QColor(180, 0, 0));
-                painter.setFont(QFont("Arial", 8));
-                painter.drawText(mid + QPointF(2, -2), QString("%1dB").arg(link.loss_dB, 0, 'f', 1));
-                painter.setPen(QPen(QColor(80, 80, 80), 2));
+                painter.setFont(QFont("Arial", 8 * scale));
+                painter.drawText(mid + QPointF(2 * scale, -2 * scale), QString("%1dB").arg(link.loss_dB, 0, 'f', 1));
+                painter.setPen(QPen(QColor(80, 80, 80), 2 * scale));
             }
         }
     }
 
     // 绘制节点
     for (const auto& node : m_diagram.nodes) {
-        double x = ox + node.layoutPos.x * m_scale;
-        double y = oy + node.layoutPos.y * m_scale;
-        double w = 100, h = 40;
+        double x = ox + node.layoutPos.x * m_scale * scale;
+        double y = oy + node.layoutPos.y * m_scale * scale;
+        double w = 100 * scale, h = 40 * scale;
 
         painter.setBrush(nodeColor(node.type));
-        painter.setPen(QPen(Qt::black, 1));
-        painter.drawRoundedRect(QRectF(x - w/2, y - h/2, w, h), 6, 6);
+        painter.setPen(QPen(Qt::black, 1 * scale));
+        painter.drawRoundedRect(QRectF(x - w/2, y - h/2, w, h), 6 * scale, 6 * scale);
 
         painter.setPen(Qt::white);
-        painter.setFont(QFont("Arial", 9, QFont::Bold));
+        painter.setFont(QFont("Arial", 9 * scale, QFont::Bold));
         painter.drawText(QRectF(x - w/2, y - h/2, w, h), Qt::AlignCenter,
             nodeLabel(node.type) + "\n" + QString::fromStdString(node.deviceInstanceId));
     }
 
     // 标题
     painter.setPen(Qt::black);
-    painter.setFont(QFont("Arial", 11, QFont::Bold));
-    painter.drawText(10, 15, QString("系统图: %1  节点: %2  连接: %3")
+    painter.setFont(QFont("Arial", 11 * scale, QFont::Bold));
+    painter.drawText(rect.x() + 10 * scale, rect.y() + 15 * scale,
+        QString("系统图: %1  节点: %2  连接: %3")
         .arg(QString::fromStdString(m_diagram.diagramId))
         .arg(m_diagram.nodes.size())
         .arg(m_diagram.links.size()));
+}
+
+void SystemDiagramView::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    drawDiagram(painter, rect());
+}
+
+QPixmap SystemDiagramView::exportToImage(int margin)
+{
+    int w = width() + margin * 2;
+    int h = height() + margin * 2;
+    QPixmap pixmap(w, h);
+    pixmap.fill(QColor(255, 255, 255));
+    QPainter painter(&pixmap);
+    drawDiagram(painter, QRect(margin, margin, width(), height()));
+    painter.end();
+    return pixmap;
 }
 
 SystemDiagramDialog::SystemDiagramDialog(const zf::SystemDiagram& diagram, QWidget *parent)
@@ -120,14 +149,52 @@ SystemDiagramDialog::SystemDiagramDialog(const zf::SystemDiagram& diagram, QWidg
 
     QScrollArea* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
-    SystemDiagramView* view = new SystemDiagramView(diagram, this);
-    scroll->setWidget(view);
+    m_view = new SystemDiagramView(diagram, this);
+    scroll->setWidget(m_view);
     layout->addWidget(scroll, 1);
 
     QHBoxLayout* btnLayout = new QHBoxLayout();
+    QPushButton* exportBtn = new QPushButton("导出图片", this);
+    connect(exportBtn, &QPushButton::clicked, this, &SystemDiagramDialog::onExportImage);
+    btnLayout->addWidget(exportBtn);
+
+    QPushButton* printBtn = new QPushButton("打印", this);
+    connect(printBtn, &QPushButton::clicked, this, &SystemDiagramDialog::onPrint);
+    btnLayout->addWidget(printBtn);
+
     btnLayout->addStretch();
     QPushButton* closeBtn = new QPushButton("关闭", this);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
     btnLayout->addWidget(closeBtn);
     layout->addLayout(btnLayout);
+}
+
+void SystemDiagramDialog::onExportImage()
+{
+    QString path = QFileDialog::getSaveFileName(this, "导出系统图", "系统图.png",
+        "PNG Images (*.png);;JPEG Images (*.jpg)");
+    if (path.isEmpty()) return;
+
+    QPixmap pixmap = m_view->exportToImage();
+    if (pixmap.save(path)) {
+        QMessageBox::information(this, "导出成功", "系统图已导出:\n" + path);
+    } else {
+        QMessageBox::warning(this, "导出失败", "系统图导出失败");
+    }
+}
+
+void SystemDiagramDialog::onPrint()
+{
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageSize(QPrinter::A4);
+    printer.setOrientation(QPrinter::Landscape);
+
+    QPrintDialog dialog(&printer, this);
+    dialog.setWindowTitle("打印系统图");
+    if (dialog.exec() == QDialog::Accepted) {
+        QPainter painter(&printer);
+        QRect pageRect = printer.pageRect();
+        m_view->drawDiagram(painter, pageRect);
+        painter.end();
+    }
 }
