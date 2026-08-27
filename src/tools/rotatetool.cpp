@@ -33,7 +33,7 @@ void RotateTool::mousePressEvent(QMouseEvent *event) {
             if (auto line = dynamic_cast<LineItem*>(cad))
                 line->setLine(rotatePoint(line->startPoint(),m_basePoint,delta), rotatePoint(line->endPoint(),m_basePoint,delta));
             else if (auto arc = dynamic_cast<ArcItem*>(cad))
-                arc->setArc(rotatePoint(arc->centerPoint(),m_basePoint,delta), arc->radius(), arc->startAngle()+delta*180/M_PI, arc->spanAngle());
+                arc->setArc(rotatePoint(arc->centerPoint(),m_basePoint,delta), arc->radius(), arc->startAngle()+delta*180.0/3.14159265358979323846, arc->spanAngle());
             else if (auto poly = dynamic_cast<PolylineItem*>(cad)) {
                 QPolygonF pts; for (auto p : poly->points()) pts.append(rotatePoint(p,m_basePoint,delta));
                 poly->setPolyline(pts, poly->isClosed());
