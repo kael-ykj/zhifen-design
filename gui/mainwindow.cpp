@@ -255,6 +255,12 @@ void MainWindow::createActions()
 
     m_actCopyFloor = new QAction("标准层复制", this);
     connect(m_actCopyFloor, &QAction::triggered, this, &MainWindow::onCopyFloor);
+
+    m_actExportDeviceList = new QAction("导出器件清单", this);
+    connect(m_actExportDeviceList, &QAction::triggered, this, &MainWindow::onExportDeviceList);
+
+    m_actImportDeviceList = new QAction("导入器件清单", this);
+    connect(m_actImportDeviceList, &QAction::triggered, this, &MainWindow::onImportDeviceList);
 }
 
 void MainWindow::createMenus()
@@ -269,6 +275,9 @@ void MainWindow::createMenus()
     fileMenu->addSeparator();
     fileMenu->addAction(m_actExport);
     fileMenu->addAction(m_actExportImage);
+    fileMenu->addAction(m_actExportMaterial);
+    fileMenu->addAction(m_actExportDeviceList);
+    fileMenu->addAction(m_actImportDeviceList);
     fileMenu->addSeparator();
     fileMenu->addAction(m_actPrintPreview);
     fileMenu->addAction(m_actPrint);
@@ -714,6 +723,111 @@ void MainWindow::onCopyFloor()
     refreshFloorCombo();
     statusBar()->showMessage(QString("标准层复制完成: 从 %1 复制了 %2 层")
         .arg(m_floorCombo->currentText()).arg(copyCount));
+}
+
+void MainWindow::onExportDeviceList()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "导出器件清单", "工程为空");
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(this, "导出器件清单", "", "CSV Files (*.csv)");
+    if (path.isEmpty()) return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "导出失败", "文件写入失败");
+        return;
+    }
+    QTextStream out(&file);
+    out.setCodec("UTF-8");
+    out << "楼层,编号,型号,类型,X坐标(mm),Y坐标(mm),备注\n";
+
+    int total = 0;
+    for (const auto& floor : m_project.floors) {
+        for (const auto& dev : floor.devices) {
+            QString type = "未知";
+            auto it = std::find_if(m_project.deviceLibrary.begin(), m_project.deviceLibrary.end(),
+                [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
+            if (it != m_project.deviceLibrary.end()) {
+                switch (it->category) {
+                    case zf::DeviceCategory::SIGNAL_SOURCE: type = "信源"; break;
+                    case zf::DeviceCategory::ANTENNA: type = "天线"; break;
+                    case zf::DeviceCategory::SPLITTER: type = "功分器"; break;
+                    case zf::DeviceCategory::COUPLER: type = "耦合器"; break;
+                    case zf::DeviceCategory::COMBINER: type = "合路器"; break;
+                    case zf::DeviceCategory::LOAD: type = "负载"; break;
+                    default: type = "其他"; break;
+                }
+            }
+            out << QString::fromStdString(floor.floorId) << ","
+                << QString::fromStdString(dev.instanceId) << ","
+                << QString::fromStdString(dev.modelId) << ","
+                << type << ","
+                << dev.position.x << ","
+                << dev.position.y << ","
+                << QString::fromStdString(dev.label) << "\n";
+            total++;
+        }
+    }
+    file.close();
+    QMessageBox::information(this, "导出成功", QString("器件清单已导出:\n%1\n\n共 %2 个器件").arg(path).arg(total));
+    statusBar()->showMessage("器件清单已导出: " + path);
+}
+
+void MainWindow::onImportDeviceList()
+{
+    QString path = QFileDialog::getOpenFileName(this, "导入器件清单", "", "CSV Files (*.csv)");
+    if (path.isEmpty()) return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "导入失败", "文件读取失败");
+        return;
+    }
+    QTextStream in(&file);
+    in.setCodec("UTF-8");
+
+    emit m_canvas->projectAboutToChange();
+    int imported = 0;
+    int skipped = 0;
+    bool firstLine = true;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        if (firstLine) { firstLine = false; continue; } // 跳过表头
+        QStringList cols = line.split(",");
+        if (cols.size() < 5) { skipped++; continue; }
+
+        QString floorId = cols[0].trimmed();
+        QString modelId = cols[2].trimmed();
+        double x = cols[4].trimmed().toDouble();
+        double y = cols[5].trimmed().toDouble();
+
+        // 找到目标楼层
+        int floorIdx = -1;
+        for (size_t i = 0; i < m_project.floors.size(); i++) {
+            if (m_project.floors[i].floorId == floorId.toStdString()) {
+                floorIdx = i; break;
+            }
+        }
+        if (floorIdx < 0) { skipped++; continue; }
+
+        zf::DeviceInstance dev;
+        dev.instanceId = cols[1].trimmed().toStdString();
+        dev.modelId = modelId.toStdString();
+        dev.position = {x, y};
+        dev.label = cols.size() > 6 ? cols[6].trimmed().toStdString() : "";
+        m_project.floors[floorIdx].devices.push_back(dev);
+        imported++;
+    }
+    file.close();
+
+    emit m_canvas->projectChanged("导入器件清单");
+    m_canvas->refresh();
+    QMessageBox::information(this, "导入完成",
+        QString("器件清单导入完成:\n\n成功导入: %1 个\n跳过: %2 个").arg(imported).arg(skipped));
+    statusBar()->showMessage(QString("器件清单导入完成: %1个").arg(imported));
 }
 
 void MainWindow::onRunSimulation()

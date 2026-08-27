@@ -40,6 +40,8 @@ private slots:
     void onAutoNumber();
     void onReversePower();
     void onCopyFloor();
+    void onExportDeviceList();
+    void onImportDeviceList();
     void onRunSimulation();
     void onToggleHeatmap();
     void onShowSystemDiagram();
@@ -142,6 +144,8 @@ private:
     QAction* m_actAutoNumber{nullptr};
     QAction* m_actReversePower{nullptr};
     QAction* m_actCopyFloor{nullptr};
+    QAction* m_actExportDeviceList{nullptr};
+    QAction* m_actImportDeviceList{nullptr};
 
     // 楼层管理
     QComboBox* m_floorCombo{nullptr};
