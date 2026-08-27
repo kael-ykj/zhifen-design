@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智分Design V3.1 - 专业室分设计CAD软件</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 顶部工具栏 -->
+  <div id="toolbar" class="toolbar">
+    <div class="toolbar-group">
+      <button class="tool-btn" data-tool="select" title="选择 (V)"><span class="tool-icon">⬚</span></button>
+      <button class="tool-btn" data-tool="line" title="直线 (L)"><span class="tool-icon">╱</span></button>
+      <button class="tool-btn" data-tool="circle" title="圆 (C)"><span class="tool-icon">○</span></button>
+      <button class="tool-btn" data-tool="arc" title="圆弧 (A)"><span class="tool-icon">⌒</span></button>
+      <button class="tool-btn" data-tool="polyline" title="多段线 (PL)"><span class="tool-icon">⌐</span></button>
+      <button class="tool-btn" data-tool="rectangle" title="矩形 (REC)"><span class="tool-icon">▭</span></button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" data-tool="text" title="文字 (DT)"><span class="tool-icon">T</span></button>
+      <button class="tool-btn" data-tool="dimension" title="标注 (DLI)"><span class="tool-icon">⟷</span></button>
+      <button class="tool-btn" data-tool="move" title="移动 (M)"><span class="tool-icon">⇄</span></button>
+      <button class="tool-btn" data-tool="copy" title="复制 (CO)"><span class="tool-icon">⎘</span></button>
+      <button class="tool-btn" data-tool="rotate" title="旋转 (RO)"><span class="tool-icon">↻</span></button>
+      <button class="tool-btn" data-tool="scale" title="缩放 (SC)"><span class="tool-icon">⤢</span></button>
+      <button class="tool-btn" data-tool="erase" title="删除 (E)"><span class="tool-icon">✕</span></button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" id="btn-undo" title="撤销 (Ctrl+Z)"><span class="tool-icon">↶</span></button>
+      <button class="tool-btn" id="btn-redo" title="重做 (Ctrl+Y)"><span class="tool-icon">↷</span></button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" id="btn-zoom-extents" title="缩放到全部 (Z+E)"><span class="tool-icon">⛶</span></button>
+      <button class="tool-btn" id="btn-zoom-window" title="窗口缩放 (Z)"><span class="tool-icon">🔍</span></button>
+      <button class="tool-btn" id="btn-pan" title="平移 (P)"><span class="tool-icon">✋</span></button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <label class="toolbar-label">图层:</label>
+      <select id="layer-select" class="layer-select"></select>
+      <button class="tool-btn" id="btn-layer-manager" title="图层管理 (LA)"><span class="tool-icon">📑</span></button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn toggle-btn active" id="btn-snap" title="对象捕捉 (F3)"><span class="tool-icon">◈</span></button>
+      <button class="tool-btn toggle-btn" id="btn-grid" title="显示网格 (F7)"><span class="tool-icon">▦</span></button>
+      <button class="tool-btn toggle-btn" id="btn-ortho" title="正交模式 (F8)"><span class="tool-icon">┼</span></button>
+    </div>
+    <div class="toolbar-spacer"></div>
+    <div class="toolbar-group">
+      <span id="coord-display" class="coord-display">X: 0.00  Y: 0.00</span>
+    </div>
+  </div>
+
+  <!-- 左侧面板 -->
+  <div id="left-panel" class="left-panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-panel="layers">图层</button>
+      <button class="panel-tab" data-panel="properties">特性</button>
+      <button class="panel-tab" data-panel="devices">器件库</button>
+    </div>
+    <div class="panel-content">
+      <div id="panel-layers" class="panel-page active">
+        <div id="layer-list" class="layer-list"></div>
+      </div>
+      <div id="panel-properties" class="panel-page">
+        <div id="properties-content" class="properties-content">
+          <p class="empty-hint">选择对象以查看特性</p>
+        </div>
+      </div>
+      <div id="panel-devices" class="panel-page">
+        <div class="device-category">
+          <div class="category-title">天线</div>
+          <div class="device-grid">
+            <div class="device-item" data-device="omni-antenna">全向吸顶</div>
+            <div class="device-item" data-device="directional-antenna">定向板状</div>
+            <div class="device-item" data-device="wall-antenna">壁挂天线</div>
+            <div class="device-item" data-device="log-periodic">对数周期</div>
+          </div>
+        </div>
+        <div class="device-category">
+          <div class="category-title">无源器件</div>
+          <div class="device-grid">
+            <div class="device-item" data-device="power-splitter-2">二功分</div>
+            <div class="device-item" data-device="power-splitter-3">三功分</div>
+            <div class="device-item" data-device="power-splitter-4">四功分</div>
+            <div class="device-item" data-device="coupler-5">5dB耦合</div>
+            <div class="device-item" data-device="coupler-10">10dB耦合</div>
+            <div class="device-item" data-device="coupler-15">15dB耦合</div>
+            <div class="device-item" data-device="coupler-20">20dB耦合</div>
+            <div class="device-item" data-device="hybrid">合路器</div>
+          </div>
+        </div>
+        <div class="device-category">
+          <div class="category-title">有源设备</div>
+          <div class="device-grid">
+            <div class="device-item" data-device="rru">RRU</div>
+            <div class="device-item" data-device="pico-rru">picoRRU</div>
+            <div class="device-item" data-device="repeater">直放站</div>
+            <div class="device-item" data-device="poe-switch">POE交换机</div>
+          </div>
+        </div>
+        <div class="device-category">
+          <div class="category-title">馈线</div>
+          <div class="device-grid">
+            <div class="device-item" data-device="feeder-1-2">1/2"馈线</div>
+            <div class="device-item" data-device="feeder-7-8">7/8"馈线</div>
+            <div class="device-item" data-device="feeder-1-4">1/4"馈线</div>
+            <div class="device-item" data-device="fiber">光纤</div>
+            <div class="device-item" data-device="cat6">六类线</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主画布区域 -->
+  <div id="canvas-container" class="canvas-container">
+    <canvas id="cad-canvas"></canvas>
+    <!-- 滚动条 -->
+    <div id="h-scrollbar" class="scrollbar h-scrollbar">
+      <div class="scrollbar-thumb"></div>
+    </div>
+    <div id="v-scrollbar" class="scrollbar v-scrollbar">
+      <div class="scrollbar-thumb"></div>
+    </div>
+  </div>
+
+  <!-- 右侧面板 -->
+  <div id="right-panel" class="right-panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-panel="ai">AI助手</button>
+      <button class="panel-tab" data-panel="check">检查</button>
+      <button class="panel-tab" data-panel="calc">计算</button>
+    </div>
+    <div class="panel-content">
+      <div id="panel-ai" class="panel-page active">
+        <div class="ai-section">
+          <h4>AI自动化</h4>
+          <button class="action-btn" id="btn-ai-simplify">AI建筑底图精简</button>
+          <button class="action-btn" id="btn-ai-place">AI智能布放</button>
+          <button class="action-btn" id="btn-ai-estimate">AI快速估算</button>
+          <button class="action-btn" id="btn-ai-optimize">AI功率优化</button>
+        </div>
+        <div class="ai-section">
+          <h4>自动生成</h4>
+          <button class="action-btn" id="btn-gen-system">生成系统图</button>
+          <button class="action-btn" id="btn-gen-material">生成材料表</button>
+          <button class="action-btn" id="btn-gen-budget">生成预算表</button>
+          <button class="action-btn" id="btn-gen-report">生成设计报告</button>
+        </div>
+      </div>
+      <div id="panel-check" class="panel-page">
+        <div class="check-section">
+          <h4>规范检查</h4>
+          <button class="action-btn" id="btn-check-all">全面检查</button>
+          <button class="action-btn" id="btn-check-power">功率检查</button>
+          <button class="action-btn" id="btn-check-cable">馈线检查</button>
+          <button class="action-btn" id="btn-check-label">标注检查</button>
+        </div>
+        <div id="check-results" class="check-results">
+          <p class="empty-hint">点击上方按钮开始检查</p>
+        </div>
+      </div>
+      <div id="panel-calc" class="panel-page">
+        <div class="calc-section">
+          <h4>链路预算</h4>
+          <div class="calc-input">
+            <label>信源功率(dBm):</label>
+            <input type="number" id="calc-source-power" value="43" step="0.1">
+          </div>
+          <div class="calc-input">
+            <label>频段:</label>
+            <select id="calc-band">
+              <option value="900">900MHz (2G)</option>
+              <option value="1800">1800MHz (4G)</option>
+              <option value="2100">2100MHz (3G)</option>
+              <option value="2600">2600MHz (4G)</option>
+              <option value="3500">3500MHz (5G)</option>
+            </select>
+          </div>
+          <button class="action-btn" id="btn-calc-link">计算链路</button>
+        </div>
+        <div id="calc-results" class="calc-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部命令行 -->
+  <div id="command-bar" class="command-bar">
+    <div class="command-history" id="command-history"></div>
+    <div class="command-input-row">
+      <span class="command-prompt">命令:</span>
+      <input type="text" id="command-input" class="command-input" placeholder="输入命令或快捷键...">
+    </div>
+  </div>
+
+  <!-- 状态栏 -->
+  <div id="status-bar" class="status-bar">
+    <span id="status-message">就绪</span>
+    <span class="status-separator">|</span>
+    <span id="status-tool">当前工具: 选择</span>
+    <span class="status-separator">|</span>
+    <span id="status-entities">对象: 0</span>
+    <span class="status-separator">|</span>
+    <span id="status-selected">已选: 0</span>
+    <div class="status-spacer"></div>
+    <span id="status-zoom">缩放: 100%</span>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

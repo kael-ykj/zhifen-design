@@ -1,8 +1,15 @@
+# Dependencies
+node_modules/
+
 # Build directories
 build/
 build_local/
 build_*/
 cmake-build-*/
+
+# Compiled output
+dist/
+release/
 
 # IDE
 .vscode/
@@ -29,9 +36,6 @@ cmake_install.cmake
 Makefile
 *.cmake
 
-# Dist
-dist/
-
 # Temp
 *.tmp
 *.log
@@ -41,3 +45,6 @@ output_*.dxf
 output_*.csv
 output_*.dwg
 output_*.pdf
+
+# Electron
+out/

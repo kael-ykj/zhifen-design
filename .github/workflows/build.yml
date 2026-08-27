@@ -1,63 +1,82 @@
-name: 智分Design 自动构建打包
+name: 智分Design Windows构建
+
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build-windows:
     runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
     steps:
-    - name: 拉取代码
+    - name: 检出代码
       uses: actions/checkout@v4
-
-    - name: 安装 CMake
-      uses: lukka/get-cmake@latest
-
-    - name: 安装 Qt5
-      uses: jurplel/install-qt-action@v3
+    
+    - name: 设置Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
       with:
-        version: '5.15.2'
-        host: 'windows'
-        target: 'desktop'
-        arch: 'win64_msvc2019_64'
-        cache: false
-
-    - name: 配置工程
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-    - name: 编译
-      run: cmake --build build --config Release -j4
-
-    - name: 部署 Qt 依赖
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: 安装依赖
+      run: npm ci
+    
+    - name: 编译TypeScript
+      run: npm run build
+    
+    - name: 验证编译输出
       run: |
-        windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw build\Release\ZhiFenDesign.exe
-
-    - name: 收集产物
+        if (Test-Path "dist/main/main.js") { Write-Host "主进程编译成功" } else { Write-Error "主进程编译失败" }
+        if (Test-Path "dist/renderer/index.js") { Write-Host "渲染进程编译成功" } else { Write-Error "渲染进程编译失败" }
+    
+    - name: 创建图标目录
       run: |
-        mkdir deploy
-        copy build\Release\ZhiFenDesign.exe deploy\
-        if (Test-Path build\Release\ZhiFenDesign_Console.exe) { copy build\Release\ZhiFenDesign_Console.exe deploy\ }
-        Get-ChildItem build\Release\*.dll | ForEach-Object { copy $_.FullName deploy\ }
-        if (Test-Path build\Release\platforms) { xcopy /E /I build\Release\platforms deploy\platforms }
-        if (Test-Path README.md) { copy README.md deploy\ }
-
-    - name: 安装 Inno Setup
-      run: choco install innosetup -y
-
-    - name: 打包安装包
+        if (!(Test-Path "build")) { New-Item -ItemType Directory -Path "build" }
+    
+    - name: 生成应用图标
       run: |
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
-
+        Add-Type -AssemblyName System.Drawing
+        $bmp = New-Object System.Drawing.Bitmap(256, 256)
+        $g = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.Clear([System.Drawing.Color]::FromArgb(14, 99, 156))
+        $font = New-Object System.Drawing.Font("Arial", 80, [System.Drawing.FontStyle]::Bold)
+        $brush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+        $sf = New-Object System.Drawing.StringFormat
+        $sf.Alignment = [System.Drawing.StringAlignment]::Center
+        $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
+        $g.DrawString("智", $font, $brush, 128, 128, $sf)
+        $g.Dispose()
+        $bmp.Save("build/icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        Write-Host "图标已生成"
+    
+    - name: 构建Windows安装包
+      run: npm run dist
+      env:
+        CI: false
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 列出构建产物
+      run: |
+        Get-ChildItem -Path "release" -Recurse | Select-Object FullName, Length
+    
     - name: 上传安装包
       uses: actions/upload-artifact@v4
       with:
         name: 智分Design-Windows-Setup
-        path: installer\Output\*.exe
+        path: release/*.exe
         retention-days: 30
-
-    - name: 上传可执行文件
+    
+    - name: 上传免安装版
       uses: actions/upload-artifact@v4
       with:
-        name: 智分Design-Windows-Exe
-        path: deploy\*
+        name: 智分Design-Windows-Portable
+        path: release/win-unpacked/
         retention-days: 30
