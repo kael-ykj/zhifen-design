@@ -63,8 +63,9 @@ void CircleTool::drawOverlay(QPainter *painter)
         painter->save();
         painter->setPen(QPen(QColor(255, 255, 0), 1, Qt::DashLine));
         qreal radius = QLineF(m_center, m_currentPos).length();
-        QPoint centerScreen = m_view->mapFromScene(m_center);
-        painter->drawEllipse(centerScreen, radius * m_view->transform().m11(), radius * m_view->transform().m11());
+        QPointF centerScreen = m_view->mapFromScene(m_center);
+        qreal r = radius * m_view->transform().m11();
+        painter->drawEllipse(centerScreen, r, r);
         painter->setPen(QColor(255, 255, 0));
         painter->setFont(QFont("Arial", 10));
         QPoint curScreen = m_view->mapFromScene(m_currentPos);
