@@ -699,9 +699,12 @@ void MainWindow::onCopyFloor()
                 }
             }
         }
-        // 更新馈线编号
+        // 更新馈线编号和floorId
+        int cableIdx = 0;
         for (auto& cable : newFloor.cables) {
             cable.floorId = newFloor.floorId;
+            cableIdx++;
+            cable.segmentId = "CABLE_" + std::to_string(cableIdx) + "_" + newFloor.floorId;
         }
         m_project.floors.push_back(newFloor);
     }

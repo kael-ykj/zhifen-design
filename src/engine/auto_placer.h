@@ -55,17 +55,17 @@ public:
                 hasBounds = true;
             }
         }
-        if (!hasBounds) { minX = 0; minY = 0; maxX = 800; maxY = 600; }
+        if (!hasBounds) { minX = 0; minY = 0; maxX = 8000; maxY = 6000; }
         double width = maxX - minX;
         double height = maxY - minY;
-        if (width < 10 || height < 10) {
+        if (width < 100 || height < 100) {
             result.message = "楼层尺寸过小，无法自动布放";
             return result;
         }
 
         std::vector<DensityPoint> densityMap;
         if (params.wallAware && !floor.walls.empty()) {
-            densityMap = computeWallDensity(floor, minX, minY, maxX, maxY, 2.0);
+            densityMap = computeWallDensity(floor, minX, minY, maxX, maxY, 2000.0); // 2米=2000mm
         }
 
         floor.devices.clear();
@@ -82,7 +82,7 @@ public:
         if (params.wallAware && !densityMap.empty()) {
             antennaPositions = wallAwarePlacement(densityMap, minX, minY, maxX, maxY, params);
         } else {
-            double spacing = params.coverageRadius_m * 1.5;
+            double spacing = params.coverageRadius_m * 1.5 * 1000.0; // 米转mm
             int cols = std::max(1, (int)std::ceil(width / spacing));
             int rows = std::max(1, (int)std::ceil(height / spacing));
             double startX = minX + (width - (cols - 1) * spacing) / 2;
@@ -223,7 +223,7 @@ private:
     std::vector<Point2D> wallAwarePlacement(const std::vector<DensityPoint>& densityMap,
         double minX, double minY, double maxX, double maxY, const AutoPlaceParams& params) {
         std::vector<Point2D> positions;
-        double baseSpacing = params.coverageRadius_m * 1.5;
+        double baseSpacing = params.coverageRadius_m * 1.5 * 1000.0; // 米转mm
         double y = minY + baseSpacing / 2;
         while (y < maxY) {
             double x = minX + baseSpacing / 2;
@@ -268,16 +268,28 @@ private:
 
     double estimateCoverage(const std::vector<Point2D>& antennas, const AutoPlaceParams& params) {
         if (antennas.empty()) return 0;
+        // 计算天线位置范围
+        double minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+        for (const auto& ant : antennas) {
+            minX = std::min(minX, ant.x);
+            minY = std::min(minY, ant.y);
+            maxX = std::max(maxX, ant.x);
+            maxY = std::max(maxY, ant.y);
+        }
+        double margin = params.coverageRadius_m * 1000.0;
+        minX -= margin; minY -= margin;
+        maxX += margin; maxY += margin;
+
         double totalArea = 0, coveredArea = 0;
-        double step = 2.0;
-        for (double x = 0; x < 800; x += step) {
-            for (double y = 0; y < 600; y += step) {
+        double step = 2000.0; // 2米=2000mm
+        for (double x = minX; x < maxX; x += step) {
+            for (double y = minY; y < maxY; y += step) {
                 totalArea += step * step;
                 double maxRsrp = -200;
                 for (const auto& ant : antennas) {
-                    double dist = sqrt(pow(ant.x - x, 2) + pow(ant.y - y, 2));
-                    if (dist < 0.5) dist = 0.5;
-                    double loss = 20 * log10(dist) + 20 * log10(900) - 27.55;
+                    double dist_m = sqrt(pow(ant.x - x, 2) + pow(ant.y - y, 2)) / 1000.0; // mm转米
+                    if (dist_m < 0.5) dist_m = 0.5;
+                    double loss = 20 * log10(dist_m) + 20 * log10(900) - 27.55;
                     double rsrp = params.sourcePower_dBm - 30 - loss + params.antennaGain_dBi;
                     if (rsrp > maxRsrp) maxRsrp = rsrp;
                 }
