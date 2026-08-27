@@ -22,7 +22,7 @@ jobs:
         host: 'windows'
         target: 'desktop'
         arch: 'win64_msvc2019_64'
-        cache: true
+        cache: false
 
     - name: 设置MSVC环境
       uses: ilammy/msvc-dev-cmd@v1
