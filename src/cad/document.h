@@ -35,6 +35,7 @@ public:
     QList<LayerInfo> getAllLayers() const;
     void setCurrentLayer(const QString &name);
     QString currentLayer() const { return m_currentLayer; }
+    void resetToDefaultLayers();
 
     // 文档属性
     QString name() const { return m_name; }

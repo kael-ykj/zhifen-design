@@ -13,6 +13,11 @@ public:
                            QGraphicsItem *parent = nullptr);
 
     void setDimension(DimType type, const QPointF &p1, const QPointF &p2, const QPointF &dimPos);
+    QPointF startPoint() const { return m_p1; }
+    QPointF endPoint() const { return m_p2; }
+    QPointF dimPosition() const { return m_dimPos; }
+    qreal offset() const { return QLineF(m_p1, m_dimPos).length(); }
+    DimType dimType() const { return m_type; }
     QString measurementText() const;
 
     QRectF boundingRect() const override;

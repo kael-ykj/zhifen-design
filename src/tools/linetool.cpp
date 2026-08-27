@@ -85,7 +85,7 @@ void LineTool::drawOverlay(QPainter *painter)
         painter->drawLine(last, m_currentPos);
         // 显示长度和角度
         qreal len = QLineF(last, m_currentPos).length();
-        qreal ang = (QLineF(last, m_currentPos * 180.0 / 3.14159265358979323846).angle());
+        qreal ang = QLineF(last, m_currentPos).angle();
         QPoint screenPos = m_view->mapFromScene(m_currentPos);
         painter->setPen(QColor(255, 255, 0));
         painter->setFont(QFont("Arial", 10));

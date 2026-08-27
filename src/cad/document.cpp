@@ -24,6 +24,13 @@ void Document::initDefaultLayers()
     m_currentLayer = "0";
 }
 
+void Document::resetToDefaultLayers()
+{
+    m_layers.clear();
+    initDefaultLayers();
+    emit layerChanged();
+}
+
 void Document::addLayer(const QString &name, const QColor &color)
 {
     if (m_layers.contains(name)) return;

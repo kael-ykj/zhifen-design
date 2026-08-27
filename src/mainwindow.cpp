@@ -6,6 +6,14 @@
 #include "tools/selecttool.h"
 #include "tools/linetool.h"
 #include "tools/circletool.h"
+#include "tools/arctool.h"
+#include "tools/polylinetool.h"
+#include "tools/rectangletool.h"
+#include "tools/texttool.h"
+#include "tools/dimensiontool.h"
+#include "tools/copytool.h"
+#include "tools/rotatetool.h"
+#include "tools/scaletool.h"
 #include "tools/pantool.h"
 #include "tools/zoomtool.h"
 #include "widgets/commandline.h"
@@ -13,31 +21,10 @@
 #include "widgets/propertypanel.h"
 #include "io/dxfreader.h"
 #include "io/dxfwriter.h"
+#include "io/projectio.h"
 #include "snap/snapmanager.h"
 #include <QMenu>
 #include <QMenuBar>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QPrinter>
-#include <QPrintDialog>
-#include <QPainter>
-#include <QKeyEvent>
-#include <QDockWidget>
-#include <QTabWidget>
-#include <QVBoxLayout>
-#include <QWidget>
-#include "cad/document.h"
-#include "tools/tool.h"
-#include "tools/selecttool.h"
-#include "tools/linetool.h"
-#include "tools/circletool.h"
-#include "tools/pantool.h"
-#include "tools/zoomtool.h"
-#include "widgets/commandline.h"
-#include "widgets/layerpanel.h"
-#include "widgets/propertypanel.h"
-#include "io/dxfreader.h"
-#include "io/dxfwriter.h"
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QPrinter>
@@ -111,17 +98,17 @@ void MainWindow::createActions()
     m_selectAct = new QAction("选择", this); m_selectAct->setShortcut(Qt::Key_V); m_selectAct->setCheckable(true); m_toolGroup->addAction(m_selectAct); connect(m_selectAct, &QAction::triggered, this, [this](){ setCurrentTool("select"); });
     m_lineAct = new QAction("直线", this); m_lineAct->setShortcut(Qt::Key_L); m_lineAct->setCheckable(true); m_toolGroup->addAction(m_lineAct); connect(m_lineAct, &QAction::triggered, this, [this](){ setCurrentTool("line"); });
     m_circleAct = new QAction("圆", this); m_circleAct->setShortcut(Qt::Key_C); m_circleAct->setCheckable(true); m_toolGroup->addAction(m_circleAct); connect(m_circleAct, &QAction::triggered, this, [this](){ setCurrentTool("circle"); });
-    m_arcAct = new QAction("圆弧", this); m_arcAct->setShortcut(Qt::Key_A); m_arcAct->setCheckable(true); m_toolGroup->addAction(m_arcAct);
-    m_polylineAct = new QAction("多段线", this); m_polylineAct; m_polylineAct->setCheckable(true); m_toolGroup->addAction(m_polylineAct);
-    m_rectangleAct = new QAction("矩形", this); m_rectangleAct; m_rectangleAct->setCheckable(true); m_toolGroup->addAction(m_rectangleAct);
-    m_textAct = new QAction("文字", this); m_textAct; m_textAct->setCheckable(true); m_toolGroup->addAction(m_textAct);
-    m_dimensionAct = new QAction("标注", this); m_dimensionAct; m_dimensionAct->setCheckable(true); m_toolGroup->addAction(m_dimensionAct);
+    m_arcAct = new QAction("圆弧", this); m_arcAct->setShortcut(Qt::Key_A); m_arcAct->setCheckable(true); m_toolGroup->addAction(m_arcAct); connect(m_arcAct, &QAction::triggered, this, [this](){ setCurrentTool("arc"); });
+    m_polylineAct = new QAction("多段线", this); m_polylineAct->setCheckable(true); m_toolGroup->addAction(m_polylineAct); connect(m_polylineAct, &QAction::triggered, this, [this](){ setCurrentTool("polyline"); });
+    m_rectangleAct = new QAction("矩形", this); m_rectangleAct->setCheckable(true); m_toolGroup->addAction(m_rectangleAct); connect(m_rectangleAct, &QAction::triggered, this, [this](){ setCurrentTool("rectangle"); });
+    m_textAct = new QAction("文字", this); m_textAct->setCheckable(true); m_toolGroup->addAction(m_textAct); connect(m_textAct, &QAction::triggered, this, [this](){ setCurrentTool("text"); });
+    m_dimensionAct = new QAction("标注", this); m_dimensionAct->setCheckable(true); m_toolGroup->addAction(m_dimensionAct); connect(m_dimensionAct, &QAction::triggered, this, [this](){ setCurrentTool("dimension"); });
 
-    m_moveAct = new QAction("移动", this); m_moveAct->setShortcut(Qt::Key_M);
-    m_copyAct = new QAction("复制", this); m_copyAct;
-    m_rotateAct = new QAction("旋转", this); m_rotateAct;
-    m_scaleAct = new QAction("缩放", this); m_scaleAct;
-    m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ for(auto item : m_scene->selectedItems()) m_scene->removeItem(item); });
+    m_moveAct = new QAction("移动", this); m_moveAct->setShortcut(Qt::Key_M); connect(m_moveAct, &QAction::triggered, this, [this](){ setCurrentTool("move"); });
+    m_copyAct = new QAction("复制", this); connect(m_copyAct, &QAction::triggered, this, [this](){ setCurrentTool("copy"); });
+    m_rotateAct = new QAction("旋转", this); connect(m_rotateAct, &QAction::triggered, this, [this](){ setCurrentTool("rotate"); });
+    m_scaleAct = new QAction("缩放", this); connect(m_scaleAct, &QAction::triggered, this, [this](){ setCurrentTool("scale"); });
+    m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); for(auto item : items) { m_scene->removeItem(item); delete item; } });
 
     m_panAct = new QAction("平移", this); m_panAct->setShortcut(Qt::Key_P); m_panAct->setCheckable(true); m_toolGroup->addAction(m_panAct); connect(m_panAct, &QAction::triggered, this, [this](){ setCurrentTool("pan"); });
     m_zoomAct = new QAction("缩放", this); m_zoomAct->setShortcut(Qt::Key_Z); m_zoomAct->setCheckable(true); m_toolGroup->addAction(m_zoomAct); connect(m_zoomAct, &QAction::triggered, this, [this](){ setCurrentTool("zoom"); });
@@ -259,6 +246,15 @@ void MainWindow::setCurrentTool(const QString &toolName)
     if (toolName == "select") m_currentTool = new SelectTool(m_view);
     else if (toolName == "line") m_currentTool = new LineTool(m_view);
     else if (toolName == "circle") m_currentTool = new CircleTool(m_view);
+    else if (toolName == "arc") m_currentTool = new ArcTool(m_view);
+    else if (toolName == "polyline") m_currentTool = new PolylineTool(m_view);
+    else if (toolName == "rectangle") m_currentTool = new RectangleTool(m_view);
+    else if (toolName == "text") m_currentTool = new TextTool(m_view);
+    else if (toolName == "dimension") m_currentTool = new DimensionTool(m_view);
+    else if (toolName == "copy") m_currentTool = new CopyTool(m_view);
+    else if (toolName == "rotate") m_currentTool = new RotateTool(m_view);
+    else if (toolName == "scale") m_currentTool = new ScaleTool(m_view);
+    else if (toolName == "move") m_currentTool = new CopyTool(m_view); // 移动复用复制逻辑（不创建副本）
     else if (toolName == "pan") m_currentTool = new PanTool(m_view);
     else if (toolName == "zoom") m_currentTool = new ZoomTool(m_view);
     else m_currentTool = new SelectTool(m_view);
@@ -278,6 +274,9 @@ void MainWindow::onNew()
     m_document->setName("未命名");
     m_document->setFilePath("");
     m_document->setModified(false);
+    // 重新初始化默认图层
+    m_document->resetToDefaultLayers();
+    m_layerPanel->refresh();
     m_view->zoomExtents();
     updateTitle();
     m_commandLine->appendMessage("已创建新文档", "result");
@@ -287,12 +286,27 @@ void MainWindow::onOpen()
 {
     QString fileName = QFileDialog::getOpenFileName(this, "打开文件", "", "智分Design文件 (*.zfd);;DXF文件 (*.dxf);;所有文件 (*.*)");
     if (fileName.isEmpty()) return;
-    if (fileName.endsWith(".dxf", Qt::CaseInsensitive)) {
+    if (fileName.endsWith(".zfd", Qt::CaseInsensitive)) {
+        ProjectIO io(m_scene, m_document);
+        if (io.load(fileName)) {
+            m_document->setFilePath(fileName);
+            m_document->setModified(false);
+            m_layerPanel->refresh();
+            m_view->zoomExtents();
+            updateTitle();
+            m_commandLine->appendMessage("已打开: " + fileName, "result");
+        } else {
+            m_commandLine->appendMessage("打开失败: " + io.errorString(), "error");
+        }
+    } else if (fileName.endsWith(".dxf", Qt::CaseInsensitive)) {
         DxfReader reader(m_scene, m_document);
         if (reader.read(fileName)) {
             m_document->setFilePath(fileName);
+            m_document->setModified(true);
+            m_layerPanel->refresh();
             m_view->zoomExtents();
-            m_commandLine->appendMessage("已打开: " + fileName, "result");
+            updateTitle();
+            m_commandLine->appendMessage("已打开DXF: " + fileName, "result");
         } else {
             m_commandLine->appendMessage("打开失败: " + reader.errorString(), "error");
         }
@@ -305,8 +319,26 @@ void MainWindow::onSave()
         onSaveAs();
         return;
     }
-    m_document->setModified(false);
-    m_commandLine->appendMessage("已保存: " + m_document->filePath(), "result");
+    QString path = m_document->filePath();
+    if (path.endsWith(".zfd", Qt::CaseInsensitive)) {
+        ProjectIO io(m_scene, m_document);
+        if (io.save(path)) {
+            m_document->setModified(false);
+            updateTitle();
+            m_commandLine->appendMessage("已保存: " + path, "result");
+        } else {
+            m_commandLine->appendMessage("保存失败: " + io.errorString(), "error");
+        }
+    } else if (path.endsWith(".dxf", Qt::CaseInsensitive)) {
+        DxfWriter writer(m_scene);
+        if (writer.write(path)) {
+            m_document->setModified(false);
+            updateTitle();
+            m_commandLine->appendMessage("已导出DXF: " + path, "result");
+        } else {
+            m_commandLine->appendMessage("保存失败", "error");
+        }
+    }
 }
 
 void MainWindow::onSaveAs()
@@ -314,8 +346,7 @@ void MainWindow::onSaveAs()
     QString fileName = QFileDialog::getSaveFileName(this, "另存为", "", "智分Design文件 (*.zfd);;DXF文件 (*.dxf)");
     if (fileName.isEmpty()) return;
     m_document->setFilePath(fileName);
-    m_document->setModified(false);
-    m_commandLine->appendMessage("已保存: " + fileName, "result");
+    onSave();
 }
 
 void MainWindow::onImportDxf()
@@ -374,6 +405,15 @@ void MainWindow::onCommandEntered(const QString &command)
     QString cmd = command.toLower().trimmed();
     if (cmd == "line" || cmd == "l") setCurrentTool("line");
     else if (cmd == "circle" || cmd == "c") setCurrentTool("circle");
+    else if (cmd == "arc" || cmd == "a") setCurrentTool("arc");
+    else if (cmd == "polyline" || cmd == "pl") setCurrentTool("polyline");
+    else if (cmd == "rectangle" || cmd == "rec") setCurrentTool("rectangle");
+    else if (cmd == "text" || cmd == "dt") setCurrentTool("text");
+    else if (cmd == "dimension" || cmd == "dli" || cmd == "dim") setCurrentTool("dimension");
+    else if (cmd == "move" || cmd == "m") setCurrentTool("move");
+    else if (cmd == "copy" || cmd == "co") setCurrentTool("copy");
+    else if (cmd == "rotate" || cmd == "ro") setCurrentTool("rotate");
+    else if (cmd == "scale" || cmd == "sc") setCurrentTool("scale");
     else if (cmd == "pan" || cmd == "p") setCurrentTool("pan");
     else if (cmd == "zoom" || cmd == "z") setCurrentTool("zoom");
     else if (cmd == "select" || cmd == "v") setCurrentTool("select");

@@ -1,11 +1,13 @@
 #include "dxfreader.h"
 #include "cadscene.h"
-#include "document.h"
-#include "lineitem.h"
-#include "circleitem.h"
-#include "arcitem.h"
-#include "polylineitem.h"
-#include "textitem.h"
+#include "cad/document.h"
+#include "entities/lineitem.h"
+#include "entities/circleitem.h"
+#include "entities/arcitem.h"
+#include "entities/polylineitem.h"
+#include "entities/rectangleitem.h"
+#include "entities/textitem.h"
+#include "entities/dimensionitem.h"
 #include <QFile>
 #include <QTextStream>
 #include <QStringList>
@@ -31,6 +33,7 @@ bool DxfReader::read(const QString &filePath)
 bool DxfReader::readFromText(const QString &text)
 {
     QList<DxfPair> pairs = parsePairs(text);
+    processTables(pairs);
     processEntities(pairs);
     return true;
 }
@@ -39,7 +42,7 @@ QList<DxfReader::DxfPair> DxfReader::parsePairs(const QString &text)
 {
     QList<DxfPair> pairs;
     QStringList lines = text.split('\n');
-    for (int i = 0; i < lines.size() - 1; i += 2) {
+    for (int i = 0; i + 1 < lines.size(); i += 2) {
         bool ok;
         int code = lines[i].trimmed().toInt(&ok);
         if (ok) {
@@ -47,6 +50,37 @@ QList<DxfReader::DxfPair> DxfReader::parsePairs(const QString &text)
         }
     }
     return pairs;
+}
+
+void DxfReader::processTables(const QList<DxfPair> &pairs)
+{
+    if (!m_document) return;
+    bool inTables = false;
+    bool inLayerTable = false;
+    QString layerName;
+    int layerColor = 7;
+
+    for (int i = 0; i < pairs.size(); i++) {
+        const DxfPair &p = pairs[i];
+        if (p.code == 2 && p.value == "TABLES") { inTables = true; continue; }
+        if (!inTables) continue;
+        if (p.code == 0 && p.value == "ENDSEC") break;
+        if (p.code == 0 && p.value == "TABLE") {
+            if (i+1 < pairs.size() && pairs[i+1].code == 2 && pairs[i+1].value == "LAYER")
+                inLayerTable = true;
+            continue;
+        }
+        if (p.code == 0 && p.value == "ENDTAB") { inLayerTable = false; continue; }
+        if (!inLayerTable) continue;
+        if (p.code == 0 && p.value == "LAYER") {
+            if (!layerName.isEmpty()) m_document->addLayer(layerName, QColor::fromHsl((layerColor-1)*30, 200, 128));
+            layerName = ""; layerColor = 7;
+            continue;
+        }
+        if (p.code == 2) layerName = p.value;
+        if (p.code == 62) layerColor = p.value.toInt();
+    }
+    if (!layerName.isEmpty()) m_document->addLayer(layerName, QColor::fromHsl((layerColor-1)*30, 200, 128));
 }
 
 void DxfReader::processEntities(const QList<DxfPair> &pairs)
@@ -80,7 +114,6 @@ void DxfReader::processEntities(const QList<DxfPair> &pairs)
             } else if (currentType == "LWPOLYLINE" && m_scene && polyPoints.size() >= 2) {
                 m_scene->addItem(new PolylineItem(polyPoints, polyClosed));
             }
-
             // 重置
             currentType = p.value;
             p1 = p2 = center = QPointF();
@@ -101,7 +134,8 @@ void DxfReader::processEntities(const QList<DxfPair> &pairs)
             if (p.code == 51) endAngle = p.value.toDouble();
             if (p.code == 1) textContent = p.value;
             if (p.code == 70) polyClosed = (p.value.toInt() & 1) != 0;
-            // LWPOLYLINE顶点
+
+            // LWPOLYLINE顶点 - 修复：只在LWPOLYLINE类型下处理，不修改p1
             if (currentType == "LWPOLYLINE" && p.code == 10) {
                 QPointF pt(p.value.toDouble(), 0);
                 if (i + 1 < pairs.size() && pairs[i+1].code == 20) {
@@ -110,9 +144,15 @@ void DxfReader::processEntities(const QList<DxfPair> &pairs)
                 }
                 polyPoints.append(pt);
             }
+            // CIRCLE/ARC圆心
+            if ((currentType == "CIRCLE" || currentType == "ARC") && p.code == 10) {
+                center.setX(p.value.toDouble());
+            }
+            if ((currentType == "CIRCLE" || currentType == "ARC") && p.code == 20) {
+                center.setY(p.value.toDouble());
+            }
         }
     }
-
     // 保存最后一个实体
     if (currentType == "LINE" && m_scene) m_scene->addItem(new LineItem(p1, p2));
     else if (currentType == "CIRCLE" && m_scene) m_scene->addItem(new CircleItem(center, radius));

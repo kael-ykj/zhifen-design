@@ -23,6 +23,7 @@ private:
 
     struct DxfPair { int code; QString value; };
     QList<DxfPair> parsePairs(const QString &text);
+    void processTables(const QList<DxfPair> &pairs);
     void processEntities(const QList<DxfPair> &pairs);
     QPointF parsePoint(const QList<DxfPair> &pairs, int &index);
 };

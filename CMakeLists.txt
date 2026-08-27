@@ -36,11 +36,20 @@ set(SOURCES
     src/tools/selecttool.cpp
     src/tools/linetool.cpp
     src/tools/circletool.cpp
+    src/tools/arctool.cpp
+    src/tools/polylinetool.cpp
+    src/tools/rectangletool.cpp
+    src/tools/texttool.cpp
+    src/tools/dimensiontool.cpp
+    src/tools/copytool.cpp
+    src/tools/rotatetool.cpp
+    src/tools/scaletool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
     src/snap/snapmanager.cpp
     src/io/dxfreader.cpp
     src/io/dxfwriter.cpp
+    src/io/projectio.cpp
     src/widgets/commandline.cpp
     src/widgets/layerpanel.cpp
     src/widgets/propertypanel.cpp
@@ -63,6 +72,14 @@ set(HEADERS
     src/tools/selecttool.h
     src/tools/linetool.h
     src/tools/circletool.h
+    src/tools/arctool.h
+    src/tools/polylinetool.h
+    src/tools/rectangletool.h
+    src/tools/texttool.h
+    src/tools/dimensiontool.h
+    src/tools/copytool.h
+    src/tools/rotatetool.h
+    src/tools/scaletool.h
     src/tools/pantool.h
     src/tools/zoomtool.h
     src/snap/snapmanager.h

@@ -148,8 +148,10 @@ void CadView::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Backspace:
         // 删除选中项
         if (scene()) {
-            for (auto item : scene()->selectedItems()) {
+            auto items = scene()->selectedItems();
+            for (auto item : items) {
                 scene()->removeItem(item);
+                delete item;
             }
         }
         break;
