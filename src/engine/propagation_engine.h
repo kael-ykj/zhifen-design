@@ -235,6 +235,29 @@ public:
         return result;
     }
 
+    void recalcStats(HeatmapData& heatmap) {
+        heatmap.maxRSRP = -140;
+        heatmap.minRSRP = 0;
+        heatmap.avgRSRP = -140;
+        heatmap.coverageRate = 0;
+        heatmap.weakCoverageCount = 0;
+        double sum = 0;
+        int valid = 0;
+        for (const auto& p : heatmap.points) {
+            if (p.rsrp_dBm > -140) {
+                heatmap.maxRSRP = std::max(heatmap.maxRSRP, p.rsrp_dBm);
+                heatmap.minRSRP = std::min(heatmap.minRSRP, p.rsrp_dBm);
+                sum += p.rsrp_dBm;
+                valid++;
+                if (p.rsrp_dBm < -100) heatmap.weakCoverageCount++;
+            }
+        }
+        if (valid > 0) {
+            heatmap.avgRSRP = sum / valid;
+            heatmap.coverageRate = (double)(valid - heatmap.weakCoverageCount) / valid;
+        }
+    }
+
 private:
     ModeManager* m_modeMgr{nullptr};
     SimulationConfig m_config;
@@ -281,30 +304,6 @@ private:
         bounds.origin = {minX, minY};
         bounds.size = {maxX - minX, maxY - minY};
         return bounds;
-    }
-
-    void recalcStats(HeatmapData& heatmap) {
-        heatmap.maxRSRP = -140;
-        heatmap.minRSRP = 0;
-        heatmap.avgRSRP = -140;
-        heatmap.coverageRate = 0;
-        heatmap.weakCoverageCount = 0;
-
-        double sum = 0;
-        int valid = 0;
-        for (const auto& p : heatmap.points) {
-            if (p.rsrp_dBm > -140) {
-                heatmap.maxRSRP = std::max(heatmap.maxRSRP, p.rsrp_dBm);
-                heatmap.minRSRP = std::min(heatmap.minRSRP, p.rsrp_dBm);
-                sum += p.rsrp_dBm;
-                valid++;
-                if (p.rsrp_dBm < -100) heatmap.weakCoverageCount++;
-            }
-        }
-        if (valid > 0) {
-            heatmap.avgRSRP = sum / valid;
-            heatmap.coverageRate = (double)(valid - heatmap.weakCoverageCount) / valid;
-        }
     }
 
     char rsrpToChar(double rsrp) const {
