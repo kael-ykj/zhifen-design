@@ -24,6 +24,7 @@ set(SOURCES
     src/cad/document.cpp
     src/cad/cadscene.cpp
     src/cad/cadview.cpp
+    src/cad/undocommands.cpp
     src/entities/caditem.cpp
     src/entities/lineitem.cpp
     src/entities/circleitem.cpp
@@ -53,6 +54,7 @@ set(SOURCES
     src/widgets/commandline.cpp
     src/widgets/layerpanel.cpp
     src/widgets/propertypanel.cpp
+    src/widgets/layerdialog.cpp
 )
 
 set(HEADERS
@@ -60,6 +62,7 @@ set(HEADERS
     src/cad/document.h
     src/cad/cadscene.h
     src/cad/cadview.h
+    src/cad/undocommands.h
     src/entities/caditem.h
     src/entities/lineitem.h
     src/entities/circleitem.h
@@ -88,6 +91,7 @@ set(HEADERS
     src/widgets/commandline.h
     src/widgets/layerpanel.h
     src/widgets/propertypanel.h
+    src/widgets/layerdialog.h
 )
 
 # 资源文件

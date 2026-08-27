@@ -2,6 +2,7 @@
 #include "cad/cadview.h"
 #include "cad/cadscene.h"
 #include "cad/document.h"
+#include "cad/undocommands.h"
 #include "tools/tool.h"
 #include "tools/selecttool.h"
 #include "tools/linetool.h"
@@ -19,6 +20,7 @@
 #include "widgets/commandline.h"
 #include "widgets/layerpanel.h"
 #include "widgets/propertypanel.h"
+#include "widgets/layerdialog.h"
 #include "io/dxfreader.h"
 #include "io/dxfwriter.h"
 #include "io/projectio.h"
@@ -29,6 +31,7 @@
 #include <QMessageBox>
 #include <QPrinter>
 #include <QPrintDialog>
+#include <QPrintPreviewDialog>
 #include <QPainter>
 #include <QKeyEvent>
 #include <QDockWidget>
@@ -59,6 +62,15 @@ MainWindow::MainWindow(QWidget *parent)
     createToolBars();
     createDockWidgets();
     createStatusBar();
+
+    // 撤销/重做栈
+    m_undoStack = new QUndoStack(this);
+    connect(m_undoAct, &QAction::triggered, m_undoStack, &QUndoStack::undo);
+    connect(m_redoAct, &QAction::triggered, m_undoStack, &QUndoStack::redo);
+    connect(m_undoStack, &QUndoStack::canUndoChanged, m_undoAct, &QAction::setEnabled);
+    connect(m_undoStack, &QUndoStack::canRedoChanged, m_redoAct, &QAction::setEnabled);
+    m_undoAct->setEnabled(false);
+    m_redoAct->setEnabled(false);
 
     // 设置默认工具
     setCurrentTool("select");
@@ -108,7 +120,7 @@ void MainWindow::createActions()
     m_copyAct = new QAction("复制", this); connect(m_copyAct, &QAction::triggered, this, [this](){ setCurrentTool("copy"); });
     m_rotateAct = new QAction("旋转", this); connect(m_rotateAct, &QAction::triggered, this, [this](){ setCurrentTool("rotate"); });
     m_scaleAct = new QAction("缩放", this); connect(m_scaleAct, &QAction::triggered, this, [this](){ setCurrentTool("scale"); });
-    m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); for(auto item : items) { m_scene->removeItem(item); delete item; } });
+    m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); if(!items.isEmpty()) m_undoStack->push(new RemoveItemsCommand(m_scene, items)); });
 
     m_panAct = new QAction("平移", this); m_panAct->setShortcut(Qt::Key_P); m_panAct->setCheckable(true); m_toolGroup->addAction(m_panAct); connect(m_panAct, &QAction::triggered, this, [this](){ setCurrentTool("pan"); });
     m_zoomAct = new QAction("缩放", this); m_zoomAct->setShortcut(Qt::Key_Z); m_zoomAct->setCheckable(true); m_toolGroup->addAction(m_zoomAct); connect(m_zoomAct, &QAction::triggered, this, [this](){ setCurrentTool("zoom"); });
@@ -118,7 +130,7 @@ void MainWindow::createActions()
     m_snapAct = new QAction("对象捕捉", this); m_snapAct->setShortcut(Qt::Key_F3); m_snapAct->setCheckable(true); m_snapAct->setChecked(true); connect(m_snapAct, &QAction::triggered, this, &MainWindow::onToggleSnap);
     m_orthoAct = new QAction("正交", this); m_orthoAct->setShortcut(Qt::Key_F8); m_orthoAct->setCheckable(true); connect(m_orthoAct, &QAction::triggered, this, &MainWindow::onToggleOrtho);
 
-    m_layerManagerAct = new QAction("图层管理", this); m_layerManagerAct;
+    m_layerManagerAct = new QAction("图层管理", this); m_layerManagerAct->setShortcut(Qt::Key_F2); connect(m_layerManagerAct, &QAction::triggered, this, [this](){ LayerDialog dlg(m_document, this); dlg.exec(); m_layerPanel->refresh(); });
 }
 
 void MainWindow::createMenus()
@@ -279,6 +291,7 @@ void MainWindow::onNew()
     m_layerPanel->refresh();
     m_view->zoomExtents();
     updateTitle();
+    m_undoStack->clear();
     m_commandLine->appendMessage("已创建新文档", "result");
 }
 
@@ -376,16 +389,21 @@ void MainWindow::onExportDxf()
 
 void MainWindow::onPrint()
 {
-    QPrinter printer;
-    QPrintDialog dialog(&printer, this);
-    if (dialog.exec() == QDialog::Accepted) {
-        QPainter painter(&printer);
-        m_scene->render(&painter);
-    }
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageSize(QPrinter::A4);
+    printer.setOrientation(QPrinter::Landscape);
+    QPrintPreviewDialog preview(&printer, this);
+    preview.setWindowTitle("打印预览");
+    connect(&preview, &QPrintPreviewDialog::paintRequested, this, [this](QPrinter *p){
+        QPainter painter(p);
+        QRectF rect = p->pageRect();
+        m_scene->render(&painter, rect);
+    });
+    preview.exec();
 }
 
-void MainWindow::onUndo() { m_commandLine->appendMessage("撤销功能开发中", "result"); }
-void MainWindow::onRedo() { m_commandLine->appendMessage("重做功能开发中", "result"); }
+void MainWindow::onUndo() { m_undoStack->undo(); }
+void MainWindow::onRedo() { m_undoStack->redo(); }
 
 void MainWindow::onZoomExtents() { m_view->zoomExtents(); }
 void MainWindow::onZoomIn() { m_view->zoomIn(); }

@@ -8,6 +8,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QLabel>
+#include <QUndoStack>
 
 class CadView;
 class CadScene;
@@ -83,6 +84,7 @@ private:
     QLabel *m_selectedLabel;
 
     QActionGroup *m_toolGroup;
+    QUndoStack *m_undoStack;
 };
 
 #endif // MAINWINDOW_H

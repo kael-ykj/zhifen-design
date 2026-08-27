@@ -160,6 +160,34 @@ void CadView::keyPressEvent(QKeyEvent *event)
     }
 }
 
+void CadView::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu(this);
+    menu.setStyleSheet("QMenu { background: #252526; color: #ccc; border: 1px solid #3c3c3c; } QMenu::item:selected { background: #0e639c; }");
+    QAction *delAct = menu.addAction("删除 (E)");
+    QAction *copyAct = menu.addAction("复制 (CO)");
+    QAction *moveAct = menu.addAction("移动 (M)");
+    menu.addSeparator();
+    QAction *zoomExtAct = menu.addAction("全部缩放 (ZE)");
+    QAction *panAct = menu.addAction("平移 (P)");
+    menu.addSeparator();
+    QAction *gridAct = menu.addAction("切换网格 (F7)");
+    QAction *snapAct = menu.addAction("切换捕捉 (F3)");
+
+    QAction *selected = menu.exec(event->globalPos());
+    if (selected == delAct) {
+        auto items = scene()->selectedItems();
+        for (auto item : items) { scene()->removeItem(item); delete item; }
+    } else if (selected == zoomExtAct) {
+        zoomExtents();
+    } else if (selected == panAct) {
+        setDragMode(QGraphicsView::ScrollHandDrag);
+    } else if (selected == gridAct) {
+        if (CadScene *cs = dynamic_cast<CadScene*>(scene())) cs->setShowGrid(!cs->showGrid());
+    }
+    QGraphicsView::contextMenuEvent(event);
+}
+
 void CadView::drawForeground(QPainter *painter, const QRectF &rect)
 {
     Q_UNUSED(rect);

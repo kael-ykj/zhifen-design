@@ -2,6 +2,7 @@
 #define CADVIEW_H
 
 #include <QGraphicsView>
+#include <QMenu>
 #include <QPointF>
 #include <QPoint>
 
@@ -47,6 +48,7 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void drawForeground(QPainter *painter, const QRectF &rect) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     Document *m_document = nullptr;

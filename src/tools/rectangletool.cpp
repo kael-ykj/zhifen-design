@@ -11,7 +11,14 @@ void RectangleTool::mousePressEvent(QMouseEvent *event) {
     QPointF wp = m_view->mapToScene(event->pos());
     if (!m_hasStart) { m_p1 = wp; m_hasStart = true; emit statusMessage("指定另一个角点:"); }
     else {
-        if (m_scene) m_scene->addItem(new RectangleItem(QRectF(m_p1, wp).normalized()));
+        QPointF p2 = wp;
+        if (m_view->orthoMode()) {
+            qreal w = qAbs(p2.x() - m_p1.x());
+            qreal h = qAbs(p2.y() - m_p1.y());
+            qreal s = qMax(w, h);
+            p2 = QPointF(m_p1.x() + (p2.x()>m_p1.x()?s:-s), m_p1.y() + (p2.y()>m_p1.y()?s:-s));
+        }
+        if (m_scene) m_scene->addItem(new RectangleItem(QRectF(m_p1, p2).normalized()));
         m_hasStart = false;
         emit statusMessage("指定第一个角点:");
     }
