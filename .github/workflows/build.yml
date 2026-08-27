@@ -54,6 +54,8 @@ jobs:
     - name: 打包安装包
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/setup.iss
+        New-Item -ItemType Directory -Path "release" -Force
+        Copy-Item -Path "installer/Output/*.exe" -Destination "release/" -Force
 
     - name: 列出构建产物
       run: |
