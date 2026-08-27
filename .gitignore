@@ -1,15 +1,8 @@
-# Dependencies
-node_modules/
-
 # Build directories
 build/
 build_local/
 build_*/
 cmake-build-*/
-
-# Compiled output
-dist/
-release/
 
 # IDE
 .vscode/
@@ -36,6 +29,12 @@ cmake_install.cmake
 Makefile
 *.cmake
 
+# Qt
+*.user
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
 # Temp
 *.tmp
 *.log
@@ -46,5 +45,10 @@ output_*.csv
 output_*.dwg
 output_*.pdf
 
-# Electron
-out/
+# Installer
+installer/Output/
+release/
+dist/
+
+# Node (legacy)
+node_modules/
