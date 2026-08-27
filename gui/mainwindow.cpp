@@ -252,6 +252,9 @@ void MainWindow::createActions()
 
     m_actReversePower = new QAction("逆向功率", this);
     connect(m_actReversePower, &QAction::triggered, this, &MainWindow::onReversePower);
+
+    m_actCopyFloor = new QAction("标准层复制", this);
+    connect(m_actCopyFloor, &QAction::triggered, this, &MainWindow::onCopyFloor);
 }
 
 void MainWindow::createMenus()
@@ -344,6 +347,7 @@ void MainWindow::createToolBars()
     toolBar->addAction(m_actInsertCoupler);
     toolBar->addAction(m_actAutoNumber);
     toolBar->addAction(m_actReversePower);
+    toolBar->addAction(m_actCopyFloor);
     toolBar->addSeparator();
     toolBar->addAction(m_actMode);
 
@@ -652,27 +656,81 @@ void MainWindow::onReversePower()
     statusBar()->showMessage(QString("逆向功率优化完成，建议信源功率 %1 dBm").arg(sourcePower, 0, 'f', 1));
 }
 
+void MainWindow::onCopyFloor()
+{
+    if (m_project.floors.empty()) {
+        QMessageBox::warning(this, "标准层复制", "请先创建楼层");
+        return;
+    }
+    int srcIdx = m_floorCombo->currentIndex();
+    bool ok = false;
+    int copyCount = QInputDialog::getInt(this, "标准层复制",
+        QString("复制当前楼层 (%1) 的次数:").arg(m_floorCombo->currentText()),
+        1, 1, 20, 1, &ok);
+    if (!ok) return;
+
+    emit m_canvas->projectAboutToChange();
+    const auto& srcFloor = m_project.floors[srcIdx];
+    int baseFloorNum = m_project.floors.size();
+
+    for (int c = 0; c < copyCount; c++) {
+        zf::Floor newFloor = srcFloor; // 深拷贝
+        int newFloorNum = baseFloorNum + c + 1;
+        newFloor.floorId = "F" + std::to_string(newFloorNum);
+        newFloor.floorName = std::to_string(newFloorNum) + "F 标准层";
+        newFloor.origin.x = newFloorNum * 35000.0;
+        newFloor.origin.y = 0;
+
+        // 更新器件编号中的楼层号
+        std::string oldSuffix = "-" + srcFloor.floorId;
+        std::string newSuffix = "-" + newFloor.floorId;
+        for (auto& dev : newFloor.devices) {
+            size_t pos = dev.instanceId.find(oldSuffix);
+            if (pos != std::string::npos) {
+                dev.instanceId = dev.instanceId.substr(0, pos) + newSuffix;
+            }
+        }
+        // 更新connections中的targetInstanceId
+        for (auto& dev : newFloor.devices) {
+            for (auto& conn : dev.connections) {
+                size_t pos = conn.targetInstanceId.find(oldSuffix);
+                if (pos != std::string::npos) {
+                    conn.targetInstanceId = conn.targetInstanceId.substr(0, pos) + newSuffix;
+                }
+            }
+        }
+        // 更新馈线编号
+        for (auto& cable : newFloor.cables) {
+            cable.floorId = newFloor.floorId;
+        }
+        m_project.floors.push_back(newFloor);
+    }
+
+    emit m_canvas->projectChanged("标准层复制");
+    m_canvas->refresh();
+    refreshFloorCombo();
+    statusBar()->showMessage(QString("标准层复制完成: 从 %1 复制了 %2 层")
+        .arg(m_floorCombo->currentText()).arg(copyCount));
+}
+
 void MainWindow::onRunSimulation()
 {
     if (m_project.floors.empty() || m_project.floors[m_canvas->activeFloorIndex()].devices.empty()) {
         QMessageBox::warning(this, "覆盖仿真", "请先放置器件");
         return;
     }
-    // 找到第一个天线作为发射点
-    zf::Point2D txPos{0, 0};
-    bool found = false;
+    // 收集所有天线位置
+    std::vector<zf::Point2D> antennaPositions;
     for (const auto& dev : m_project.floors[m_canvas->activeFloorIndex()].devices) {
         auto it = std::find_if(m_project.deviceLibrary.begin(), m_project.deviceLibrary.end(),
             [&](const zf::DeviceModel& m) { return m.modelId == dev.modelId; });
         if (it != m_project.deviceLibrary.end() && it->category == zf::DeviceCategory::ANTENNA) {
-            txPos = dev.position;
-            found = true;
-            break;
+            antennaPositions.push_back(dev.position);
         }
     }
-    if (!found) {
-        // 用第一个器件
-        txPos = m_project.floors[m_canvas->activeFloorIndex()].devices[0].position;
+    if (antennaPositions.empty()) {
+        QMessageBox::warning(this, "覆盖仿真", "未找到天线器件，请先放置天线");
+        return;
     }
 
     zf::PropagationEngine engine;
@@ -680,26 +738,55 @@ void MainWindow::onRunSimulation()
     zf::SimulationConfig cfg;
     cfg.gridResolution_m = 1.0;
     cfg.maxDistance_m = 80.0;
+    cfg.txPower_dBm = 15.0;
     engine.setConfig(cfg);
 
-    zf::HeatmapData heatmap;
-    int result = engine.generateHeatmap(&m_project.floors[m_canvas->activeFloorIndex()], txPos, heatmap);
-    if (result == zf::ZF_ERR_OK) {
-        m_canvas->setHeatmap(heatmap);
+    // 叠加所有天线的覆盖（取每个网格点的最大RSRP）
+    zf::HeatmapData combined;
+    bool first = true;
+    for (size_t i = 0; i < antennaPositions.size(); i++) {
+        zf::HeatmapData temp;
+        int result = engine.generateHeatmap(&m_project.floors[m_canvas->activeFloorIndex()], antennaPositions[i], temp);
+        if (result != zf::ZF_ERR_OK) continue;
+        if (first) {
+            combined = temp;
+            first = false;
+        } else {
+            // 叠加：取最大RSRP
+            for (size_t j = 0; j < combined.points.size() && j < temp.points.size(); j++) {
+                if (temp.points[j].rsrp_dBm > combined.points[j].rsrp_dBm) {
+                    combined.points[j].rsrp_dBm = temp.points[j].rsrp_dBm;
+                    combined.points[j].wallCount = temp.points[j].wallCount;
+                }
+            }
+        }
+    }
+
+    if (!first) {
+        engine.recalcStats(combined);
+        m_canvas->setHeatmap(combined);
         m_heatmapVisible = true;
         m_actHeatmap->setChecked(true);
-        QString msg = QString("覆盖仿真完成!\n\n网格点: %1\n覆盖率(>=-100dBm): %2%\n"
-                              "平均RSRP: %3 dBm\n范围: %4 ~ %5 dBm\n弱覆盖点: %6")
-            .arg(heatmap.points.size())
-            .arg(heatmap.coverageRate * 100, 0, 'f', 1)
-            .arg(heatmap.avgRSRP, 0, 'f', 1)
-            .arg(heatmap.minRSRP, 0, 'f', 1)
-            .arg(heatmap.maxRSRP, 0, 'f', 1)
-            .arg(heatmap.weakCoverageCount);
-        QMessageBox::information(this, "覆盖仿真", msg);
-        statusBar()->showMessage("覆盖仿真完成，热力图已显示");
+        QString msg = QString("多墙传播仿真完成!\n\n"
+                              "天线数量: %1\n"
+                              "网格点: %2\n"
+                              "覆盖率(>=-100dBm): %3%\n"
+                              "平均RSRP: %4 dBm\n"
+                              "范围: %5 ~ %6 dBm\n"
+                              "弱覆盖点: %7\n\n"
+                              "说明: 已叠加所有天线覆盖，考虑墙体穿透损耗。")
+            .arg(antennaPositions.size())
+            .arg(combined.points.size())
+            .arg(combined.coverageRate * 100, 0, 'f', 1)
+            .arg(combined.avgRSRP, 0, 'f', 1)
+            .arg(combined.minRSRP, 0, 'f', 1)
+            .arg(combined.maxRSRP, 0, 'f', 1)
+            .arg(combined.weakCoverageCount);
+        QMessageBox::information(this, "多墙传播仿真", msg);
+        statusBar()->showMessage(QString("多墙仿真完成: %1个天线, 覆盖率%2%")
+            .arg(antennaPositions.size()).arg(combined.coverageRate * 100, 0, 'f', 1));
     } else {
-        QMessageBox::warning(this, "覆盖仿真", QString("仿真失败，错误码: %1 (草图模式下重型计算受限)").arg(result));
+        QMessageBox::warning(this, "覆盖仿真", "仿真失败，草图模式下重型计算受限");
     }
 }
 

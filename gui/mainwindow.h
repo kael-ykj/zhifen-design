@@ -39,6 +39,7 @@ private slots:
     void onRunLinkCalc();
     void onAutoNumber();
     void onReversePower();
+    void onCopyFloor();
     void onRunSimulation();
     void onToggleHeatmap();
     void onShowSystemDiagram();
@@ -140,6 +141,7 @@ private:
     QAction* m_actInsertCoupler{nullptr};
     QAction* m_actAutoNumber{nullptr};
     QAction* m_actReversePower{nullptr};
+    QAction* m_actCopyFloor{nullptr};
 
     // 楼层管理
     QComboBox* m_floorCombo{nullptr};
