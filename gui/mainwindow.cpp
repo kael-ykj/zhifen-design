@@ -1622,42 +1622,42 @@ void MainWindow::onAutoPlace()
         QMessageBox::warning(this, "无法布放", "请先创建楼层");
         return;
     }
-
-    // 参数对话框
     bool ok = false;
-    double radius = QInputDialog::getDouble(this, "自动布放参数",
-        "天线覆盖半径（米）:\n（建议: 室内5-10米，半径越小天线越密）",
+    double radius = QInputDialog::getDouble(this, "AI自动布放参数",
+        "天线覆盖半径（米）:\n（建议: 室内5-10米，半径越小天线越密）\n\n将自动启用墙体感知布放",
         8.0, 3.0, 30.0, 1, &ok);
     if (!ok) return;
 
-    // 发出修改前信号（用于Undo）
     emit m_canvas->projectAboutToChange();
-
-    // 执行自动布放
     zf::AutoPlaceParams params;
     params.coverageRadius_m = radius;
+    params.wallAware = true;
+    params.targetRsrp_dBm = -95.0;
     zf::AutoPlacer placer;
     auto result = placer.place(m_project.floors[m_floorCombo->currentIndex()], params);
 
     if (result.success) {
-        // 发出修改后信号
-        emit m_canvas->projectChanged("自动布放");
+        emit m_canvas->projectChanged("AI自动布放");
         m_canvas->refresh();
         m_propertyPanel->clear();
-        QMessageBox::information(this, "自动布放完成",
-            QString("当前楼层自动布放完成:\n\n"
+        QMessageBox::information(this, "AI自动布放完成",
+            QString("AI墙体感知自动布放完成:\n\n"
                     "天线数量: %1 个\n"
                     "功分器数量: %2 个\n"
                     "信源数量: %3 个\n"
-                    "线缆连接: %4 条\n\n"
-                    "覆盖半径: %5 米")
+                    "线缆连接: %4 条\n"
+                    "估算覆盖率: %5%\n"
+                    "覆盖半径: %6 米\n\n"
+                    "说明: 已根据墙体密度自动调整天线间距，\n"
+                    "墙体密集区域天线更密。")
                 .arg(result.antennaCount)
                 .arg(result.splitterCount)
                 .arg(result.sourceCount)
                 .arg(result.connectionCount)
+                .arg((int)(result.coverageRate * 100))
                 .arg(radius));
-        statusBar()->showMessage(QString("自动布放完成: %1个天线, %2个功分器")
-            .arg(result.antennaCount).arg(result.splitterCount));
+        statusBar()->showMessage(QString("AI自动布放完成: %1个天线, 覆盖率%2%")
+            .arg(result.antennaCount).arg((int)(result.coverageRate * 100)));
     } else {
         QMessageBox::warning(this, "自动布放失败", QString::fromStdString(result.message));
     }
