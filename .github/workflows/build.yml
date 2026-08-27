@@ -10,7 +10,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-2022
-    
+
     steps:
     - name: 检出代码
       uses: actions/checkout@v4
@@ -44,64 +44,13 @@ jobs:
       run: |
         windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw build/Release/智分Design.exe
 
-    - name: 创建安装包目录
+    - name: 准备安装包目录
       run: |
         New-Item -ItemType Directory -Path "installer/Output" -Force
         Copy-Item -Path "build/Release/*" -Destination "installer/Output" -Recurse -Force
 
-    - name: 生成应用图标
-      run: |
-        Add-Type -AssemblyName System.Drawing
-        $bmp = New-Object System.Drawing.Bitmap(256, 256)
-        $g = [System.Drawing.Graphics]::FromImage($bmp)
-        $g.Clear([System.Drawing.Color]::FromArgb(14, 99, 156))
-        $font = New-Object System.Drawing.Font("Arial", 80, [System.Drawing.FontStyle]::Bold)
-        $brush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
-        $sf = New-Object System.Drawing.StringFormat
-        $sf.Alignment = [System.Drawing.StringAlignment]::Center
-        $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
-        $g.DrawString("智", $font, $brush, 128, 128, $sf)
-        $g.Dispose()
-        $bmp.Save("installer/Output/icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
-        $bmp.Dispose()
-
     - name: 安装Inno Setup
       run: choco install innosetup -y --no-progress
-
-    - name: 创建Inno Setup脚本
-      run: |
-        $script = @'
-[Setup]
-AppName=智分Design
-AppVersion=3.1.0
-AppPublisher=智分Design
-DefaultDirName={autopf}\智分Design
-DefaultGroupName=智分Design
-OutputDir=..\..\release
-OutputBaseFilename=智分Design_V3.1.0_Setup
-Compression=lzma
-SolidCompression=yes
-WizardStyle=modern
-PrivilegesRequired=admin
-
-[Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-
-[Tasks]
-Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标:"; Flags: unchecked
-
-[Files]
-Source: "Output\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-
-[Icons]
-Name: "{group}\智分Design V3.1"; Filename: "{app}\智分Design.exe"
-Name: "{group}\卸载智分Design"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\智分Design V3.1"; Filename: "{app}\智分Design.exe"; Tasks: desktopicon
-
-[Run]
-Filename: "{app}\智分Design.exe"; Description: "运行智分Design V3.1"; Flags: nowait postinstall skipifsilent
-'@
-        $script | Out-File -FilePath "installer/setup.iss" -Encoding UTF8
 
     - name: 打包安装包
       run: |
