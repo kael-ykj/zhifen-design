@@ -23,6 +23,7 @@
 #include "entities/feederitem.h"
 #include "engine/link_calculator.h"
 #include "core/audit_logger.h"
+#include "core/copy_mode_manager.h"
 #include <QInputDialog>
 #include <QDialog>
 #include <QVBoxLayout>
@@ -139,6 +140,7 @@ void MainWindow::createActions()
     m_copyAct = new QAction("复制", this); connect(m_copyAct, &QAction::triggered, this, [this](){ setCurrentTool("copy"); });
     m_rotateAct = new QAction("旋转", this); connect(m_rotateAct, &QAction::triggered, this, [this](){ setCurrentTool("rotate"); });
     m_scaleAct = new QAction("缩放", this); connect(m_scaleAct, &QAction::triggered, this, [this](){ setCurrentTool("scale"); });
+    m_copyModeAct = new QAction("复制模式:轻量", this); m_copyModeAct->setCheckable(true); connect(m_copyModeAct, &QAction::triggered, this, &MainWindow::onToggleCopyMode);
     m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); if(!items.isEmpty()) { Zhifen::AuditLogger::instance().log(items.size() > 1 ? Zhifen::Audit_BatchDelete : Zhifen::Audit_DeviceDelete, QString("删除%1个对象").arg(items.size())); m_undoStack->push(new RemoveItemsCommand(m_scene, items)); } });
 
     m_panAct = new QAction("平移", this); m_panAct->setShortcut(Qt::Key_P); m_panAct->setCheckable(true); m_toolGroup->addAction(m_panAct); connect(m_panAct, &QAction::triggered, this, [this](){ setCurrentTool("pan"); });
@@ -528,6 +530,23 @@ void MainWindow::onBomReport()
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
+}
+
+void MainWindow::onToggleCopyMode()
+{
+    Zhifen::CopyModeManager &mgr = Zhifen::CopyModeManager::instance();
+    if (mgr.isLightCopy()) {
+        mgr.setMode(Zhifen::FULL_COPY);
+        m_copyModeAct->setText("复制模式:完整");
+        m_copyModeAct->setChecked(true);
+    } else {
+        mgr.setMode(Zhifen::LIGHT_COPY);
+        m_copyModeAct->setText("复制模式:轻量");
+        m_copyModeAct->setChecked(false);
+    }
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_CopyModeSwitch,
+        QString("切换复制模式为: %1").arg(mgr.modeName()));
+    statusBar()->showMessage(QString("当前复制模式: %1 - %2").arg(mgr.modeName()).arg(mgr.modeDescription()), 5000);
 }
 
 void MainWindow::onAuditLog()
