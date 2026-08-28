@@ -28,6 +28,9 @@
 #include "engine/coverage_simulator.h"
 #include "tools/batch_importer.h"
 #include "core/floor_manager.h"
+#include "plugins/plugin_manager.h"
+#include "plugins/core_api.h"
+#include "plugins/batch_rename_plugin.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -121,6 +124,7 @@ void MainWindow::createActions()
     m_importBottomMapAct = new QAction("导入建筑底图(AI精简)", this); connect(m_importBottomMapAct, &QAction::triggered, this, &MainWindow::onImportBottomMap);
     m_batchImportAct = new QAction("批量导入器件(CSV)", this); connect(m_batchImportAct, &QAction::triggered, this, &MainWindow::onBatchImport);
     m_floorManagerAct = new QAction("楼层管理", this); connect(m_floorManagerAct, &QAction::triggered, this, &MainWindow::onFloorManager);
+    m_pluginManagerAct = new QAction("插件管理", this); connect(m_pluginManagerAct, &QAction::triggered, this, &MainWindow::onPluginManager);
     m_exportDxfAct = new QAction("导出DXF", this); connect(m_exportDxfAct, &QAction::triggered, this, &MainWindow::onExportDxf);
     m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
     m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
@@ -305,6 +309,13 @@ void MainWindow::createDockWidgets()
     });
 
     m_commandLine->appendMessage("输入命令或使用工具栏开始绘图", "result");
+
+    // 初始化插件系统
+    Zhifen::PluginManager &pm = Zhifen::PluginManager::instance();
+    pm.registerPlugin(new Zhifen::BatchRenamePlugin());
+    Zhifen::CoreApi *api = new Zhifen::CoreApi(m_scene);
+    pm.initializeAll(api);
+    m_commandLine->appendMessage(QString("插件系统已初始化，共%1个插件").arg(pm.count()), "info");
 }
 
 void MainWindow::createStatusBar()
@@ -693,6 +704,60 @@ void MainWindow::onFloorManager()
     dlg->exec();
     dlg->deleteLater();
 }
+
+void MainWindow::onPluginManager()
+{
+    Zhifen::PluginManager &pm = Zhifen::PluginManager::instance();
+    QList<Zhifen::PluginMetadata> plugins = pm.allMetadata();
+
+    // 构建插件列表
+    QString pluginList;
+    for (const auto &p : plugins) {
+        QString status = p.enabled ? "已启用" : "已禁用";
+        pluginList += QString("名称: %1\n版本: %2\n作者: %3\n描述: %4\n状态: %5\n\n")
+            .arg(p.name).arg(p.version).arg(p.author).arg(p.description).arg(status);
+    }
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("插件管理");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QLabel *titleLabel = new QLabel(QString("已加载插件: %1个").arg(plugins.size()), dlg);
+    titleLabel->setFont(QFont("Arial", 10, QFont::Bold));
+    layout->addWidget(titleLabel);
+
+    QTextEdit *listWidget = new QTextEdit(dlg);
+    listWidget->setReadOnly(true);
+    listWidget->setPlainText(pluginList);
+    layout->addWidget(listWidget);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *execBtn = new QPushButton("执行插件", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(execBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    connect(execBtn, &QPushButton::clicked, this, [this, &pm]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, "执行插件", "插件名称:", QLineEdit::Normal, "BatchRename", &ok);
+        if (ok && !name.isEmpty()) {
+            if (pm.executePlugin(name)) {
+                statusBar()->showMessage(QString("插件已执行: %1").arg(name), 3000);
+            } else {
+                QMessageBox::warning(this, "执行失败", QString("插件不存在或已禁用: %1").arg(name));
+            }
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
 
 
 

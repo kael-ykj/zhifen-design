@@ -38,6 +38,7 @@ private slots:
     void onImportBottomMap();
     void onBatchImport();
     void onFloorManager();
+    void onPluginManager();
     void onExportDxf();
     void onExportDwgSketch();
     void onExportDwgFinal();
@@ -82,7 +83,7 @@ private:
 
     // Actions
     QAction *m_newAct, *m_openAct, *m_saveAct, *m_saveAsAct;
-    QAction *m_importDxfAct, *m_importBottomMapAct, *m_batchImportAct, *m_floorManagerAct, *m_exportDxfAct, *m_exportDwgSketchAct, *m_exportDwgFinalAct, *m_printAct, *m_exportPdfSketchAct, *m_exportPdfFormalAct, *m_exitAct;
+    QAction *m_importDxfAct, *m_importBottomMapAct, *m_batchImportAct, *m_floorManagerAct, *m_pluginManagerAct, *m_exportDxfAct, *m_exportDwgSketchAct, *m_exportDwgFinalAct, *m_printAct, *m_exportPdfSketchAct, *m_exportPdfFormalAct, *m_exitAct;
     QAction *m_undoAct, *m_redoAct;
     QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct, *m_feederAct;
     QAction *m_textAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct;

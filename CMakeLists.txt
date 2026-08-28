@@ -58,6 +58,9 @@ set(SOURCES
     src/engine/coverage_simulator.cpp
     src/tools/batch_importer.cpp
     src/core/floor_manager.cpp
+    src/plugins/core_api.cpp
+    src/plugins/plugin_manager.cpp
+    src/plugins/batch_rename_plugin.cpp
     src/tools/devicetool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
@@ -108,6 +111,10 @@ set(HEADERS
     src/engine/report_engine.h
     src/import/dxf_importer.h
     src/engine/coverage_simulator.h
+    src/plugins/iplugin.h
+    src/plugins/core_api.h
+    src/plugins/plugin_manager.h
+    src/plugins/batch_rename_plugin.h
     src/tools/batch_importer.h
     src/core/floor_manager.h
     src/entities/feederitem.h
