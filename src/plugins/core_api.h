@@ -3,14 +3,14 @@
 
 #include <QString>
 #include <QVariantMap>
+#include "../devices/deviceitem.h"
 #include <QList>
 #include <QPointF>
 #include <QGraphicsScene>
 
 namespace Zhifen {
 
-class DeviceItem;
-class CadItem;
+
 
 // 核心API - 暴露给插件使用
 class CoreApi
