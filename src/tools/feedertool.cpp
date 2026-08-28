@@ -26,7 +26,7 @@ void FeederTool::mousePressEvent(QMouseEvent *event)
     QPointF wp = m_view->mapToScene(event->pos());
 
     // 正交模式
-    if (m_view->isOrthoEnabled() && m_points.size() > 0) {
+    if (m_view->orthoMode() && m_points.size() > 0) {
         QPointF last = m_points.last();
         qreal dx = qAbs(wp.x() - last.x());
         qreal dy = qAbs(wp.y() - last.y());
@@ -63,7 +63,7 @@ void FeederTool::mouseDoubleClickEvent(QMouseEvent *event)
 void FeederTool::mouseMoveEvent(QMouseEvent *event)
 {
     m_currentPos = m_view->mapToScene(event->pos());
-    if (m_view->isOrthoEnabled() && m_points.size() > 0) {
+    if (m_view->orthoMode() && m_points.size() > 0) {
         QPointF last = m_points.last();
         qreal dx = qAbs(m_currentPos.x() - last.x());
         qreal dy = qAbs(m_currentPos.y() - last.y());

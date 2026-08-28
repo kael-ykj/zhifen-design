@@ -26,6 +26,7 @@ public:
     virtual void mouseReleaseEvent(QMouseEvent *event) = 0;
     virtual void keyPressEvent(QKeyEvent *event);
     virtual void keyReleaseEvent(QKeyEvent *event);
+    virtual void mouseDoubleClickEvent(QMouseEvent *event) {}
     virtual void drawOverlay(QPainter *painter) {}
 
     virtual void activate() {}
