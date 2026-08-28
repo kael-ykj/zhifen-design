@@ -17,6 +17,8 @@
 #include "tools/scaletool.h"
 #include "tools/mirrortool.h"
 #include "tools/explodetool.h"
+#include "tools/offsettool.h"
+#include "tools/querytool.h"
 #include "tools/pantool.h"
 #include "tools/zoomtool.h"
 #include "widgets/commandline.h"
@@ -163,6 +165,8 @@ void MainWindow::createMenus()
     dimMenu->addAction(m_dimRadiusAct); dimMenu->addAction(m_dimDiameterAct); dimMenu->addAction(m_dimAngularAct);
 
     QMenu *viewMenu = menuBar()->addMenu("视图");
+    QMenu *queryMenu = menuBar()->addMenu("查询");
+    queryMenu->addAction(m_queryDistAct); queryMenu->addAction(m_queryAreaAct); queryMenu->addAction(m_queryPointAct);
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
     viewMenu->addSeparator(); viewMenu->addAction(m_gridAct); viewMenu->addAction(m_snapAct); viewMenu->addAction(m_orthoAct);
 
@@ -208,6 +212,7 @@ void MainWindow::createToolBars()
     m_editToolBar->addAction(m_scaleAct);
     m_editToolBar->addAction(m_mirrorAct);
     m_editToolBar->addAction(m_explodeAct);
+    m_editToolBar->addAction(m_offsetAct);
     m_editToolBar->addAction(m_eraseAct);
 
     m_viewToolBar = addToolBar("视图");
@@ -305,6 +310,10 @@ void MainWindow::setCurrentTool(const QString &toolName)
     else if (toolName == "scale") m_currentTool = new ScaleTool(m_view);
     else if (toolName == "mirror") m_currentTool = new MirrorTool(m_view);
     else if (toolName == "explode") m_currentTool = new ExplodeTool(m_view);
+    else if (toolName == "offset") m_currentTool = new OffsetTool(m_view);
+    else if (toolName == "query_dist") m_currentTool = new QueryTool(m_view, QueryTool::Distance);
+    else if (toolName == "query_area") m_currentTool = new QueryTool(m_view, QueryTool::Area);
+    else if (toolName == "query_point") m_currentTool = new QueryTool(m_view, QueryTool::Point);
     else if (toolName == "move") m_currentTool = new CopyTool(m_view); // 移动复用复制逻辑（不创建副本）
     else if (toolName == "pan") m_currentTool = new PanTool(m_view);
     else if (toolName == "zoom") m_currentTool = new ZoomTool(m_view);
