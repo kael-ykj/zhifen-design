@@ -71,7 +71,7 @@ private:
     QAction *m_undoAct, *m_redoAct;
     QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct;
     QAction *m_textAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct;
-    QAction *m_moveAct, *m_copyAct, *m_rotateAct, *m_scaleAct, *m_eraseAct;
+    QAction *m_moveAct, *m_copyAct, *m_rotateAct, *m_scaleAct, *m_mirrorAct, *m_explodeAct, *m_eraseAct;
     QAction *m_panAct, *m_zoomAct, *m_zoomExtentsAct;
     QAction *m_gridAct, *m_snapAct, *m_orthoAct;
     QAction *m_layerManagerAct;

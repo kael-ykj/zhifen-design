@@ -15,6 +15,8 @@
 #include "tools/copytool.h"
 #include "tools/rotatetool.h"
 #include "tools/scaletool.h"
+#include "tools/mirrortool.h"
+#include "tools/explodetool.h"
 #include "tools/pantool.h"
 #include "tools/zoomtool.h"
 #include "widgets/commandline.h"
@@ -150,7 +152,7 @@ void MainWindow::createMenus()
     QMenu *editMenu = menuBar()->addMenu("编辑");
     editMenu->addAction(m_undoAct); editMenu->addAction(m_redoAct); editMenu->addSeparator();
     editMenu->addAction(m_moveAct); editMenu->addAction(m_copyAct); editMenu->addAction(m_rotateAct);
-    editMenu->addAction(m_scaleAct); editMenu->addAction(m_eraseAct);
+    editMenu->addAction(m_scaleAct); editMenu->addAction(m_mirrorAct); editMenu->addAction(m_explodeAct); editMenu->addAction(m_eraseAct);
 
     QMenu *drawMenu = menuBar()->addMenu("绘图");
     drawMenu->addAction(m_lineAct); drawMenu->addAction(m_circleAct); drawMenu->addAction(m_arcAct);
@@ -204,6 +206,8 @@ void MainWindow::createToolBars()
     m_editToolBar->addAction(m_copyAct);
     m_editToolBar->addAction(m_rotateAct);
     m_editToolBar->addAction(m_scaleAct);
+    m_editToolBar->addAction(m_mirrorAct);
+    m_editToolBar->addAction(m_explodeAct);
     m_editToolBar->addAction(m_eraseAct);
 
     m_viewToolBar = addToolBar("视图");
@@ -299,6 +303,8 @@ void MainWindow::setCurrentTool(const QString &toolName)
     else if (toolName == "copy") m_currentTool = new CopyTool(m_view);
     else if (toolName == "rotate") m_currentTool = new RotateTool(m_view);
     else if (toolName == "scale") m_currentTool = new ScaleTool(m_view);
+    else if (toolName == "mirror") m_currentTool = new MirrorTool(m_view);
+    else if (toolName == "explode") m_currentTool = new ExplodeTool(m_view);
     else if (toolName == "move") m_currentTool = new CopyTool(m_view); // 移动复用复制逻辑（不创建副本）
     else if (toolName == "pan") m_currentTool = new PanTool(m_view);
     else if (toolName == "zoom") m_currentTool = new ZoomTool(m_view);
