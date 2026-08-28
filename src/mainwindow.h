@@ -17,6 +17,7 @@ class Tool;
 class CommandLine;
 class LayerPanel;
 class PropertyPanel;
+class DevicePanel;
 
 class MainWindow : public QMainWindow
 {
@@ -62,6 +63,7 @@ private:
     CommandLine *m_commandLine;
     LayerPanel *m_layerPanel;
     PropertyPanel *m_propertyPanel;
+    DevicePanel *m_devicePanel;
 
     // Actions
     QAction *m_newAct, *m_openAct, *m_saveAct, *m_saveAsAct;

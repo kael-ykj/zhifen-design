@@ -33,6 +33,7 @@ set(SOURCES
     src/entities/rectangleitem.cpp
     src/entities/textitem.cpp
     src/entities/dimensionitem.cpp
+    src/devices/deviceitem.cpp
     src/tools/tool.cpp
     src/tools/selecttool.cpp
     src/tools/linetool.cpp
@@ -45,6 +46,7 @@ set(SOURCES
     src/tools/copytool.cpp
     src/tools/rotatetool.cpp
     src/tools/scaletool.cpp
+    src/tools/devicetool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
     src/snap/snapmanager.cpp
@@ -55,6 +57,7 @@ set(SOURCES
     src/widgets/layerpanel.cpp
     src/widgets/propertypanel.cpp
     src/widgets/layerdialog.cpp
+    src/widgets/devicepanel.cpp
 )
 
 set(HEADERS
@@ -71,6 +74,7 @@ set(HEADERS
     src/entities/rectangleitem.h
     src/entities/textitem.h
     src/entities/dimensionitem.h
+    src/devices/deviceitem.h
     src/tools/tool.h
     src/tools/selecttool.h
     src/tools/linetool.h
@@ -83,6 +87,7 @@ set(HEADERS
     src/tools/copytool.h
     src/tools/rotatetool.h
     src/tools/scaletool.h
+    src/tools/devicetool.h
     src/tools/pantool.h
     src/tools/zoomtool.h
     src/snap/snapmanager.h
@@ -92,6 +97,7 @@ set(HEADERS
     src/widgets/layerpanel.h
     src/widgets/propertypanel.h
     src/widgets/layerdialog.h
+    src/widgets/devicepanel.h
 )
 
 # 资源文件
@@ -107,6 +113,7 @@ target_include_directories(ZhiFenDesign PRIVATE
     ${CMAKE_SOURCE_DIR}/src/snap
     ${CMAKE_SOURCE_DIR}/src/io
     ${CMAKE_SOURCE_DIR}/src/widgets
+    ${CMAKE_SOURCE_DIR}/src/devices
 )
 
 target_link_libraries(ZhiFenDesign PRIVATE

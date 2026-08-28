@@ -21,6 +21,8 @@
 #include "widgets/layerpanel.h"
 #include "widgets/propertypanel.h"
 #include "widgets/layerdialog.h"
+#include "widgets/devicepanel.h"
+#include "tools/devicetool.h"
 #include "io/dxfreader.h"
 #include "io/dxfwriter.h"
 #include "io/projectio.h"
@@ -230,6 +232,22 @@ void MainWindow::createDockWidgets()
     addDockWidget(Qt::BottomDockWidgetArea, bottomDock);
 
     m_commandLine->appendMessage("智分Design V3.1 已启动", "result");
+    // 器件库面板
+    QDockWidget *deviceDock = new QDockWidget("器件库", this);
+    deviceDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    m_devicePanel = new DevicePanel(this);
+    deviceDock->setWidget(m_devicePanel);
+    addDockWidget(Qt::RightDockWidgetArea, deviceDock);
+    connect(m_devicePanel, &DevicePanel::placeDevice, this, [this](DeviceType type){
+        DeviceTool *tool = new DeviceTool(m_view, type);
+        m_view->setCurrentTool(tool);
+        m_view->setCursor(tool->cursor());
+        m_toolLabel->setText(QString("当前工具: 放置器件"));
+        m_commandLine->appendMessage("放置器件命令", "command");
+        connect(tool, &Tool::finished, this, &MainWindow::onToolFinished);
+        connect(tool, &Tool::statusMessage, this, [this](const QString &msg){ m_commandLine->appendMessage(msg, "result"); });
+    });
+
     m_commandLine->appendMessage("输入命令或使用工具栏开始绘图", "result");
 }
 
