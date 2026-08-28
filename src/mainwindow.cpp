@@ -116,7 +116,11 @@ void MainWindow::createActions()
     m_polylineAct = new QAction("多段线", this); m_polylineAct->setCheckable(true); m_toolGroup->addAction(m_polylineAct); connect(m_polylineAct, &QAction::triggered, this, [this](){ setCurrentTool("polyline"); });
     m_rectangleAct = new QAction("矩形", this); m_rectangleAct->setCheckable(true); m_toolGroup->addAction(m_rectangleAct); connect(m_rectangleAct, &QAction::triggered, this, [this](){ setCurrentTool("rectangle"); });
     m_textAct = new QAction("文字", this); m_textAct->setCheckable(true); m_toolGroup->addAction(m_textAct); connect(m_textAct, &QAction::triggered, this, [this](){ setCurrentTool("text"); });
-    m_dimensionAct = new QAction("标注", this); m_dimensionAct->setCheckable(true); m_toolGroup->addAction(m_dimensionAct); connect(m_dimensionAct, &QAction::triggered, this, [this](){ setCurrentTool("dimension"); });
+    m_dimLinearAct = new QAction("线性标注", this); m_dimLinearAct->setCheckable(true); m_toolGroup->addAction(m_dimLinearAct); connect(m_dimLinearAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_linear"); });
+    m_dimAlignedAct = new QAction("对齐标注", this); m_dimAlignedAct->setCheckable(true); m_toolGroup->addAction(m_dimAlignedAct); connect(m_dimAlignedAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_aligned"); });
+    m_dimRadiusAct = new QAction("半径标注", this); m_dimRadiusAct->setCheckable(true); m_toolGroup->addAction(m_dimRadiusAct); connect(m_dimRadiusAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_radius"); });
+    m_dimDiameterAct = new QAction("直径标注", this); m_dimDiameterAct->setCheckable(true); m_toolGroup->addAction(m_dimDiameterAct); connect(m_dimDiameterAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_diameter"); });
+    m_dimAngularAct = new QAction("角度标注", this); m_dimAngularAct->setCheckable(true); m_toolGroup->addAction(m_dimAngularAct); connect(m_dimAngularAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_angular"); });
 
     m_moveAct = new QAction("移动", this); m_moveAct->setShortcut(Qt::Key_M); connect(m_moveAct, &QAction::triggered, this, [this](){ setCurrentTool("move"); });
     m_copyAct = new QAction("复制", this); connect(m_copyAct, &QAction::triggered, this, [this](){ setCurrentTool("copy"); });
@@ -151,7 +155,10 @@ void MainWindow::createMenus()
     QMenu *drawMenu = menuBar()->addMenu("绘图");
     drawMenu->addAction(m_lineAct); drawMenu->addAction(m_circleAct); drawMenu->addAction(m_arcAct);
     drawMenu->addAction(m_polylineAct); drawMenu->addAction(m_rectangleAct); drawMenu->addSeparator();
-    drawMenu->addAction(m_textAct); drawMenu->addAction(m_dimensionAct);
+    drawMenu->addAction(m_textAct);
+    QMenu *dimMenu = drawMenu->addMenu("标注");
+    dimMenu->addAction(m_dimLinearAct); dimMenu->addAction(m_dimAlignedAct);
+    dimMenu->addAction(m_dimRadiusAct); dimMenu->addAction(m_dimDiameterAct); dimMenu->addAction(m_dimAngularAct);
 
     QMenu *viewMenu = menuBar()->addMenu("视图");
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
@@ -182,7 +189,11 @@ void MainWindow::createToolBars()
     m_drawToolBar->addAction(m_rectangleAct);
     m_drawToolBar->addSeparator();
     m_drawToolBar->addAction(m_textAct);
-    m_drawToolBar->addAction(m_dimensionAct);
+    m_drawToolBar->addAction(m_dimLinearAct);
+    m_drawToolBar->addAction(m_dimAlignedAct);
+    m_drawToolBar->addAction(m_dimRadiusAct);
+    m_drawToolBar->addAction(m_dimDiameterAct);
+    m_drawToolBar->addAction(m_dimAngularAct);
 
     m_editToolBar = addToolBar("编辑");
     m_editToolBar->setMovable(false);
@@ -280,7 +291,11 @@ void MainWindow::setCurrentTool(const QString &toolName)
     else if (toolName == "polyline") m_currentTool = new PolylineTool(m_view);
     else if (toolName == "rectangle") m_currentTool = new RectangleTool(m_view);
     else if (toolName == "text") m_currentTool = new TextTool(m_view);
-    else if (toolName == "dimension") m_currentTool = new DimensionTool(m_view);
+    else if (toolName == "dim_linear") m_currentTool = new DimensionTool(m_view, DimensionItem::Linear);
+    else if (toolName == "dim_aligned") m_currentTool = new DimensionTool(m_view, DimensionItem::Aligned);
+    else if (toolName == "dim_radius") m_currentTool = new DimensionTool(m_view, DimensionItem::Radius);
+    else if (toolName == "dim_diameter") m_currentTool = new DimensionTool(m_view, DimensionItem::Diameter);
+    else if (toolName == "dim_angular") m_currentTool = new DimensionTool(m_view, DimensionItem::Angular);
     else if (toolName == "copy") m_currentTool = new CopyTool(m_view);
     else if (toolName == "rotate") m_currentTool = new RotateTool(m_view);
     else if (toolName == "scale") m_currentTool = new ScaleTool(m_view);
