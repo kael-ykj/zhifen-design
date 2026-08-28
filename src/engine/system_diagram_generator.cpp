@@ -1,6 +1,6 @@
 #include "system_diagram_generator.h"
 #include "../entities/caditem.h"
-#include "../entities/deviceitem.h"
+#include "../devices/deviceitem.h"
 #include <QGraphicsItem>
 #include <QGraphicsScene>
 #include <QGraphicsSimpleTextItem>

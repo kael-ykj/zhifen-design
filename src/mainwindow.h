@@ -19,6 +19,8 @@ class LayerPanel;
 class PropertyPanel;
 class DevicePanel;
 
+namespace Zhifen { enum SystemDiagramMode; }
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
