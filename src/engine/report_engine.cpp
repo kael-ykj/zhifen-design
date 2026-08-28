@@ -1,6 +1,6 @@
 #include "report_engine.h"
 #include "../entities/caditem.h"
-#include "../entities/deviceitem.h"
+#include "../devices/deviceitem.h"
 #include "../entities/feederitem.h"
 #include <QGraphicsItem>
 #include <QGraphicsScene>
