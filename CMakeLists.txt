@@ -46,6 +46,8 @@ set(SOURCES
     src/tools/copytool.cpp
     src/tools/rotatetool.cpp
     src/tools/scaletool.cpp
+    src/tools/mirrortool.cpp
+    src/tools/explodetool.cpp
     src/tools/devicetool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
@@ -87,6 +89,8 @@ set(HEADERS
     src/tools/copytool.h
     src/tools/rotatetool.h
     src/tools/scaletool.h
+    src/tools/mirrortool.h
+    src/tools/explodetool.h
     src/tools/devicetool.h
     src/tools/pantool.h
     src/tools/zoomtool.h
