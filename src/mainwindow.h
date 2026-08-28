@@ -37,6 +37,8 @@ private slots:
     void onUndo();
     void onRedo();
     void onZoomExtents();
+    void onLinkCalculation();
+    void onBomReport();
     void onZoomIn();
     void onZoomOut();
     void onToggleGrid();

@@ -19,6 +19,11 @@
 #include "tools/explodetool.h"
 #include "tools/offsettool.h"
 #include "tools/querytool.h"
+#include "engine/link_calculator.h"
+#include <QInputDialog>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QTextEdit>
 #include "tools/pantool.h"
 #include "tools/zoomtool.h"
 #include "widgets/commandline.h"
@@ -167,6 +172,8 @@ void MainWindow::createMenus()
     QMenu *viewMenu = menuBar()->addMenu("视图");
     QMenu *queryMenu = menuBar()->addMenu("查询");
     queryMenu->addAction(m_queryDistAct); queryMenu->addAction(m_queryAreaAct); queryMenu->addAction(m_queryPointAct);
+    QMenu *calcMenu = menuBar()->addMenu("计算");
+    calcMenu->addAction(m_linkCalcAct); calcMenu->addAction(m_bomAct);
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
     viewMenu->addSeparator(); viewMenu->addAction(m_gridAct); viewMenu->addAction(m_snapAct); viewMenu->addAction(m_orthoAct);
 
