@@ -175,7 +175,8 @@ void ReportEngine::drawTable(QPainter *painter, const QPointF &pos,
     // 表头
     QFont headerFont("SimSun", 8, QFont::Bold);
     painter->setFont(headerFont);
-    painter->fillRect(QRectF(x, y, colWidths.sum(), rowHeight), QColor(220, 220, 220));
+    qreal totalWidth = 0; for (qreal w : colWidths) totalWidth += w;
+    painter->fillRect(QRectF(x, y, totalWidth, rowHeight), QColor(220, 220, 220));
     for (int i = 0; i < headers.size(); i++) {
         painter->drawRect(QRectF(x, y, colWidths[i], rowHeight));
         painter->drawText(QRectF(x + 2, y + 2, colWidths[i] - 4, rowHeight - 4),
