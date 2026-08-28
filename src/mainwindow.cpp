@@ -461,6 +461,66 @@ void MainWindow::onUndo() { m_undoStack->undo(); }
 void MainWindow::onRedo() { m_undoStack->redo(); }
 
 void MainWindow::onZoomExtents() { m_view->zoomExtents(); }
+
+void MainWindow::onLinkCalculation()
+{
+    QStringList bands = {"GSM900 (2G)", "GSM1800 (2G)", "WCDMA (3G)", "LTE FDD (4G)", "LTE TDD (4G)",
+                         "NR 700MHz (5G)", "NR 2600MHz (5G)", "NR 3500MHz (5G)", "NR 4900MHz (5G)"};
+    bool ok;
+    QString bandStr = QInputDialog::getItem(this, "链路预算", "选择频段:", bands, 3, false, &ok);
+    if (!ok) return;
+    int bandIdx = bands.indexOf(bandStr);
+    Zhifen::LinkCalculator calc;
+    calc.setBand(static_cast<Zhifen::BandType>(bandIdx));
+    calc.setMinAntennaPower(10.0);
+    Zhifen::LinkReport report = calc.generateDemoReport();
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("链路预算报告");
+    dlg->resize(700, 600);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *text = new QTextEdit(dlg);
+    text->setReadOnly(true);
+    text->setFont(QFont("Consolas", 10));
+    text->setPlainText(report.toText());
+    layout->addWidget(text);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onBomReport()
+{
+    QMap<QString, int> bom;
+    if (m_scene) {
+        for (auto *item : m_scene->items()) {
+            auto *cad = dynamic_cast<CadItem*>(item);
+            if (!cad) continue;
+            QString type = cad->entityType();
+            bom[type]++;
+        }
+    }
+    QString text = "========== 材料表(BOM) ==========\n";
+    text += QString("序号\t材料名称\t数量\n");
+    text += "--------------------------------\n";
+    int idx = 1;
+    for (auto it = bom.begin(); it != bom.end(); ++it) {
+        text += QString("%1\t%2\t%3\n").arg(idx++).arg(it.key()).arg(it.value());
+    }
+    text += "================================\n";
+    text += QString("合计: %1 项\n").arg(bom.size());
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("材料表统计");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 10));
+    textEdit->setPlainText(text);
+    layout->addWidget(textEdit);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
 void MainWindow::onZoomIn() { m_view->zoomIn(); }
 void MainWindow::onZoomOut() { m_view->zoomOut(); }
 
