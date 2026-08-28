@@ -7,7 +7,6 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QUndoStack>
-#include "../commands/addentitycommand.h"
 
 DimensionTool::DimensionTool(CadView *view, DimensionItem::DimType type, QObject *parent)
     : Tool(view, parent), m_dimType(type)
@@ -62,8 +61,6 @@ void DimensionTool::mousePressEvent(QMouseEvent *event)
             m_dimPos = scenePos;
             auto *dim = new DimensionItem(m_dimType, m_p1, m_p2, m_dimPos);
             m_view->scene()->addItem(dim);
-            if (m_view->undoStack())
-                m_view->undoStack()->push(new AddEntityCommand(dim, m_view->scene()));
             m_step = 0;
             emit statusMessage("选择圆或圆弧:");
         }
@@ -80,8 +77,6 @@ void DimensionTool::mousePressEvent(QMouseEvent *event)
             m_dimPos = scenePos;
             auto *dim = new DimensionItem(m_dimType, m_p1, m_p2, m_dimPos);
             m_view->scene()->addItem(dim);
-            if (m_view->undoStack())
-                m_view->undoStack()->push(new AddEntityCommand(dim, m_view->scene()));
             m_step = 0;
             emit statusMessage("指定角顶点:");
         }
@@ -98,8 +93,6 @@ void DimensionTool::mousePressEvent(QMouseEvent *event)
             m_dimPos = scenePos;
             auto *dim = new DimensionItem(m_dimType, m_p1, m_p2, m_dimPos);
             m_view->scene()->addItem(dim);
-            if (m_view->undoStack())
-                m_view->undoStack()->push(new AddEntityCommand(dim, m_view->scene()));
             m_step = 0;
             emit statusMessage("指定第一条尺寸界线原点:");
         }
