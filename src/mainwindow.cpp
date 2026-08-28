@@ -26,6 +26,7 @@
 #include "engine/report_engine.h"
 #include "import/dxf_importer.h"
 #include "engine/coverage_simulator.h"
+#include "tools/batch_importer.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -117,6 +118,7 @@ void MainWindow::createActions()
     m_saveAsAct = new QAction("另存为", this); m_saveAsAct->setShortcut(QKeySequence::SaveAs); connect(m_saveAsAct, &QAction::triggered, this, &MainWindow::onSaveAs);
     m_importDxfAct = new QAction("导入DXF", this); connect(m_importDxfAct, &QAction::triggered, this, &MainWindow::onImportDxf);
     m_importBottomMapAct = new QAction("导入建筑底图(AI精简)", this); connect(m_importBottomMapAct, &QAction::triggered, this, &MainWindow::onImportBottomMap);
+    m_batchImportAct = new QAction("批量导入器件(CSV)", this); connect(m_batchImportAct, &QAction::triggered, this, &MainWindow::onBatchImport);
     m_exportDxfAct = new QAction("导出DXF", this); connect(m_exportDxfAct, &QAction::triggered, this, &MainWindow::onExportDxf);
     m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
     m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
@@ -168,7 +170,7 @@ void MainWindow::createMenus()
     QMenu *fileMenu = menuBar()->addMenu("文件");
     fileMenu->addAction(m_newAct); fileMenu->addAction(m_openAct); fileMenu->addSeparator();
     fileMenu->addAction(m_saveAct); fileMenu->addAction(m_saveAsAct); fileMenu->addSeparator();
-    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_importBottomMapAct); fileMenu->addAction(m_exportDxfAct);
+    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_importBottomMapAct); fileMenu->addAction(m_batchImportAct); fileMenu->addAction(m_exportDxfAct);
     QMenu *dwgMenu = fileMenu->addMenu("DWG导出");
     dwgMenu->addAction(m_exportDwgSketchAct); dwgMenu->addAction(m_exportDwgFinalAct);
     fileMenu->addSeparator();
@@ -497,6 +499,46 @@ void MainWindow::onImportBottomMap()
         QString("导入建筑底图: %1, 图元%2个, 图层%3个")
         .arg(fileName).arg(result.entities.size()).arg(result.layers.size()));
 }
+
+void MainWindow::onBatchImport()
+{
+    // 先显示模板说明
+    QString templateInfo = Zhifen::BatchImporter::templateDescription();
+    QMessageBox::information(this, "导入模板说明", templateInfo + "\n\n请选择CSV文件进行导入。");
+
+    QString fileName = QFileDialog::getOpenFileName(this, "批量导入器件", "", "CSV文件 (*.csv);;所有文件 (*.*)");
+    if (fileName.isEmpty()) return;
+
+    Zhifen::BatchImporter importer;
+    Zhifen::BatchImportResult result = importer.importFromCsv(fileName);
+
+    if (!result.success) {
+        QString err = result.errors.isEmpty() ? "导入失败" : result.errors.join("\n");
+        QMessageBox::warning(this, "批量导入失败", err);
+        return;
+    }
+
+    // 放置到场景
+    int placed = importer.placeToScene(result, m_scene);
+
+    // 显示导入结果
+    QString info = QString("批量导入完成!\n成功导入: %1个器件\n失败: %2条")
+        .arg(placed).arg(result.failedCount);
+    if (!result.warnings.isEmpty()) {
+        info += "\n\n提示:\n" + result.warnings.join("\n");
+    }
+    if (!result.errors.isEmpty()) {
+        info += "\n\n错误详情:\n" + result.errors.mid(0, 5).join("\n");
+        if (result.errors.size() > 5) info += QString("\n...等共%1条错误").arg(result.errors.size());
+    }
+    QMessageBox::information(this, "导入完成", info);
+
+    m_view->zoomExtents();
+    statusBar()->showMessage(QString("批量导入完成: %1个器件").arg(placed), 5000);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("批量导入器件: %1个, 失败%2条").arg(placed).arg(result.failedCount));
+}
+
 
 
 void MainWindow::onExportDxf()
