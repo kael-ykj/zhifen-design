@@ -31,6 +31,7 @@
 #include "plugins/plugin_manager.h"
 #include "plugins/core_api.h"
 #include "plugins/batch_rename_plugin.h"
+#include "engine/route_planner.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -204,7 +205,8 @@ void MainWindow::createMenus()
     QMenu *calcMenu = menuBar()->addMenu("计算");
     calcMenu->addAction(m_linkCalcAct); calcMenu->addAction(m_bomAct); calcMenu->addSeparator();
     calcMenu->addAction(m_sysDiagramSketchAct); calcMenu->addAction(m_sysDiagramFormalAct); calcMenu->addSeparator();
-    calcMenu->addAction(m_coverageSimAct);
+    calcMenu->addAction(m_coverageSimAct); calcMenu->addSeparator();
+    calcMenu->addAction(m_smartRouteAct);
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
     viewMenu->addSeparator(); viewMenu->addAction(m_gridAct); viewMenu->addAction(m_snapAct); viewMenu->addAction(m_orthoAct);
 
@@ -1048,6 +1050,80 @@ void MainWindow::onCoverageSimulation()
         .arg(result.antennas.size())
         .arg(result.weakCoverageRatio * 100, 0, 'f', 1));
 }
+
+void MainWindow::onSmartRoute()
+{
+    // 获取选中的器件
+    QList<QGraphicsItem*> selected = m_scene->selectedItems();
+    QList<DeviceItem*> devices;
+    for (auto *item : selected) {
+        if (auto *dev = dynamic_cast<DeviceItem*>(item)) {
+            devices.append(dev);
+        }
+    }
+
+    if (devices.size() < 2) {
+        QMessageBox::information(this, "智能布线", "请先选择至少2个器件（信源和天线），\n然后点击智能布线自动生成馈线路由。");
+        return;
+    }
+
+    // 选择布线偏好
+    QStringList items;
+    items << "横平竖直(推荐)" << "最短路径" << "沿墙走线";
+    bool ok;
+    QString choice = QInputDialog::getItem(this, "智能布线", "布线偏好:", items, 0, false, &ok);
+    if (!ok) return;
+
+    Zhifen::RoutePreference pref = Zhifen::Route_Manhattan;
+    if (choice.contains("最短")) pref = Zhifen::Route_Shortest;
+    else if (choice.contains("沿墙")) pref = Zhifen::Route_AlongWall;
+
+    // 配置
+    Zhifen::RouteConfig config;
+    config.preference = pref;
+    config.defaultFeeder = "1/2馈线";
+
+    Zhifen::RoutePlanner planner;
+    planner.setConfig(config);
+    planner.setScene(m_scene);
+
+    // 第一个器件作为起点，其余作为终点
+    QPointF start = devices[0]->pos();
+    QList<QPointF> ends;
+    for (int i = 1; i < devices.size(); i++) {
+        ends.append(devices[i]->pos());
+    }
+
+    // 批量布线
+    QList<Zhifen::RouteResult> results = planner.planBatchRoutes(start, ends);
+
+    int successCount = 0;
+    qreal totalLength = 0;
+    for (const auto &result : results) {
+        if (result.success) {
+            successCount++;
+            totalLength += result.totalLength;
+            // 在场景中绘制路由（简化：用直线表示）
+            for (const auto &seg : result.segments) {
+                QGraphicsLineItem *line = m_scene->addLine(QLineF(seg.start, seg.end),
+                    QPen(QColor(0, 100, 200), 1.5, Qt::DashLine));
+                line->setData(0, "smart_route");
+            }
+        }
+    }
+
+    // 显示结果
+    QString info = QString("智能布线完成!\n\n成功: %1/%2条路由\n总长度: %3米\n弯头总数: %4个")
+        .arg(successCount).arg(results.size())
+        .arg(totalLength, 0, 'f', 1)
+        .arg(results.size() > 0 ? results[0].bendCount : 0);
+    QMessageBox::information(this, "智能布线结果", info);
+
+    statusBar()->showMessage(QString("智能布线: %1条路由, 总长%2米").arg(successCount).arg(totalLength, 0, 'f', 1), 5000);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("智能布线: %1条路由, 总长%2米").arg(successCount).arg(totalLength, 0, 'f', 1));
+}
+
 
 
 
