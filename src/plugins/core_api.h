@@ -2,6 +2,7 @@
 #define CORE_API_H
 
 #include <QString>
+#include <QVariantMap>
 #include <QList>
 #include <QPointF>
 #include <QGraphicsScene>
