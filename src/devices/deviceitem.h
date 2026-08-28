@@ -25,12 +25,15 @@ enum DeviceType {
     DevSplitter4,         // 四功分器
     // === 耦合器类 ===
     DevCoupler5,          // 5dB耦合器
+    DevCoupler6,          // 6dB耦合器
     DevCoupler7,          // 7dB耦合器
     DevCoupler10,         // 10dB耦合器
+    DevCoupler12,         // 12dB耦合器
     DevCoupler15,         // 15dB耦合器
     DevCoupler20,         // 20dB耦合器
     DevCoupler25,         // 25dB耦合器
     DevCoupler30,         // 30dB耦合器
+    DevCoupler40,         // 40dB耦合器
     // === 其他无源器件 ===
     DevCombiner,          // 合路器
     DevHybrid,            // 3dB电桥

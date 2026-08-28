@@ -21,8 +21,10 @@ QString DeviceItem::deviceTypeName() const
     case DevSplitter3: return "三功分器";
     case DevSplitter4: return "四功分器";
     case DevCoupler5: return "5dB耦合器";
+    case DevCoupler6: return "6dB耦合器";
     case DevCoupler7: return "7dB耦合器";
     case DevCoupler10: return "10dB耦合器";
+    case DevCoupler12: return "12dB耦合器";
     case DevCoupler15: return "15dB耦合器";
     case DevCoupler20: return "20dB耦合器";
     case DevCombiner: return "合路器";
@@ -40,6 +42,7 @@ QString DeviceItem::deviceTypeName() const
     case DevLightning: return "避雷器";
     case DevCoupler25: return "25dB耦合器";
     case DevCoupler30: return "30dB耦合器";
+    case DevCoupler40: return "40dB耦合器";
     case DevFeeder158: return "1-5/8馈线";
     case DevFeeder5D: return "5D-FB馈线";
     case DevFeeder8D: return "8D-FB馈线";
@@ -115,6 +118,13 @@ void DeviceItem::initDeviceProperties()
         m_properties["插入损耗"] = "1.8dB";
         setLayer("器件");
         break;
+    case DevCoupler6:
+        m_model = "CPL-6dB";
+        m_insertionLoss = 1.5;
+        m_properties["耦合度"] = "5dB";
+        m_properties["插入损耗"] = "1.8dB";
+        setLayer("器件");
+        break;
     case DevCoupler7:
         m_model = "CPL-7dB";
         m_insertionLoss = 1.4;
@@ -125,6 +135,13 @@ void DeviceItem::initDeviceProperties()
     case DevCoupler10:
         m_model = "CPL-10dB";
         m_insertionLoss = 0.8;
+        m_properties["耦合度"] = "10dB";
+        m_properties["插入损耗"] = "0.8dB";
+        setLayer("器件");
+        break;
+    case DevCoupler12:
+        m_model = "CPL-12dB";
+        m_insertionLoss = 0.6;
         m_properties["耦合度"] = "10dB";
         m_properties["插入损耗"] = "0.8dB";
         setLayer("器件");
@@ -236,10 +253,15 @@ void DeviceItem::setupConnectPoints()
         m_connectPoints.append({QPointF(s*1.2, s), "输出4", false});
         break;
     case DevCoupler5:
+    case DevCoupler6:
     case DevCoupler7:
     case DevCoupler10:
+    case DevCoupler12:
     case DevCoupler15:
     case DevCoupler20:
+    case DevCoupler25:
+    case DevCoupler30:
+    case DevCoupler40:
         m_connectPoints.append({QPointF(-s, 0), "输入", false});
         m_connectPoints.append({QPointF(s, 0), "输出", false});
         m_connectPoints.append({QPointF(0, s), "耦合端", false});
@@ -447,9 +469,10 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
         break;
     }
     case DevCoupler25:
-    case DevCoupler30: {
+    case DevCoupler30:
+    case DevCoupler40: {
         painter->drawRect(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8));
-        int db = m_deviceType == DevCoupler25 ? 25 : 30;
+        int db = m_deviceType == DevCoupler25 ? 25 : m_deviceType == DevCoupler30 ? 30 : 40;
         painter->drawText(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8), Qt::AlignCenter, QString("%1dB").arg(db));
         painter->drawLine(QPointF(-s*0.8, 0), QPointF(-s, 0));
         painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
