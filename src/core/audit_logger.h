@@ -170,7 +170,7 @@ public:
             e.timestamp = QDateTime::fromString(obj["timestamp"].toString(), Qt::ISODate);
             e.operatorName = obj["operator"].toString();
             e.details = obj["details"].toString();
-            e.projectRevision = obj["revision"].toInteger();
+            e.projectRevision = obj["revision"].toInt();
             QString act = obj["action"].toString();
             if (act == "器件放置") e.action = Audit_DevicePlace;
             else if (act == "器件删除") e.action = Audit_DeviceDelete;
