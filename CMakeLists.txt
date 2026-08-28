@@ -55,6 +55,7 @@ set(SOURCES
     src/engine/system_diagram_generator.cpp
     src/engine/report_engine.cpp
     src/import/dxf_importer.cpp
+    src/engine/coverage_simulator.cpp
     src/tools/devicetool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
@@ -104,6 +105,7 @@ set(HEADERS
     src/engine/system_diagram_generator.h
     src/engine/report_engine.h
     src/import/dxf_importer.h
+    src/engine/coverage_simulator.h
     src/entities/feederitem.h
     src/tools/devicetool.h
     src/tools/pantool.h

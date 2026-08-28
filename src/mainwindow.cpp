@@ -25,6 +25,7 @@
 #include "engine/system_diagram_generator.h"
 #include "engine/report_engine.h"
 #include "import/dxf_importer.h"
+#include "engine/coverage_simulator.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -194,7 +195,8 @@ void MainWindow::createMenus()
     queryMenu->addAction(m_queryDistAct); queryMenu->addAction(m_queryAreaAct); queryMenu->addAction(m_queryPointAct);
     QMenu *calcMenu = menuBar()->addMenu("计算");
     calcMenu->addAction(m_linkCalcAct); calcMenu->addAction(m_bomAct); calcMenu->addSeparator();
-    calcMenu->addAction(m_sysDiagramSketchAct); calcMenu->addAction(m_sysDiagramFormalAct);
+    calcMenu->addAction(m_sysDiagramSketchAct); calcMenu->addAction(m_sysDiagramFormalAct); calcMenu->addSeparator();
+    calcMenu->addAction(m_coverageSimAct);
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
     viewMenu->addSeparator(); viewMenu->addAction(m_gridAct); viewMenu->addAction(m_snapAct); viewMenu->addAction(m_orthoAct);
 
@@ -696,6 +698,94 @@ void MainWindow::onGenerateSystemDiagram(Zhifen::SystemDiagramMode mode)
         .arg(mode == Zhifen::SDM_Formal ? "正式" : "草图")
         .arg(result.nodes.size()).arg(result.connections.size()));
 }
+
+void MainWindow::onCoverageSimulation()
+{
+    // 选择频段
+    QStringList bands;
+    bands << "2G (900MHz)" << "3G (2100MHz)" << "4G (1800MHz)" << "5G (3500MHz)";
+    bool ok;
+    QString choice = QInputDialog::getItem(this, "覆盖仿真", "选择频段:", bands, 2, false, &ok);
+    if (!ok) return;
+
+    Zhifen::FrequencyBand band = Zhifen::Band_4G;
+    if (choice.startsWith("2G")) band = Zhifen::Band_2G;
+    else if (choice.startsWith("3G")) band = Zhifen::Band_3G;
+    else if (choice.startsWith("5G")) band = Zhifen::Band_5G;
+
+    // 配置仿真参数
+    Zhifen::SimulationConfig config;
+    config.band = band;
+    config.txPower = 15.0;
+    config.antennaGain = 2.0;
+    config.weakThreshold = -95.0;
+
+    Zhifen::CoverageSimulator simulator;
+    simulator.setConfig(config);
+    simulator.collectFromScene(m_scene);
+
+    // 仿真区域：场景边界
+    QRectF area = m_scene->itemsBoundingRect();
+    if (area.isEmpty()) {
+        QMessageBox::warning(this, "仿真失败", "场景为空，请先放置天线");
+        return;
+    }
+    area = area.adjusted(-5, -5, 5, 5);
+
+    Zhifen::SimulationResult result = simulator.simulate(area);
+
+    if (!result.success) {
+        QString err = result.warnings.isEmpty() ? "仿真失败" : result.warnings.join("\n");
+        QMessageBox::warning(this, "仿真失败", err);
+        return;
+    }
+
+    // 显示仿真结果
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("覆盖仿真热力图");
+    dlg->resize(900, 700);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    // 热力图显示
+    QLabel *heatmapLabel = new QLabel(dlg);
+    heatmapLabel->setAlignment(Qt::AlignCenter);
+    heatmapLabel->setStyleSheet("background-color: white; border: 1px solid gray;");
+    QPixmap pixmap = QPixmap::fromImage(result.heatmapImage);
+    heatmapLabel->setPixmap(pixmap.scaled(800, 500, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    layout->addWidget(heatmapLabel);
+
+    // 统计信息
+    QString stats = QString("频段: %1 | 天线数: %2 | 网格: %3 x %4\n"
+                            "最强信号: %5 dBm | 最弱信号: %6 dBm | 平均: %7 dBm\n"
+                            "弱覆盖比例(< -95dBm): %8%")
+        .arg(Zhifen::CoverageSimulator::bandName(band))
+        .arg(result.antennas.size())
+        .arg(result.signalGrid.isEmpty() ? 0 : result.signalGrid[0].size())
+        .arg(result.signalGrid.size())
+        .arg(result.maxSignal, 0, 'f', 1)
+        .arg(result.minSignal, 0, 'f', 1)
+        .arg(result.avgSignal, 0, 'f', 1)
+        .arg(result.weakCoverageRatio * 100, 0, 'f', 1);
+    QLabel *statsLabel = new QLabel(stats, dlg);
+    statsLabel->setFont(QFont("Consolas", 9));
+    layout->addWidget(statsLabel);
+
+    // 图例
+    QLabel *legendLabel = new QLabel("图例: 红色=弱覆盖(-120~-95dBm) | 黄色=中等(-95~-75dBm) | 绿色=良好(-75~-40dBm)", dlg);
+    legendLabel->setStyleSheet("color: gray; font-size: 8pt;");
+    layout->addWidget(legendLabel);
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("覆盖仿真: 频段%1, 天线%2个, 弱覆盖%3%")
+        .arg(Zhifen::CoverageSimulator::bandName(band))
+        .arg(result.antennas.size())
+        .arg(result.weakCoverageRatio * 100, 0, 'f', 1));
+}
+
 
 
 void MainWindow::onToggleCopyMode()
