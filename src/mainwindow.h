@@ -20,6 +20,7 @@ class PropertyPanel;
 class DevicePanel;
 
 namespace Zhifen { enum SystemDiagramMode; }
+namespace Zhifen { enum PaperSize; }
 
 class MainWindow : public QMainWindow
 {
@@ -38,6 +39,7 @@ private slots:
     void onExportDwgSketch();
     void onExportDwgFinal();
     void onPrint();
+    void onExportPdf(Zhifen::PaperSize paper, bool formal);
     void onUndo();
     void onRedo();
     void onZoomExtents();
@@ -76,7 +78,7 @@ private:
 
     // Actions
     QAction *m_newAct, *m_openAct, *m_saveAct, *m_saveAsAct;
-    QAction *m_importDxfAct, *m_exportDxfAct, *m_exportDwgSketchAct, *m_exportDwgFinalAct, *m_printAct, *m_exitAct;
+    QAction *m_importDxfAct, *m_exportDxfAct, *m_exportDwgSketchAct, *m_exportDwgFinalAct, *m_printAct, *m_exportPdfSketchAct, *m_exportPdfFormalAct, *m_exitAct;
     QAction *m_undoAct, *m_redoAct;
     QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct, *m_feederAct;
     QAction *m_textAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct;

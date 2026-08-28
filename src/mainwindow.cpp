@@ -23,6 +23,7 @@
 #include "entities/feederitem.h"
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_generator.h"
+#include "engine/report_engine.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -117,6 +118,8 @@ void MainWindow::createActions()
     m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
     m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
     m_printAct = new QAction("打印", this); m_printAct->setShortcut(QKeySequence::Print); connect(m_printAct, &QAction::triggered, this, &MainWindow::onPrint);
+    m_exportPdfSketchAct = new QAction("导出PDF(草图)", this); connect(m_exportPdfSketchAct, &QAction::triggered, this, [this](){ onExportPdf(Zhifen::Paper_A4, false); });
+    m_exportPdfFormalAct = new QAction("导出PDF(正式归档)", this); connect(m_exportPdfFormalAct, &QAction::triggered, this, [this](){ onExportPdf(Zhifen::Paper_A4, true); });
     m_exitAct = new QAction("退出", this); connect(m_exitAct, &QAction::triggered, this, &QWidget::close);
 
     m_undoAct = new QAction("撤销", this); m_undoAct->setShortcut(QKeySequence::Undo); connect(m_undoAct, &QAction::triggered, this, &MainWindow::onUndo);
@@ -166,7 +169,10 @@ void MainWindow::createMenus()
     QMenu *dwgMenu = fileMenu->addMenu("DWG导出");
     dwgMenu->addAction(m_exportDwgSketchAct); dwgMenu->addAction(m_exportDwgFinalAct);
     fileMenu->addSeparator();
-    fileMenu->addAction(m_printAct); fileMenu->addSeparator(); fileMenu->addAction(m_exitAct);
+    fileMenu->addAction(m_printAct);
+    QMenu *pdfMenu = fileMenu->addMenu("导出PDF");
+    pdfMenu->addAction(m_exportPdfSketchAct); pdfMenu->addAction(m_exportPdfFormalAct);
+    fileMenu->addSeparator(); fileMenu->addAction(m_exitAct);
 
     QMenu *editMenu = menuBar()->addMenu("编辑");
     editMenu->addAction(m_undoAct); editMenu->addAction(m_redoAct); editMenu->addSeparator();
@@ -495,6 +501,49 @@ void MainWindow::onPrint()
     });
     preview.exec();
 }
+
+void MainWindow::onExportPdf(Zhifen::PaperSize paper, bool formal)
+{
+    QString defaultName = formal ? "智分Design_正式归档.pdf" : "智分Design_草图.pdf";
+    QString fileName = QFileDialog::getSaveFileName(this, "导出PDF", defaultName, "PDF文件 (*.pdf)");
+    if (fileName.isEmpty()) return;
+    if (!fileName.endsWith(".pdf", Qt::CaseInsensitive)) fileName += ".pdf";
+
+    Zhifen::ReportEngine engine;
+
+    if (formal) {
+        // 正式归档：图纸+图框+BOM+链路报告
+        Zhifen::TitleBlockInfo info;
+        info.projectName = "室分设计项目";
+        info.drawingName = "平面布置图";
+        info.drawingNo = "ZF-2026-001";
+        info.designer = "设计";
+        info.reviewer = "审核";
+        info.date = QDate::currentDate().toString("yyyy-MM-dd");
+        info.operatorName = "中国移动";
+
+        // 生成链路预算报告文本
+        Zhifen::LinkCalculator calc;
+        Zhifen::LinkReport report = calc.generateDemoReport();
+        QString linkText = report.toText();
+
+        if (engine.exportPdfFormal(m_scene, fileName, info, paper, linkText)) {
+            statusBar()->showMessage(QString("正式归档PDF已导出: %1").arg(fileName), 5000);
+            Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("正式归档PDF导出: %1").arg(fileName));
+        } else {
+            QMessageBox::warning(this, "导出失败", "PDF导出失败");
+        }
+    } else {
+        // 草图：仅几何图纸
+        if (engine.exportPdfSketch(m_scene, fileName, paper)) {
+            statusBar()->showMessage(QString("草图PDF已导出: %1").arg(fileName), 5000);
+            Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("草图PDF导出: %1").arg(fileName));
+        } else {
+            QMessageBox::warning(this, "导出失败", "PDF导出失败");
+        }
+    }
+}
+
 
 void MainWindow::onUndo() { m_undoStack->undo(); }
 void MainWindow::onRedo() { m_undoStack->redo(); }
