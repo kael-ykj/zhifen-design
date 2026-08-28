@@ -524,6 +524,23 @@ void MainWindow::onBomReport()
     dlg->exec();
     dlg->deleteLater();
 }
+
+void MainWindow::onAuditLog()
+{
+    QString report = Zhifen::AuditLogger::instance().toTextReport();
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("审计日志");
+    dlg->resize(700, 500);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *text = new QTextEdit(dlg);
+    text->setReadOnly(true);
+    text->setFont(QFont("Consolas", 9));
+    text->setPlainText(report);
+    layout->addWidget(text);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
 void MainWindow::onZoomIn() { m_view->zoomIn(); }
 void MainWindow::onZoomOut() { m_view->zoomOut(); }
 
