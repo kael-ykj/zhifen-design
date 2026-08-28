@@ -50,6 +50,8 @@ set(SOURCES
     src/tools/explodetool.cpp
     src/tools/offsettool.cpp
     src/tools/querytool.cpp
+    src/tools/feedertool.cpp
+    src/entities/feederitem.cpp
     src/tools/devicetool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
@@ -95,6 +97,8 @@ set(HEADERS
     src/tools/explodetool.h
     src/tools/offsettool.h
     src/tools/querytool.h
+    src/tools/feedertool.h
+    src/entities/feederitem.h
     src/tools/devicetool.h
     src/tools/pantool.h
     src/tools/zoomtool.h

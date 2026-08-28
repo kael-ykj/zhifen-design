@@ -72,7 +72,7 @@ private:
     QAction *m_newAct, *m_openAct, *m_saveAct, *m_saveAsAct;
     QAction *m_importDxfAct, *m_exportDxfAct, *m_printAct, *m_exitAct;
     QAction *m_undoAct, *m_redoAct;
-    QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct;
+    QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct, *m_feederAct;
     QAction *m_textAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct;
     QAction *m_moveAct, *m_copyAct, *m_rotateAct, *m_scaleAct, *m_mirrorAct, *m_explodeAct, *m_offsetAct, *m_queryDistAct, *m_queryAreaAct, *m_queryPointAct, *m_linkCalcAct, *m_bomAct, *m_auditLogAct, *m_eraseAct;
     QAction *m_panAct, *m_zoomAct, *m_zoomExtentsAct;

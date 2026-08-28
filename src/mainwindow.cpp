@@ -19,6 +19,8 @@
 #include "tools/explodetool.h"
 #include "tools/offsettool.h"
 #include "tools/querytool.h"
+#include "tools/feedertool.h"
+#include "entities/feederitem.h"
 #include "engine/link_calculator.h"
 #include "core/audit_logger.h"
 #include <QInputDialog>
@@ -125,6 +127,7 @@ void MainWindow::createActions()
     m_arcAct = new QAction("圆弧", this); m_arcAct->setShortcut(Qt::Key_A); m_arcAct->setCheckable(true); m_toolGroup->addAction(m_arcAct); connect(m_arcAct, &QAction::triggered, this, [this](){ setCurrentTool("arc"); });
     m_polylineAct = new QAction("多段线", this); m_polylineAct->setCheckable(true); m_toolGroup->addAction(m_polylineAct); connect(m_polylineAct, &QAction::triggered, this, [this](){ setCurrentTool("polyline"); });
     m_rectangleAct = new QAction("矩形", this); m_rectangleAct->setCheckable(true); m_toolGroup->addAction(m_rectangleAct); connect(m_rectangleAct, &QAction::triggered, this, [this](){ setCurrentTool("rectangle"); });
+    m_feederAct = new QAction("馈线", this); m_feederAct->setCheckable(true); m_toolGroup->addAction(m_feederAct); connect(m_feederAct, &QAction::triggered, this, [this](){ setCurrentTool("feeder"); });
     m_textAct = new QAction("文字", this); m_textAct->setCheckable(true); m_toolGroup->addAction(m_textAct); connect(m_textAct, &QAction::triggered, this, [this](){ setCurrentTool("text"); });
     m_dimLinearAct = new QAction("线性标注", this); m_dimLinearAct->setCheckable(true); m_toolGroup->addAction(m_dimLinearAct); connect(m_dimLinearAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_linear"); });
     m_dimAlignedAct = new QAction("对齐标注", this); m_dimAlignedAct->setCheckable(true); m_toolGroup->addAction(m_dimAlignedAct); connect(m_dimAlignedAct, &QAction::triggered, this, [this](){ setCurrentTool("dim_aligned"); });
@@ -164,7 +167,7 @@ void MainWindow::createMenus()
 
     QMenu *drawMenu = menuBar()->addMenu("绘图");
     drawMenu->addAction(m_lineAct); drawMenu->addAction(m_circleAct); drawMenu->addAction(m_arcAct);
-    drawMenu->addAction(m_polylineAct); drawMenu->addAction(m_rectangleAct); drawMenu->addSeparator();
+    drawMenu->addAction(m_polylineAct); drawMenu->addAction(m_rectangleAct); drawMenu->addAction(m_feederAct); drawMenu->addSeparator();
     drawMenu->addAction(m_textAct);
     QMenu *dimMenu = drawMenu->addMenu("标注");
     dimMenu->addAction(m_dimLinearAct); dimMenu->addAction(m_dimAlignedAct);
@@ -202,6 +205,7 @@ void MainWindow::createToolBars()
     m_drawToolBar->addAction(m_arcAct);
     m_drawToolBar->addAction(m_polylineAct);
     m_drawToolBar->addAction(m_rectangleAct);
+    m_drawToolBar->addAction(m_feederAct);
     m_drawToolBar->addSeparator();
     m_drawToolBar->addAction(m_textAct);
     m_drawToolBar->addAction(m_dimLinearAct);
@@ -308,6 +312,7 @@ void MainWindow::setCurrentTool(const QString &toolName)
     else if (toolName == "arc") m_currentTool = new ArcTool(m_view);
     else if (toolName == "polyline") m_currentTool = new PolylineTool(m_view);
     else if (toolName == "rectangle") m_currentTool = new RectangleTool(m_view);
+    else if (toolName == "feeder") m_currentTool = new FeederTool(m_view);
     else if (toolName == "text") m_currentTool = new TextTool(m_view);
     else if (toolName == "dim_linear") m_currentTool = new DimensionTool(m_view, DimensionItem::Linear);
     else if (toolName == "dim_aligned") m_currentTool = new DimensionTool(m_view, DimensionItem::Aligned);
