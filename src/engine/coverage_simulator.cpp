@@ -157,13 +157,14 @@ SimulationResult CoverageSimulator::simulate(const QRectF &area) {
     int cols = qCeil(area.width() / m_config.gridSize) + 1;
     int rows = qCeil(area.height() / m_config.gridSize) + 1;
 
-    result.signalGrid.resize(rows);
+    result.signalGrid = QList<QList<qreal>>();
+    for (int i = 0; i < rows; i++) result.signalGrid.append(QList<qreal>());
     qreal totalSignal = 0;
     int weakCount = 0;
     int totalPoints = 0;
 
     for (int row = 0; row < rows; row++) {
-        result.signalGrid[row].resize(cols);
+        for (int j = 0; j < cols; j++) result.signalGrid[row].append(0.0);
         for (int col = 0; col < cols; col++) {
             QPointF point(area.left() + col * m_config.gridSize,
                           area.top() + row * m_config.gridSize);
