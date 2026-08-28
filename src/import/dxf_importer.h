@@ -5,6 +5,7 @@
 #include <QList>
 #include <QPointF>
 #include <QColor>
+#include <QMap>
 #include <QGraphicsScene>
 
 namespace Zhifen {

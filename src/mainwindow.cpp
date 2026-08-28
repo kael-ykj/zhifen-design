@@ -452,6 +452,7 @@ void MainWindow::onImportDxf()
     } else {
         m_commandLine->appendMessage("导入失败: " + reader.errorString(), "error");
     }
+}
 
 void MainWindow::onImportBottomMap()
 {
