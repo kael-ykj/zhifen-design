@@ -22,6 +22,7 @@
 #include "tools/feedertool.h"
 #include "entities/feederitem.h"
 #include "engine/link_calculator.h"
+#include "engine/system_diagram_generator.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -184,7 +185,8 @@ void MainWindow::createMenus()
     QMenu *queryMenu = menuBar()->addMenu("查询");
     queryMenu->addAction(m_queryDistAct); queryMenu->addAction(m_queryAreaAct); queryMenu->addAction(m_queryPointAct);
     QMenu *calcMenu = menuBar()->addMenu("计算");
-    calcMenu->addAction(m_linkCalcAct); calcMenu->addAction(m_bomAct);
+    calcMenu->addAction(m_linkCalcAct); calcMenu->addAction(m_bomAct); calcMenu->addSeparator();
+    calcMenu->addAction(m_sysDiagramSketchAct); calcMenu->addAction(m_sysDiagramFormalAct);
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
     viewMenu->addSeparator(); viewMenu->addAction(m_gridAct); viewMenu->addAction(m_snapAct); viewMenu->addAction(m_orthoAct);
 

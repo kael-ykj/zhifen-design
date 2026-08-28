@@ -52,6 +52,7 @@ set(SOURCES
     src/tools/querytool.cpp
     src/tools/feedertool.cpp
     src/entities/feederitem.cpp
+    src/engine/system_diagram_generator.cpp
     src/tools/devicetool.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
@@ -98,6 +99,7 @@ set(HEADERS
     src/tools/offsettool.h
     src/tools/querytool.h
     src/tools/feedertool.h
+    src/engine/system_diagram_generator.h
     src/entities/feederitem.h
     src/tools/devicetool.h
     src/tools/pantool.h
