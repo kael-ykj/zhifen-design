@@ -32,6 +32,7 @@
 #include "plugins/core_api.h"
 #include "plugins/batch_rename_plugin.h"
 #include "engine/route_planner.h"
+#include "engine/power_balance_optimizer.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -206,7 +207,7 @@ void MainWindow::createMenus()
     calcMenu->addAction(m_linkCalcAct); calcMenu->addAction(m_bomAct); calcMenu->addSeparator();
     calcMenu->addAction(m_sysDiagramSketchAct); calcMenu->addAction(m_sysDiagramFormalAct); calcMenu->addSeparator();
     calcMenu->addAction(m_coverageSimAct); calcMenu->addSeparator();
-    calcMenu->addAction(m_smartRouteAct);
+    calcMenu->addAction(m_smartRouteAct); calcMenu->addAction(m_powerBalanceAct);
     viewMenu->addAction(m_panAct); viewMenu->addAction(m_zoomAct); viewMenu->addAction(m_zoomExtentsAct);
     viewMenu->addSeparator(); viewMenu->addAction(m_gridAct); viewMenu->addAction(m_snapAct); viewMenu->addAction(m_orthoAct);
 
@@ -1123,6 +1124,82 @@ void MainWindow::onSmartRoute()
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("智能布线: %1条路由, 总长%2米").arg(successCount).arg(totalLength, 0, 'f', 1));
 }
+
+void MainWindow::onPowerBalance()
+{
+    // 选择优化目标
+    QStringList goals;
+    goals << "均匀分配(推荐)" << "最小损耗" << "最大功率输出";
+    bool ok;
+    QString choice = QInputDialog::getItem(this, "功率平衡优化", "优化目标:", goals, 0, false, &ok);
+    if (!ok) return;
+
+    Zhifen::OptimizationGoal goal = Zhifen::Goal_Uniform;
+    if (choice.contains("最小损耗")) goal = Zhifen::Goal_MinLoss;
+    else if (choice.contains("最大")) goal = Zhifen::Goal_MaxPower;
+
+    // 配置
+    Zhifen::OptimizationConfig config;
+    config.goal = goal;
+    config.targetPower = -10.0;
+    config.maxDeviation = 3.0;
+    config.minPower = -15.0;
+    config.maxPower = -5.0;
+    config.band = Zhifen::Band_4G;
+    config.autoAdjust = false; // 仅给出建议，不自动修改
+
+    Zhifen::PowerBalanceOptimizer optimizer;
+    optimizer.setScene(m_scene);
+    optimizer.setConfig(config);
+
+    Zhifen::OptimizationResult result = optimizer.optimize();
+
+    if (!result.success) {
+        QString err = result.warnings.isEmpty() ? "优化失败" : result.warnings.join("\n");
+        QMessageBox::warning(this, "功率平衡优化", err);
+        return;
+    }
+
+    // 显示优化报告
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("功率平衡优化报告");
+    dlg->resize(600, 500);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    layout->addWidget(textEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *applyBtn = new QPushButton("应用优化建议", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(applyBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(applyBtn, &QPushButton::clicked, this, [this, &optimizer, &result]() {
+        int applied = optimizer.applySuggestions(result);
+        QMessageBox::information(this, "应用完成", QString("已应用%1条优化建议").arg(applied));
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    statusBar()->showMessage(QString("功率平衡优化完成: 达标率%1% -> %2%")
+        .arg(result.totalAntennas > 0 ? result.passCountBefore * 100.0 / result.totalAntennas : 0, 0, 'f', 1)
+        .arg(result.totalAntennas > 0 ? result.passCountAfter * 100.0 / result.totalAntennas : 0, 0, 'f', 1), 5000);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("功率平衡优化: 天线%1个, 达标率%2%->%3%, 建议%4条")
+        .arg(result.totalAntennas)
+        .arg(result.totalAntennas > 0 ? result.passCountBefore * 100.0 / result.totalAntennas : 0, 0, 'f', 1)
+        .arg(result.totalAntennas > 0 ? result.passCountAfter * 100.0 / result.totalAntennas : 0, 0, 'f', 1)
+        .arg(result.suggestions.size()));
+}
+
 
 
 
