@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QPointF>
 #include <QGraphicsScene>
+#include "coverage_simulator.h"
 
 namespace Zhifen {
 

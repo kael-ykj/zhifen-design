@@ -5,6 +5,7 @@
 #include <QGraphicsScene>
 #include <QtMath>
 #include <QDebug>
+#include <QRandomGenerator>
 
 namespace Zhifen {
 
