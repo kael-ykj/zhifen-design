@@ -27,6 +27,7 @@
 #include "import/dxf_importer.h"
 #include "engine/coverage_simulator.h"
 #include "tools/batch_importer.h"
+#include "core/floor_manager.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -119,6 +120,7 @@ void MainWindow::createActions()
     m_importDxfAct = new QAction("导入DXF", this); connect(m_importDxfAct, &QAction::triggered, this, &MainWindow::onImportDxf);
     m_importBottomMapAct = new QAction("导入建筑底图(AI精简)", this); connect(m_importBottomMapAct, &QAction::triggered, this, &MainWindow::onImportBottomMap);
     m_batchImportAct = new QAction("批量导入器件(CSV)", this); connect(m_batchImportAct, &QAction::triggered, this, &MainWindow::onBatchImport);
+    m_floorManagerAct = new QAction("楼层管理", this); connect(m_floorManagerAct, &QAction::triggered, this, &MainWindow::onFloorManager);
     m_exportDxfAct = new QAction("导出DXF", this); connect(m_exportDxfAct, &QAction::triggered, this, &MainWindow::onExportDxf);
     m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
     m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
@@ -538,6 +540,160 @@ void MainWindow::onBatchImport()
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("批量导入器件: %1个, 失败%2条").arg(placed).arg(result.failedCount));
 }
+
+void MainWindow::onFloorManager()
+{
+    Zhifen::FloorManager &fm = Zhifen::FloorManager::instance();
+    QList<Zhifen::FloorInfo> floors = fm.allFloors();
+
+    // 构建楼层列表字符串
+    QString floorList;
+    for (const auto &f : floors) {
+        QString stdMark = f.isStandard ? " [标准层]" : "";
+        QString curMark = (f.id == fm.currentFloorId()) ? " (当前)" : "";
+        floorList += QString("%1. %2 - 编号:%3 层高:%4m%5%6\n")
+            .arg(f.id).arg(f.name).arg(f.floorNumber).arg(f.height)
+            .arg(stdMark).arg(curMark);
+    }
+
+    // 简单的楼层管理对话框
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("楼层管理");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *listWidget = new QTextEdit(dlg);
+    listWidget->setReadOnly(true);
+    listWidget->setPlainText(floorList);
+    layout->addWidget(listWidget);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+
+    QPushButton *addBtn = new QPushButton("添加楼层", dlg);
+    QPushButton *delBtn = new QPushButton("删除楼层", dlg);
+    QPushButton *switchBtn = new QPushButton("切换楼层", dlg);
+    QPushButton *stdBtn = new QPushButton("设为标准层", dlg);
+    QPushButton *copyBtn = new QPushButton("标准层复制", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+
+    btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(delBtn);
+    btnLayout->addWidget(switchBtn);
+    btnLayout->addWidget(stdBtn);
+    btnLayout->addWidget(copyBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    connect(addBtn, &QPushButton::clicked, this, [this, &fm, listWidget]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, "添加楼层", "楼层名称:", QLineEdit::Normal, "", &ok);
+        if (ok && !name.isEmpty()) {
+            int id = fm.addFloor(name);
+            QList<Zhifen::FloorInfo> floors = fm.allFloors();
+            QString floorList;
+            for (const auto &f : floors) {
+                QString stdMark = f.isStandard ? " [标准层]" : "";
+                QString curMark = (f.id == fm.currentFloorId()) ? " (当前)" : "";
+                floorList += QString("%1. %2 - 编号:%3 层高:%4m%5%6\n")
+                    .arg(f.id).arg(f.name).arg(f.floorNumber).arg(f.height)
+                    .arg(stdMark).arg(curMark);
+            }
+            listWidget->setPlainText(floorList);
+            statusBar()->showMessage(QString("已添加楼层: %1").arg(name), 3000);
+        }
+    });
+
+    connect(delBtn, &QPushButton::clicked, this, [this, &fm, listWidget]() {
+        bool ok;
+        int id = QInputDialog::getInt(this, "删除楼层", "楼层ID:", 0, 0, 999, 1, &ok);
+        if (ok) {
+            if (fm.removeFloor(id)) {
+                QList<Zhifen::FloorInfo> floors = fm.allFloors();
+                QString floorList;
+                for (const auto &f : floors) {
+                    QString stdMark = f.isStandard ? " [标准层]" : "";
+                    QString curMark = (f.id == fm.currentFloorId()) ? " (当前)" : "";
+                    floorList += QString("%1. %2 - 编号:%3 层高:%4m%5%6\n")
+                        .arg(f.id).arg(f.name).arg(f.floorNumber).arg(f.height)
+                        .arg(stdMark).arg(curMark);
+                }
+                listWidget->setPlainText(floorList);
+                statusBar()->showMessage("已删除楼层", 3000);
+            } else {
+                QMessageBox::warning(this, "删除失败", "无法删除楼层（至少保留一个）");
+            }
+        }
+    });
+
+    connect(switchBtn, &QPushButton::clicked, this, [this, &fm, listWidget]() {
+        bool ok;
+        int id = QInputDialog::getInt(this, "切换楼层", "楼层ID:", 0, 0, 999, 1, &ok);
+        if (ok) {
+            if (fm.switchToFloor(id, m_scene)) {
+                QList<Zhifen::FloorInfo> floors = fm.allFloors();
+                QString floorList;
+                for (const auto &f : floors) {
+                    QString stdMark = f.isStandard ? " [标准层]" : "";
+                    QString curMark = (f.id == fm.currentFloorId()) ? " (当前)" : "";
+                    floorList += QString("%1. %2 - 编号:%3 层高:%4m%5%6\n")
+                        .arg(f.id).arg(f.name).arg(f.floorNumber).arg(f.height)
+                        .arg(stdMark).arg(curMark);
+                }
+                listWidget->setPlainText(floorList);
+                m_view->zoomExtents();
+                statusBar()->showMessage(QString("已切换到楼层: %1").arg(fm.currentFloor().name), 3000);
+            } else {
+                QMessageBox::warning(this, "切换失败", "无法切换楼层");
+            }
+        }
+    });
+
+    connect(stdBtn, &QPushButton::clicked, this, [this, &fm, listWidget]() {
+        bool ok;
+        int id = QInputDialog::getInt(this, "设为标准层", "楼层ID:", 0, 0, 999, 1, &ok);
+        if (ok) {
+            fm.setStandardFloor(id, true);
+            QList<Zhifen::FloorInfo> floors = fm.allFloors();
+            QString floorList;
+            for (const auto &f : floors) {
+                QString stdMark = f.isStandard ? " [标准层]" : "";
+                QString curMark = (f.id == fm.currentFloorId()) ? " (当前)" : "";
+                floorList += QString("%1. %2 - 编号:%3 层高:%4m%5%6\n")
+                    .arg(f.id).arg(f.name).arg(f.floorNumber).arg(f.height)
+                    .arg(stdMark).arg(curMark);
+            }
+            listWidget->setPlainText(floorList);
+            statusBar()->showMessage("已设为标准层", 3000);
+        }
+    });
+
+    connect(copyBtn, &QPushButton::clicked, this, [this, &fm]() {
+        QList<int> stdFloors = fm.standardFloors();
+        if (stdFloors.isEmpty()) {
+            QMessageBox::warning(this, "复制失败", "没有标准层，请先设置标准层");
+            return;
+        }
+        bool ok;
+        int targetId = QInputDialog::getInt(this, "标准层复制", "目标楼层ID:", 0, 0, 999, 1, &ok);
+        if (ok) {
+            if (fm.copyStandardToFloor(stdFloors.first(), targetId, m_scene, Zhifen::Copy_All)) {
+                if (targetId == fm.currentFloorId()) m_view->zoomExtents();
+                statusBar()->showMessage("标准层复制完成", 3000);
+                Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+                    QString("标准层复制: 从%1到%2").arg(stdFloors.first()).arg(targetId));
+            } else {
+                QMessageBox::warning(this, "复制失败", "标准层复制失败");
+            }
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
 
 
 
