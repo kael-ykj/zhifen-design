@@ -24,6 +24,7 @@
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_generator.h"
 #include "engine/report_engine.h"
+#include "import/dxf_importer.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -114,6 +115,7 @@ void MainWindow::createActions()
     m_saveAct = new QAction("保存", this); m_saveAct->setShortcut(QKeySequence::Save); connect(m_saveAct, &QAction::triggered, this, &MainWindow::onSave);
     m_saveAsAct = new QAction("另存为", this); m_saveAsAct->setShortcut(QKeySequence::SaveAs); connect(m_saveAsAct, &QAction::triggered, this, &MainWindow::onSaveAs);
     m_importDxfAct = new QAction("导入DXF", this); connect(m_importDxfAct, &QAction::triggered, this, &MainWindow::onImportDxf);
+    m_importBottomMapAct = new QAction("导入建筑底图(AI精简)", this); connect(m_importBottomMapAct, &QAction::triggered, this, &MainWindow::onImportBottomMap);
     m_exportDxfAct = new QAction("导出DXF", this); connect(m_exportDxfAct, &QAction::triggered, this, &MainWindow::onExportDxf);
     m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
     m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
@@ -165,7 +167,7 @@ void MainWindow::createMenus()
     QMenu *fileMenu = menuBar()->addMenu("文件");
     fileMenu->addAction(m_newAct); fileMenu->addAction(m_openAct); fileMenu->addSeparator();
     fileMenu->addAction(m_saveAct); fileMenu->addAction(m_saveAsAct); fileMenu->addSeparator();
-    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_exportDxfAct);
+    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_importBottomMapAct); fileMenu->addAction(m_exportDxfAct);
     QMenu *dwgMenu = fileMenu->addMenu("DWG导出");
     dwgMenu->addAction(m_exportDwgSketchAct); dwgMenu->addAction(m_exportDwgFinalAct);
     fileMenu->addSeparator();
@@ -450,6 +452,49 @@ void MainWindow::onImportDxf()
     } else {
         m_commandLine->appendMessage("导入失败: " + reader.errorString(), "error");
     }
+
+void MainWindow::onImportBottomMap()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "导入建筑底图", "", "DXF文件 (*.dxf);;所有文件 (*.*)");
+    if (fileName.isEmpty()) return;
+
+    // 让用户选择精简模式
+    QStringList items;
+    items << "不精简(全部导入)" << "基础精简(保留墙体/门窗/管线)" << "深度精简(仅保留墙体)";
+    bool ok;
+    QString choice = QInputDialog::getItem(this, "AI精简模式", "请选择底图精简模式:", items, 1, false, &ok);
+    if (!ok) return;
+
+    Zhifen::SimplifyMode mode = Zhifen::Simplify_Basic;
+    if (choice.contains("不精简")) mode = Zhifen::Simplify_None;
+    else if (choice.contains("深度")) mode = Zhifen::Simplify_Aggressive;
+
+    Zhifen::DxfImporter importer;
+    Zhifen::DxfImportResult result = importer.importFromFile(fileName, mode);
+
+    if (!result.success) {
+        QString err = result.errors.isEmpty() ? "导入失败" : result.errors.join("\n");
+        QMessageBox::warning(this, "底图导入失败", err);
+        return;
+    }
+
+    // 渲染到场景（底图锁定）
+    importer.renderToScene(result, m_scene, true);
+
+    // 显示导入信息
+    QString info = QString("底图导入成功!\n图元数: %1\n图层数: %2")
+        .arg(result.entities.size()).arg(result.layers.size());
+    if (!result.warnings.isEmpty()) {
+        info += "\n\n提示:\n" + result.warnings.join("\n");
+    }
+    QMessageBox::information(this, "导入成功", info);
+
+    statusBar()->showMessage(QString("建筑底图已导入: %1 (已锁定)").arg(fileName), 5000);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("导入建筑底图: %1, 图元%2个, 图层%3个")
+        .arg(fileName).arg(result.entities.size()).arg(result.layers.size()));
+}
+
 }
 
 void MainWindow::onExportDxf()
