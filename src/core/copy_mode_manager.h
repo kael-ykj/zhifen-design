@@ -2,7 +2,6 @@
 #define COPY_MODE_MANAGER_H
 
 #include <QString>
-#include <QObject>
 
 namespace Zhifen {
 
@@ -13,9 +12,8 @@ enum CopyMode {
 };
 
 // 复制模式管理器（单例）
-class CopyModeManager : public QObject
+class CopyModeManager
 {
-    Q_OBJECT
 public:
     static CopyModeManager& instance() {
         static CopyModeManager mgr;
@@ -23,12 +21,7 @@ public:
     }
 
     CopyMode mode() const { return m_mode; }
-    void setMode(CopyMode mode) {
-        if (m_mode != mode) {
-            m_mode = mode;
-            emit modeChanged(m_mode);
-        }
-    }
+    void setMode(CopyMode mode) { m_mode = mode; }
 
     QString modeName() const {
         return m_mode == LIGHT_COPY ? "轻量复制" : "完整复制";
@@ -43,11 +36,12 @@ public:
     bool isLightCopy() const { return m_mode == LIGHT_COPY; }
     bool isFullCopy() const { return m_mode == FULL_COPY; }
 
-signals:
-    void modeChanged(CopyMode mode);
+    void toggle() {
+        m_mode = (m_mode == LIGHT_COPY) ? FULL_COPY : LIGHT_COPY;
+    }
 
 private:
-    CopyModeManager() : QObject(), m_mode(LIGHT_COPY) {}
+    CopyModeManager() : m_mode(LIGHT_COPY) {}
     ~CopyModeManager() = default;
     CopyModeManager(const CopyModeManager&) = delete;
     CopyModeManager& operator=(const CopyModeManager&) = delete;
