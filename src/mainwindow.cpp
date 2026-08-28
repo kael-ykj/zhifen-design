@@ -562,6 +562,48 @@ void MainWindow::onBomReport()
     dlg->deleteLater();
 }
 
+void MainWindow::onGenerateSystemDiagram(Zhifen::SystemDiagramMode mode)
+{
+    Zhifen::SystemDiagramGenerator generator;
+    Zhifen::SystemDiagramResult result = generator.generate(m_scene, mode);
+
+    if (!result.success) {
+        QString err = result.errors.isEmpty() ? "生成失败" : result.errors.join("\n");
+        QMessageBox::warning(this, "系统图生成失败", err);
+        return;
+    }
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle(mode == Zhifen::SDM_Formal ? "系统图（正式模式）" : "系统图（草图模式）");
+    dlg->resize(900, 600);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QGraphicsView *view = new QGraphicsView(dlg);
+    QGraphicsScene *scene = new QGraphicsScene(dlg);
+    view->setScene(scene);
+    view->setRenderHint(QPainter::Antialiasing);
+    view->setDragMode(QGraphicsView::ScrollHandDrag);
+    view->setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
+
+    generator.renderToScene(result, scene, mode);
+    view->fitInView(scene->itemsBoundingRect(), Qt::KeepAspectRatio);
+
+    layout->addWidget(view);
+
+    QLabel *info = new QLabel(QString("器件数: %1  连接数: %2").arg(result.nodes.size()).arg(result.connections.size()), dlg);
+    layout->addWidget(info);
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("生成系统图(%1): 器件%2个, 连接%3条")
+        .arg(mode == Zhifen::SDM_Formal ? "正式" : "草图")
+        .arg(result.nodes.size()).arg(result.connections.size()));
+}
+
+
 void MainWindow::onToggleCopyMode()
 {
     Zhifen::CopyModeManager &mgr = Zhifen::CopyModeManager::instance();
