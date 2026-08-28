@@ -20,6 +20,7 @@
 #include "tools/offsettool.h"
 #include "tools/querytool.h"
 #include "engine/link_calculator.h"
+#include "core/audit_logger.h"
 #include <QInputDialog>
 #include <QDialog>
 #include <QVBoxLayout>
@@ -135,7 +136,7 @@ void MainWindow::createActions()
     m_copyAct = new QAction("复制", this); connect(m_copyAct, &QAction::triggered, this, [this](){ setCurrentTool("copy"); });
     m_rotateAct = new QAction("旋转", this); connect(m_rotateAct, &QAction::triggered, this, [this](){ setCurrentTool("rotate"); });
     m_scaleAct = new QAction("缩放", this); connect(m_scaleAct, &QAction::triggered, this, [this](){ setCurrentTool("scale"); });
-    m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); if(!items.isEmpty()) m_undoStack->push(new RemoveItemsCommand(m_scene, items)); });
+    m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); if(!items.isEmpty()) { Zhifen::AuditLogger::instance().log(items.size() > 1 ? Zhifen::Audit_BatchDelete : Zhifen::Audit_DeviceDelete, QString("删除%1个对象").arg(items.size())); m_undoStack->push(new RemoveItemsCommand(m_scene, items)); } });
 
     m_panAct = new QAction("平移", this); m_panAct->setShortcut(Qt::Key_P); m_panAct->setCheckable(true); m_toolGroup->addAction(m_panAct); connect(m_panAct, &QAction::triggered, this, [this](){ setCurrentTool("pan"); });
     m_zoomAct = new QAction("缩放", this); m_zoomAct->setShortcut(Qt::Key_Z); m_zoomAct->setCheckable(true); m_toolGroup->addAction(m_zoomAct); connect(m_zoomAct, &QAction::triggered, this, [this](){ setCurrentTool("zoom"); });
@@ -179,6 +180,7 @@ void MainWindow::createMenus()
 
     QMenu *toolsMenu = menuBar()->addMenu("工具");
     toolsMenu->addAction(m_layerManagerAct);
+    toolsMenu->addAction(m_auditLogAct);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("关于智分Design", this, [this](){
@@ -474,6 +476,7 @@ void MainWindow::onLinkCalculation()
     calc.setBand(static_cast<Zhifen::BandType>(bandIdx));
     calc.setMinAntennaPower(10.0);
     Zhifen::LinkReport report = calc.generateDemoReport();
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_LinkCalculation, QString("链路预算 频段=%1 天线数=%2").arg(Zhifen::LinkReport::bandName(static_cast<Zhifen::BandType>(bandIdx))).arg(report.totalAntennas));
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("链路预算报告");
     dlg->resize(700, 600);
