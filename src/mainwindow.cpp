@@ -496,7 +496,6 @@ void MainWindow::onImportBottomMap()
         .arg(fileName).arg(result.entities.size()).arg(result.layers.size()));
 }
 
-}
 
 void MainWindow::onExportDxf()
 {
