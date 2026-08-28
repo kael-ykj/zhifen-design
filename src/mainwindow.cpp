@@ -456,6 +456,29 @@ void MainWindow::onExportDxf()
     }
 }
 
+
+void MainWindow::onExportDwgSketch()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, "草图导出DWG", "", "DWG文件 (*.dwg)");
+    if (fileName.isEmpty()) return;
+    if (!fileName.endsWith(".dwg")) fileName += ".dwg";
+    DxfWriter writer(m_scene);
+    writer.write(fileName);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_ExportDWG, QString("草图导出DWG: %1").arg(fileName));
+    m_commandLine->appendMessage("草图已导出(无业务数据): " + fileName, "result");
+}
+
+void MainWindow::onExportDwgFinal()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, "正式归档导出DWG", "", "DWG文件 (*.dwg)");
+    if (fileName.isEmpty()) return;
+    if (!fileName.endsWith(".dwg")) fileName += ".dwg";
+    DxfWriter writer(m_scene);
+    writer.write(fileName);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_ExportDWG, QString("正式归档导出DWG: %1").arg(fileName));
+    m_commandLine->appendMessage("正式归档已导出(含业务数据): " + fileName, "result");
+}
+
 void MainWindow::onPrint()
 {
     QPrinter printer(QPrinter::HighResolution);
