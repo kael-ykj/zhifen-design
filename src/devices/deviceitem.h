@@ -111,6 +111,8 @@ protected:
     QList<ConnectPoint> m_connectPoints;
     qreal m_insertionLoss = 0.0;
     qreal m_power = 0.0;
+    bool m_hasAlarm = false;
+    QString m_alarmMessage;
     qreal m_size = 10.0; // 图元尺寸
 
     void initDeviceProperties();

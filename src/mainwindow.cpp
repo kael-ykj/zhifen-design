@@ -113,6 +113,8 @@ void MainWindow::createActions()
     m_saveAsAct = new QAction("另存为", this); m_saveAsAct->setShortcut(QKeySequence::SaveAs); connect(m_saveAsAct, &QAction::triggered, this, &MainWindow::onSaveAs);
     m_importDxfAct = new QAction("导入DXF", this); connect(m_importDxfAct, &QAction::triggered, this, &MainWindow::onImportDxf);
     m_exportDxfAct = new QAction("导出DXF", this); connect(m_exportDxfAct, &QAction::triggered, this, &MainWindow::onExportDxf);
+    m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
+    m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
     m_printAct = new QAction("打印", this); m_printAct->setShortcut(QKeySequence::Print); connect(m_printAct, &QAction::triggered, this, &MainWindow::onPrint);
     m_exitAct = new QAction("退出", this); connect(m_exitAct, &QAction::triggered, this, &QWidget::close);
 
@@ -159,7 +161,10 @@ void MainWindow::createMenus()
     QMenu *fileMenu = menuBar()->addMenu("文件");
     fileMenu->addAction(m_newAct); fileMenu->addAction(m_openAct); fileMenu->addSeparator();
     fileMenu->addAction(m_saveAct); fileMenu->addAction(m_saveAsAct); fileMenu->addSeparator();
-    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_exportDxfAct); fileMenu->addSeparator();
+    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_exportDxfAct);
+    QMenu *dwgMenu = fileMenu->addMenu("DWG导出");
+    dwgMenu->addAction(m_exportDwgSketchAct); dwgMenu->addAction(m_exportDwgFinalAct);
+    fileMenu->addSeparator();
     fileMenu->addAction(m_printAct); fileMenu->addSeparator(); fileMenu->addAction(m_exitAct);
 
     QMenu *editMenu = menuBar()->addMenu("编辑");
