@@ -33,6 +33,27 @@ QString DeviceItem::deviceTypeName() const
     case DevSourceBBU: return "BBU";
     case DevSourceMicro: return "微基站";
     case DevSourceRepeater: return "直放站";
+    case DevDryAmp: return "干放";
+    case DevHybrid: return "3dB电桥";
+    case DevLoad: return "终端负载";
+    case DevAttenuator: return "衰减器";
+    case DevLightning: return "避雷器";
+    case DevCoupler25: return "25dB耦合器";
+    case DevCoupler30: return "30dB耦合器";
+    case DevFeeder158: return "1-5/8馈线";
+    case DevFeeder5D: return "5D-FB馈线";
+    case DevFeeder8D: return "8D-FB馈线";
+    case DevNetworkCable: return "网线";
+    case DevLeakyCable158: return "1-5/8漏缆";
+    case DevLeakyCable138: return "13/8漏缆";
+    case DevAntennaSpotlight: return "射灯天线";
+    case DevAntennaExternal: return "外引天线";
+    case DevAntennaPanel: return "板状天线";
+    case DevAntennaYagi: return "八木天线";
+    case DevAntennaGrid: return "栅格天线";
+    case DevpRRU: return "pRRU皮基站";
+    case DevRHUB: return "RHUB射频集线器";
+    case DevPOESwitch: return "POE交换机";
     default: return "未知器件";
     }
 }
@@ -231,7 +252,31 @@ void DeviceItem::setupConnectPoints()
     case DevSourceRRU:
     case DevSourceMicro:
     case DevSourceRepeater:
+    case DevDryAmp:
+    case DevpRRU:
         m_connectPoints.append({QPointF(s, 0), "输出", false});
+        break;
+    case DevHybrid:
+        m_connectPoints.append({QPointF(-s, -s*0.5), "输入1", false});
+        m_connectPoints.append({QPointF(-s, s*0.5), "输入2", false});
+        m_connectPoints.append({QPointF(s, -s*0.5), "输出1", false});
+        m_connectPoints.append({QPointF(s, s*0.5), "输出2", false});
+        break;
+    case DevLoad:
+    case DevAttenuator:
+    case DevLightning:
+        m_connectPoints.append({QPointF(-s, 0), "输入", false});
+        m_connectPoints.append({QPointF(s, 0), "输出", false});
+        break;
+    case DevRHUB:
+        m_connectPoints.append({QPointF(0, -s), "上联", false});
+        for (int i = 0; i < 4; i++)
+            m_connectPoints.append({QPointF(-s*0.6 + i*s*0.4, s), QString("下联%1").arg(i+1), false});
+        break;
+    case DevPOESwitch:
+        m_connectPoints.append({QPointF(0, -s), "上联", false});
+        for (int i = 0; i < 8; i++)
+            m_connectPoints.append({QPointF(-s*0.7 + i*s*0.2, s), QString("POE%1").arg(i+1), false});
         break;
     default:
         break;
@@ -356,6 +401,135 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
         painter->drawText(QRectF(-s*0.8, -s*0.5, s*1.6, s), Qt::AlignCenter, label);
         if (m_deviceType != DevSourceBBU)
             painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
+        break;
+    }
+    case DevAntennaSpotlight: {
+        // 射灯天线：圆形+灯座
+        painter->drawEllipse(QPointF(0,0), s*0.7, s*0.7);
+        painter->drawEllipse(QPointF(0,0), s*0.4, s*0.4);
+        painter->drawLine(QPointF(0, -s*0.7), QPointF(0, -s));
+        painter->drawText(QRectF(-s*0.5, -s*0.2, s, s*0.4), Qt::AlignCenter, "射灯");
+        break;
+    }
+    case DevAntennaExternal: {
+        // 外引天线：菱形+引线
+        QPolygonF dia;
+        dia << QPointF(0, -s*0.8) << QPointF(s*0.6, 0) << QPointF(0, s*0.8) << QPointF(-s*0.6, 0);
+        painter->drawPolygon(dia);
+        painter->drawLine(QPointF(0, s*0.8), QPointF(0, s));
+        break;
+    }
+    case DevAntennaPanel: {
+        // 板状天线：矩形+箭头
+        painter->drawRect(QRectF(-s*0.5, -s*0.8, s, s*1.6));
+        painter->drawLine(QPointF(s*0.5, 0), QPointF(s*0.9, 0));
+        painter->drawLine(QPointF(s*0.7, -s*0.2), QPointF(s*0.9, 0));
+        painter->drawLine(QPointF(s*0.7, s*0.2), QPointF(s*0.9, 0));
+        break;
+    }
+    case DevAntennaYagi: {
+        // 八木天线：横杆+多个引向器
+        painter->drawLine(QPointF(-s, 0), QPointF(s, 0));
+        for (int i = 0; i < 5; i++) {
+            qreal x = -s*0.6 + i*s*0.3;
+            qreal h = s*0.5 - i*s*0.05;
+            painter->drawLine(QPointF(x, -h), QPointF(x, h));
+        }
+        break;
+    }
+    case DevAntennaGrid: {
+        // 栅格天线：椭圆+网格
+        painter->drawEllipse(QPointF(0,0), s*0.8, s*0.6);
+        for (int i = -2; i <= 2; i++)
+            painter->drawLine(QPointF(i*s*0.15, -s*0.5), QPointF(i*s*0.15, s*0.5));
+        for (int i = -1; i <= 1; i++)
+            painter->drawLine(QPointF(-s*0.7, i*s*0.2), QPointF(s*0.7, i*s*0.2));
+        break;
+    }
+    case DevCoupler25:
+    case DevCoupler30: {
+        painter->drawRect(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8));
+        int db = m_deviceType == DevCoupler25 ? 25 : 30;
+        painter->drawText(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8), Qt::AlignCenter, QString("%1dB").arg(db));
+        painter->drawLine(QPointF(-s*0.8, 0), QPointF(-s, 0));
+        painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
+        painter->drawLine(QPointF(0, s*0.4), QPointF(0, s*0.7));
+        break;
+    }
+    case DevHybrid: {
+        // 3dB电桥：圆形+4端口
+        painter->drawEllipse(QPointF(0,0), s*0.7, s*0.7);
+        painter->drawText(QRectF(-s*0.5, -s*0.3, s, s*0.6), Qt::AlignCenter, "3dB");
+        painter->drawLine(QPointF(-s*0.7, -s*0.35), QPointF(-s, -s*0.5));
+        painter->drawLine(QPointF(-s*0.7, s*0.35), QPointF(-s, s*0.5));
+        painter->drawLine(QPointF(s*0.7, -s*0.35), QPointF(s, -s*0.5));
+        painter->drawLine(QPointF(s*0.7, s*0.35), QPointF(s, s*0.5));
+        break;
+    }
+    case DevLoad: {
+        // 终端负载：三角形
+        QPolygonF tri;
+        tri << QPointF(-s*0.5, -s*0.5) << QPointF(s*0.5, 0) << QPointF(-s*0.5, s*0.5);
+        painter->drawPolygon(tri);
+        painter->drawLine(QPointF(-s*0.5, 0), QPointF(-s, 0));
+        break;
+    }
+    case DevAttenuator: {
+        // 衰减器：矩形+锯齿
+        painter->drawRect(QRectF(-s*0.6, -s*0.3, s*1.2, s*0.6));
+        painter->drawText(QRectF(-s*0.6, -s*0.3, s*1.2, s*0.6), Qt::AlignCenter, "ATT");
+        painter->drawLine(QPointF(-s*0.6, 0), QPointF(-s, 0));
+        painter->drawLine(QPointF(s*0.6, 0), QPointF(s, 0));
+        break;
+    }
+    case DevLightning: {
+        // 避雷器：矩形+闪电符号
+        painter->drawRect(QRectF(-s*0.5, -s*0.5, s, s));
+        painter->drawText(QRectF(-s*0.5, -s*0.3, s, s*0.6), Qt::AlignCenter, "⚡");
+        painter->drawLine(QPointF(-s*0.5, 0), QPointF(-s, 0));
+        painter->drawLine(QPointF(s*0.5, 0), QPointF(s, 0));
+        break;
+    }
+    case DevDryAmp: {
+        painter->drawRect(QRectF(-s*0.8, -s*0.5, s*1.6, s));
+        painter->drawText(QRectF(-s*0.8, -s*0.5, s*1.6, s), Qt::AlignCenter, "干放");
+        painter->drawLine(QPointF(-s*0.8, 0), QPointF(-s, 0));
+        painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
+        break;
+    }
+    case DevpRRU: {
+        painter->drawRect(QRectF(-s*0.7, -s*0.5, s*1.4, s));
+        painter->drawText(QRectF(-s*0.7, -s*0.5, s*1.4, s), Qt::AlignCenter, "pRRU");
+        painter->drawLine(QPointF(s*0.7, 0), QPointF(s, 0));
+        break;
+    }
+    case DevRHUB: {
+        painter->drawRect(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8));
+        painter->drawText(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8), Qt::AlignCenter, "RHUB");
+        painter->drawLine(QPointF(0, -s*0.4), QPointF(0, -s*0.7));
+        break;
+    }
+    case DevPOESwitch: {
+        painter->drawRect(QRectF(-s, -s*0.3, s*2, s*0.6));
+        painter->drawText(QRectF(-s, -s*0.3, s*2, s*0.6), Qt::AlignCenter, "POE SW");
+        for (int i = 0; i < 4; i++)
+            painter->drawLine(QPointF(-s*0.6 + i*s*0.4, s*0.3), QPointF(-s*0.6 + i*s*0.4, s*0.6));
+        break;
+    }
+    case DevFeeder158:
+    case DevFeeder5D:
+    case DevFeeder8D:
+    case DevNetworkCable:
+    case DevLeakyCable158:
+    case DevLeakyCable138: {
+        // 馈线/漏缆：粗线+标签
+        painter->setPen(QPen(painter->pen().color(), 3));
+        painter->drawLine(QPointF(-s, 0), QPointF(s, 0));
+        painter->setPen(devicePen());
+        QString label = m_deviceType == DevFeeder158 ? "1-5/8" : m_deviceType == DevFeeder5D ? "5D" :
+                        m_deviceType == DevFeeder8D ? "8D" : m_deviceType == DevNetworkCable ? "CAT6" :
+                        m_deviceType == DevLeakyCable158 ? "漏缆1-5/8" : "漏缆13/8";
+        painter->drawText(QRectF(-s*0.5, -s*0.4, s, s*0.3), Qt::AlignCenter, label);
         break;
     }
     default:
