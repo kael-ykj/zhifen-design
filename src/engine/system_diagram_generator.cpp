@@ -69,23 +69,23 @@ void SystemDiagramGenerator::parseTopology(QGraphicsScene *scene, SystemDiagramR
 
         if (cls == "信源") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
-            QString name = dev ? dev->deviceName() : etype;
+            QString name = dev ? dev->deviceTypeName() : etype;
             sources.append(createNode("信源", name, 0));
         } else if (cls == "功分器") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
-            QString name = dev ? dev->deviceName() : etype;
+            QString name = dev ? dev->deviceTypeName() : etype;
             splitters.append(createNode("功分器", name, 1));
         } else if (cls == "耦合器") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
-            QString name = dev ? dev->deviceName() : etype;
+            QString name = dev ? dev->deviceTypeName() : etype;
             couplers.append(createNode("耦合器", name, 1));
         } else if (cls == "合路器") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
-            QString name = dev ? dev->deviceName() : etype;
+            QString name = dev ? dev->deviceTypeName() : etype;
             combiners.append(createNode("合路器", name, 1));
         } else if (cls == "天线") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
-            QString name = dev ? dev->deviceName() : etype;
+            QString name = dev ? dev->deviceTypeName() : etype;
             antennas.append(createNode("天线", name, 2));
         }
     }
