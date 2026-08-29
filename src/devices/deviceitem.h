@@ -6,6 +6,7 @@
 #include <QString>
 #include <QPointF>
 #include <QList>
+#include <QGraphicsItemGroup>
 
 // 器件类型枚举
 enum DeviceType {
@@ -114,6 +115,7 @@ protected:
     bool m_hasAlarm = false;
     QString m_alarmMessage;
     qreal m_size = 10.0; // 图元尺寸
+    QGraphicsItemGroup *m_symbolGroup = nullptr; // 专业符号组
 
     void initDeviceProperties();
     void setupConnectPoints();

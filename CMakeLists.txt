@@ -77,6 +77,7 @@ set(SOURCES
     src/tools/zoomtool.cpp
     src/core/format_converter.cpp
     src/snap/snapmanager.cpp
+    src/core/professional_symbols.cpp
     src/io/dxfreader.cpp
     src/io/dxfwriter.cpp
     src/io/projectio.cpp
@@ -144,6 +145,7 @@ set(HEADERS
     src/tools/devicetool.h
     src/tools/pantool.h
     src/core/format_converter.h
+    src/core/professional_symbols.h
     src/tools/zoomtool.h
     src/snap/snapmanager.h
     src/io/dxfreader.h

@@ -1,4 +1,5 @@
 #include "deviceitem.h"
+#include "core/professional_symbols.h"
 #include <QPainter>
 #include <cmath>
 
@@ -9,6 +10,9 @@ DeviceItem::DeviceItem(DeviceType type, QGraphicsItem *parent)
     setFlag(QGraphicsItem::ItemIsMovable, true);
     initDeviceProperties();
     setupConnectPoints();
+    // 创建专业符号
+    m_symbolGroup = Zhifen::ProfessionalSymbolPainter::drawByModel(deviceTypeName(), this);
+    if (m_symbolGroup) m_symbolGroup->setFlag(QGraphicsItem::ItemIsSelectable, false);
 }
 
 QString DeviceItem::deviceTypeName() const
@@ -334,231 +338,19 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    painter->setPen(devicePen());
-    painter->setBrush(Qt::NoBrush);
-    qreal s = m_size;
-
-    switch (m_deviceType) {
-    case DevAntennaOmni: {
-        // 全向天线：三角形+圆点
-        painter->drawEllipse(QPointF(0,0), s*0.3, s*0.3);
-        QPolygonF tri;
-        tri << QPointF(0, -s) << QPointF(-s*0.5, s*0.3) << QPointF(s*0.5, s*0.3);
-        painter->drawPolygon(tri);
-        painter->drawLine(QPointF(0, s*0.3), QPointF(0, s*0.7));
-        break;
+    // 专业符号由m_symbolGroup子项绘制
+    // 只绘制选中状态和型号标签
+    if (isSelected()) {
+        painter->setPen(QPen(QColor(0, 120, 255), 1, Qt::DashLine));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRect(boundingRect().adjusted(2, 2, -2, -2));
     }
-    case DevAntennaDirectional: {
-        // 定向天线：矩形+箭头
-        painter->drawRect(QRectF(-s*0.4, -s*0.6, s*0.8, s*1.2));
-        painter->drawLine(QPointF(s*0.4, 0), QPointF(s*0.8, 0));
-        painter->drawLine(QPointF(s*0.6, -s*0.2), QPointF(s*0.8, 0));
-        painter->drawLine(QPointF(s*0.6, s*0.2), QPointF(s*0.8, 0));
-        break;
-    }
-    case DevAntennaLPDA: {
-        // 对数周期天线：梯形
-        QPolygonF trap;
-        trap << QPointF(-s*0.3, -s*0.8) << QPointF(s*0.3, -s*0.5)
-             << QPointF(s*0.3, s*0.5) << QPointF(-s*0.3, s*0.8);
-        painter->drawPolygon(trap);
-        break;
-    }
-    case DevSplitter2:
-    case DevSplitter3:
-    case DevSplitter4: {
-        // 功分器：圆形+输入输出线
-        painter->drawEllipse(QPointF(0,0), s*0.6, s*0.6);
-        painter->drawText(QRectF(-s*0.6, -s*0.3, s*1.2, s*0.6), Qt::AlignCenter,
-            m_deviceType == DevSplitter2 ? "2" : m_deviceType == DevSplitter3 ? "3" : "4");
-        // 输入线
-        painter->drawLine(QPointF(0, -s*0.6), QPointF(0, -s));
-        // 输出线
-        if (m_deviceType == DevSplitter2) {
-            painter->drawLine(QPointF(-s*0.4, s*0.6), QPointF(-s*0.7, s));
-            painter->drawLine(QPointF(s*0.4, s*0.6), QPointF(s*0.7, s));
-        } else if (m_deviceType == DevSplitter3) {
-            painter->drawLine(QPointF(-s*0.5, s*0.6), QPointF(-s, s));
-            painter->drawLine(QPointF(0, s*0.6), QPointF(0, s));
-            painter->drawLine(QPointF(s*0.5, s*0.6), QPointF(s, s));
-        } else {
-            painter->drawLine(QPointF(-s*0.55, s*0.6), QPointF(-s*1.2, s));
-            painter->drawLine(QPointF(-s*0.2, s*0.6), QPointF(-s*0.4, s));
-            painter->drawLine(QPointF(s*0.2, s*0.6), QPointF(s*0.4, s));
-            painter->drawLine(QPointF(s*0.55, s*0.6), QPointF(s*1.2, s));
-        }
-        break;
-    }
-    case DevCoupler5:
-    case DevCoupler7:
-    case DevCoupler10:
-    case DevCoupler15:
-    case DevCoupler20: {
-        // 耦合器：矩形+箭头
-        painter->drawRect(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8));
-        int db = m_deviceType == DevCoupler5 ? 5 : m_deviceType == DevCoupler7 ? 7 :
-                 m_deviceType == DevCoupler10 ? 10 : m_deviceType == DevCoupler15 ? 15 : 20;
-        painter->drawText(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8), Qt::AlignCenter, QString("%1dB").arg(db));
-        painter->drawLine(QPointF(-s*0.8, 0), QPointF(-s, 0));
-        painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
-        painter->drawLine(QPointF(0, s*0.4), QPointF(0, s*0.7));
-        break;
-    }
-    case DevCombiner: {
-        // 合路器：菱形
-        QPolygonF dia;
-        dia << QPointF(0, -s*0.8) << QPointF(s*0.8, 0) << QPointF(0, s*0.8) << QPointF(-s*0.8, 0);
-        painter->drawPolygon(dia);
-        painter->drawText(QRectF(-s*0.5, -s*0.3, s, s*0.6), Qt::AlignCenter, "合");
-        break;
-    }
-    case DevSourceRRU:
-    case DevSourceBBU:
-    case DevSourceMicro:
-    case DevSourceRepeater: {
-        // 信源：矩形+文字
-        painter->drawRect(QRectF(-s*0.8, -s*0.5, s*1.6, s));
-        QString label = m_deviceType == DevSourceRRU ? "RRU" : m_deviceType == DevSourceBBU ? "BBU" :
-                        m_deviceType == DevSourceMicro ? "微站" : "直放";
-        painter->drawText(QRectF(-s*0.8, -s*0.5, s*1.6, s), Qt::AlignCenter, label);
-        if (m_deviceType != DevSourceBBU)
-            painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
-        break;
-    }
-    case DevAntennaSpotlight: {
-        // 射灯天线：圆形+灯座
-        painter->drawEllipse(QPointF(0,0), s*0.7, s*0.7);
-        painter->drawEllipse(QPointF(0,0), s*0.4, s*0.4);
-        painter->drawLine(QPointF(0, -s*0.7), QPointF(0, -s));
-        painter->drawText(QRectF(-s*0.5, -s*0.2, s, s*0.4), Qt::AlignCenter, "射灯");
-        break;
-    }
-    case DevAntennaExternal: {
-        // 外引天线：菱形+引线
-        QPolygonF dia;
-        dia << QPointF(0, -s*0.8) << QPointF(s*0.6, 0) << QPointF(0, s*0.8) << QPointF(-s*0.6, 0);
-        painter->drawPolygon(dia);
-        painter->drawLine(QPointF(0, s*0.8), QPointF(0, s));
-        break;
-    }
-    case DevAntennaPanel: {
-        // 板状天线：矩形+箭头
-        painter->drawRect(QRectF(-s*0.5, -s*0.8, s, s*1.6));
-        painter->drawLine(QPointF(s*0.5, 0), QPointF(s*0.9, 0));
-        painter->drawLine(QPointF(s*0.7, -s*0.2), QPointF(s*0.9, 0));
-        painter->drawLine(QPointF(s*0.7, s*0.2), QPointF(s*0.9, 0));
-        break;
-    }
-    case DevAntennaYagi: {
-        // 八木天线：横杆+多个引向器
-        painter->drawLine(QPointF(-s, 0), QPointF(s, 0));
-        for (int i = 0; i < 5; i++) {
-            qreal x = -s*0.6 + i*s*0.3;
-            qreal h = s*0.5 - i*s*0.05;
-            painter->drawLine(QPointF(x, -h), QPointF(x, h));
-        }
-        break;
-    }
-    case DevAntennaGrid: {
-        // 栅格天线：椭圆+网格
-        painter->drawEllipse(QPointF(0,0), s*0.8, s*0.6);
-        for (int i = -2; i <= 2; i++)
-            painter->drawLine(QPointF(i*s*0.15, -s*0.5), QPointF(i*s*0.15, s*0.5));
-        for (int i = -1; i <= 1; i++)
-            painter->drawLine(QPointF(-s*0.7, i*s*0.2), QPointF(s*0.7, i*s*0.2));
-        break;
-    }
-    case DevCoupler25:
-    case DevCoupler30:
-    case DevCoupler40: {
-        painter->drawRect(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8));
-        int db = m_deviceType == DevCoupler25 ? 25 : m_deviceType == DevCoupler30 ? 30 : 40;
-        painter->drawText(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8), Qt::AlignCenter, QString("%1dB").arg(db));
-        painter->drawLine(QPointF(-s*0.8, 0), QPointF(-s, 0));
-        painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
-        painter->drawLine(QPointF(0, s*0.4), QPointF(0, s*0.7));
-        break;
-    }
-    case DevHybrid: {
-        // 3dB电桥：圆形+4端口
-        painter->drawEllipse(QPointF(0,0), s*0.7, s*0.7);
-        painter->drawText(QRectF(-s*0.5, -s*0.3, s, s*0.6), Qt::AlignCenter, "3dB");
-        painter->drawLine(QPointF(-s*0.7, -s*0.35), QPointF(-s, -s*0.5));
-        painter->drawLine(QPointF(-s*0.7, s*0.35), QPointF(-s, s*0.5));
-        painter->drawLine(QPointF(s*0.7, -s*0.35), QPointF(s, -s*0.5));
-        painter->drawLine(QPointF(s*0.7, s*0.35), QPointF(s, s*0.5));
-        break;
-    }
-    case DevLoad: {
-        // 终端负载：三角形
-        QPolygonF tri;
-        tri << QPointF(-s*0.5, -s*0.5) << QPointF(s*0.5, 0) << QPointF(-s*0.5, s*0.5);
-        painter->drawPolygon(tri);
-        painter->drawLine(QPointF(-s*0.5, 0), QPointF(-s, 0));
-        break;
-    }
-    case DevAttenuator: {
-        // 衰减器：矩形+锯齿
-        painter->drawRect(QRectF(-s*0.6, -s*0.3, s*1.2, s*0.6));
-        painter->drawText(QRectF(-s*0.6, -s*0.3, s*1.2, s*0.6), Qt::AlignCenter, "ATT");
-        painter->drawLine(QPointF(-s*0.6, 0), QPointF(-s, 0));
-        painter->drawLine(QPointF(s*0.6, 0), QPointF(s, 0));
-        break;
-    }
-    case DevLightning: {
-        // 避雷器：矩形+闪电符号
-        painter->drawRect(QRectF(-s*0.5, -s*0.5, s, s));
-        painter->drawText(QRectF(-s*0.5, -s*0.3, s, s*0.6), Qt::AlignCenter, "⚡");
-        painter->drawLine(QPointF(-s*0.5, 0), QPointF(-s, 0));
-        painter->drawLine(QPointF(s*0.5, 0), QPointF(s, 0));
-        break;
-    }
-    case DevDryAmp: {
-        painter->drawRect(QRectF(-s*0.8, -s*0.5, s*1.6, s));
-        painter->drawText(QRectF(-s*0.8, -s*0.5, s*1.6, s), Qt::AlignCenter, "干放");
-        painter->drawLine(QPointF(-s*0.8, 0), QPointF(-s, 0));
-        painter->drawLine(QPointF(s*0.8, 0), QPointF(s, 0));
-        break;
-    }
-    case DevpRRU: {
-        painter->drawRect(QRectF(-s*0.7, -s*0.5, s*1.4, s));
-        painter->drawText(QRectF(-s*0.7, -s*0.5, s*1.4, s), Qt::AlignCenter, "pRRU");
-        painter->drawLine(QPointF(s*0.7, 0), QPointF(s, 0));
-        break;
-    }
-    case DevRHUB: {
-        painter->drawRect(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8));
-        painter->drawText(QRectF(-s*0.8, -s*0.4, s*1.6, s*0.8), Qt::AlignCenter, "RHUB");
-        painter->drawLine(QPointF(0, -s*0.4), QPointF(0, -s*0.7));
-        break;
-    }
-    case DevPOESwitch: {
-        painter->drawRect(QRectF(-s, -s*0.3, s*2, s*0.6));
-        painter->drawText(QRectF(-s, -s*0.3, s*2, s*0.6), Qt::AlignCenter, "POE SW");
-        for (int i = 0; i < 4; i++)
-            painter->drawLine(QPointF(-s*0.6 + i*s*0.4, s*0.3), QPointF(-s*0.6 + i*s*0.4, s*0.6));
-        break;
-    }
-    case DevFeeder158:
-    case DevFeeder5D:
-    case DevFeeder8D:
-    case DevNetworkCable:
-    case DevLeakyCable158:
-    case DevLeakyCable138: {
-        // 馈线/漏缆：粗线+标签
-        painter->setPen(QPen(painter->pen().color(), 3));
-        painter->drawLine(QPointF(-s, 0), QPointF(s, 0));
-        painter->setPen(devicePen());
-        QString label = m_deviceType == DevFeeder158 ? "1-5/8" : m_deviceType == DevFeeder5D ? "5D" :
-                        m_deviceType == DevFeeder8D ? "8D" : m_deviceType == DevNetworkCable ? "CAT6" :
-                        m_deviceType == DevLeakyCable158 ? "漏缆1-5/8" : "漏缆13/8";
-        painter->drawText(QRectF(-s*0.5, -s*0.4, s, s*0.3), Qt::AlignCenter, label);
-        break;
-    }
-    default:
-        painter->drawRect(QRectF(-s*0.5, -s*0.5, s, s));
-        break;
-    }
+    // 绘制型号标签
+    painter->setPen(QPen(QColor(0, 0, 0)));
+    painter->setFont(QFont("SimSun", m_size * 0.35));
+    painter->drawText(QRectF(-m_size, m_size * 0.9, m_size * 2, m_size * 0.4),
+                      Qt::AlignCenter, m_model.isEmpty() ? deviceTypeName() : m_model);
+}
 
     // 选中状态
     if (isSelected()) {
