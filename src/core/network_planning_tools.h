@@ -89,14 +89,14 @@ public:
     static NetworkPlanningTools& instance();
 
     // 频段配置
-    QList<FrequencyBand> defaultBands() const;
-    QList<FrequencyBand> bandsByOperator(const QString &operatorName) const;
+    QList<NetworkFrequencyBand> defaultBands() const;
+    QList<NetworkFrequencyBand> bandsByOperator(const QString &operatorName) const;
     NetworkFrequencyBand bandByName(const QString &name) const;
 
     // 干扰分析
-    QList<InterferenceResult> analyzeInterference(const QList<FrequencyBand> &bands);
+    QList<InterferenceResult> analyzeInterference(const QList<NetworkFrequencyBand> &bands);
     InterferenceResult analyzePair(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim);
-    QString interferenceMatrix(const QList<FrequencyBand> &bands) const;
+    QString interferenceMatrix(const QList<NetworkFrequencyBand> &bands) const;
 
     // 容量规划
     CapacityResult calculateCapacity(NetworkStandard standard, const CapacityParams &params);
@@ -104,18 +104,18 @@ public:
                                                    const CapacityParams &params);
 
     // 频率规划
-    QString frequencyPlanReport(const QList<FrequencyBand> &bands) const;
+    QString frequencyPlanReport(const QList<NetworkFrequencyBand> &bands) const;
 
     // PCI规划
     QList<PCIResult> planPCI(int cellCount, const QList<int> &neighborRelations = QList<int>());
     bool checkPCIConflict(const QList<PCIResult> &pcis) const;
 
     // 综合报告
-    QString fullReport(const QList<FrequencyBand> &bands, const CapacityParams &params, int cellCount);
+    QString fullReport(const QList<NetworkFrequencyBand> &bands, const CapacityParams &params, int cellCount);
 
 private:
     NetworkPlanningTools();
-    QList<FrequencyBand> m_defaultBands;
+    QList<NetworkFrequencyBand> m_defaultBands;
 
     qreal calculateSpurious(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) const;
     qreal calculateIntermodulation(const NetworkFrequencyBand &band1, const NetworkFrequencyBand &band2) const;

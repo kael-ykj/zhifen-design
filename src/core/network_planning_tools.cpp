@@ -25,12 +25,12 @@ NetworkPlanningTools& NetworkPlanningTools::instance() {
     return inst;
 }
 
-QList<FrequencyBand> NetworkPlanningTools::defaultBands() const {
+QList<NetworkFrequencyBand> NetworkPlanningTools::defaultBands() const {
     return m_defaultBands;
 }
 
-QList<FrequencyBand> NetworkPlanningTools::bandsByOperator(const QString &operatorName) const {
-    QList<FrequencyBand> result;
+QList<NetworkFrequencyBand> NetworkPlanningTools::bandsByOperator(const QString &operatorName) const {
+    QList<NetworkFrequencyBand> result;
     for (const NetworkFrequencyBand &band : m_defaultBands) {
         if (band.operatorName == operatorName) result.append(band);
     }
@@ -41,7 +41,7 @@ NetworkFrequencyBand NetworkPlanningTools::bandByName(const QString &name) const
     for (const NetworkFrequencyBand &band : m_defaultBands) {
         if (band.bandName == name) return band;
     }
-    return FrequencyBand();
+    return NetworkFrequencyBand();
 }
 
 qreal NetworkPlanningTools::calculateSpurious(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) const {
@@ -119,7 +119,7 @@ InterferenceResult NetworkPlanningTools::analyzePair(const NetworkFrequencyBand 
     return result;
 }
 
-QList<InterferenceResult> NetworkPlanningTools::analyzeInterference(const QList<FrequencyBand> &bands) {
+QList<InterferenceResult> NetworkPlanningTools::analyzeInterference(const QList<NetworkFrequencyBand> &bands) {
     QList<InterferenceResult> results;
     for (int i = 0; i < bands.size(); i++) {
         for (int j = 0; j < bands.size(); j++) {
@@ -131,7 +131,7 @@ QList<InterferenceResult> NetworkPlanningTools::analyzeInterference(const QList<
     return results;
 }
 
-QString NetworkPlanningTools::interferenceMatrix(const QList<FrequencyBand> &bands) const {
+QString NetworkPlanningTools::interferenceMatrix(const QList<NetworkFrequencyBand> &bands) const {
     QString result;
     QTextStream stream(&result);
     stream << "=== 系统间干扰矩阵 ===\n\n";
@@ -235,7 +235,7 @@ QList<CapacityResult> NetworkPlanningTools::multiStandardCapacity(const QList<Ne
     return results;
 }
 
-QString NetworkPlanningTools::frequencyPlanReport(const QList<FrequencyBand> &bands) const {
+QString NetworkPlanningTools::frequencyPlanReport(const QList<NetworkFrequencyBand> &bands) const {
     QString result;
     QTextStream stream(&result);
     stream << "=== 频率规划报告 ===\n\n";
@@ -317,7 +317,7 @@ bool NetworkPlanningTools::checkPCIConflict(const QList<PCIResult> &pcis) const 
     return false;
 }
 
-QString NetworkPlanningTools::fullReport(const QList<FrequencyBand> &bands, const CapacityParams &params, int cellCount) {
+QString NetworkPlanningTools::fullReport(const QList<NetworkFrequencyBand> &bands, const CapacityParams &params, int cellCount) {
     QString result;
     QTextStream stream(&result);
 
