@@ -42,6 +42,7 @@
 #include "core/change_review_manager.h"
 #include "core/network_planning_tools.h"
 #include "core/performance_manager.h"
+#include "core/format_converter.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -193,7 +194,14 @@ void MainWindow::createMenus()
     QMenu *fileMenu = menuBar()->addMenu("文件");
     fileMenu->addAction(m_newAct); fileMenu->addAction(m_openAct); fileMenu->addSeparator();
     fileMenu->addAction(m_saveAct); fileMenu->addAction(m_saveAsAct); fileMenu->addSeparator();
-    fileMenu->addAction(m_importDxfAct); fileMenu->addAction(m_importBottomMapAct); fileMenu->addAction(m_batchImportAct); fileMenu->addAction(m_exportDxfAct);
+    fileMenu->addAction(m_importDxfAct);
+    QMenu *importMenu = fileMenu->addMenu("导入其他室分格式");
+    importMenu->addAction(m_importTianyueAct);
+    importMenu->addAction(m_importAIDPAct);
+    importMenu->addAction(m_importDifuAct);
+    QMenu *exportMenu = fileMenu->addMenu("导出其他室分格式");
+    exportMenu->addAction(m_exportTianyueAct);
+    exportMenu->addAction(m_exportAIDPAct); fileMenu->addAction(m_importBottomMapAct); fileMenu->addAction(m_batchImportAct); fileMenu->addAction(m_exportDxfAct);
     QMenu *dwgMenu = fileMenu->addMenu("DWG导出");
     dwgMenu->addAction(m_exportDwgSketchAct); dwgMenu->addAction(m_exportDwgFinalAct);
     fileMenu->addSeparator();
@@ -2157,6 +2165,91 @@ void MainWindow::onPerformanceTest()
     dlg->deleteLater();
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "性能测试");
 }
+
+void MainWindow::onImportTianyue()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "导入天越格式", "", "天越文件 (*.tyd *.dxf);;所有文件 (*.*)");
+    if (fileName.isEmpty()) return;
+
+    Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
+    Zhifen::ConversionReport report = fc.importTianYue(fileName, m_scene);
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("导入结果");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(report.toString());
+    layout->addWidget(textEdit);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    layout->addWidget(closeBtn);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    m_view->fitInView(m_scene->itemsBoundingRect(), Qt::KeepAspectRatio);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入天越格式: %1").arg(fileName));
+}
+
+void MainWindow::onImportAIDP()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "导入AIDP格式", "", "AIDP文件 (*.aidp *.dxf);;所有文件 (*.*)");
+    if (fileName.isEmpty()) return;
+
+    Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
+    Zhifen::ConversionReport report = fc.importAIDP(fileName, m_scene);
+
+    QMessageBox::information(this, "导入结果", report.toString());
+    m_view->fitInView(m_scene->itemsBoundingRect(), Qt::KeepAspectRatio);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入AIDP格式: %1").arg(fileName));
+}
+
+void MainWindow::onImportDifu()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "导入迪弗格式", "", "迪弗文件 (*.dfd *.dxf);;所有文件 (*.*)");
+    if (fileName.isEmpty()) return;
+
+    Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
+    Zhifen::ConversionReport report = fc.importDiFu(fileName, m_scene);
+
+    QMessageBox::information(this, "导入结果", report.toString());
+    m_view->fitInView(m_scene->itemsBoundingRect(), Qt::KeepAspectRatio);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入迪弗格式: %1").arg(fileName));
+}
+
+void MainWindow::onExportTianyue()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, "导出天越格式", "设计图纸.dxf", "天越文件 (*.tyd *.dxf)");
+    if (fileName.isEmpty()) return;
+    if (!fileName.endsWith(".dxf", Qt::CaseInsensitive) && !fileName.endsWith(".tyd", Qt::CaseInsensitive)) {
+        fileName += ".dxf";
+    }
+
+    Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
+    Zhifen::ConversionReport report = fc.exportTianYue(m_scene, fileName);
+
+    QMessageBox::information(this, "导出结果", report.toString());
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导出天越格式: %1").arg(fileName));
+}
+
+void MainWindow::onExportAIDP()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, "导出AIDP格式", "设计图纸.dxf", "AIDP文件 (*.aidp *.dxf)");
+    if (fileName.isEmpty()) return;
+    if (!fileName.endsWith(".dxf", Qt::CaseInsensitive) && !fileName.endsWith(".aidp", Qt::CaseInsensitive)) {
+        fileName += ".dxf";
+    }
+
+    Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
+    Zhifen::ConversionReport report = fc.exportAIDP(m_scene, fileName);
+
+    QMessageBox::information(this, "导出结果", report.toString());
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导出AIDP格式: %1").arg(fileName));
+}
+
 
 
 

@@ -75,6 +75,7 @@ set(SOURCES
     src/tools/pantool.cpp
     src/core/performance_manager.cpp
     src/tools/zoomtool.cpp
+    src/core/format_converter.cpp
     src/snap/snapmanager.cpp
     src/io/dxfreader.cpp
     src/io/dxfwriter.cpp
@@ -142,6 +143,7 @@ set(HEADERS
     src/core/performance_manager.h
     src/tools/devicetool.h
     src/tools/pantool.h
+    src/core/format_converter.h
     src/tools/zoomtool.h
     src/snap/snapmanager.h
     src/io/dxfreader.h
