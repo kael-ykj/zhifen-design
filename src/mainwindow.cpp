@@ -36,6 +36,8 @@
 #include "tools/special_design_tools.h"
 #include "entities/dimension_item.h"
 #include "core/sheet_set_manager.h"
+#include "core/block_manager.h"
+#include "core/layout_manager.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -1506,6 +1508,139 @@ void MainWindow::onSheetSetManager()
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("图纸集管理: %1张图纸").arg(mgr.sheetCount()));
 }
+
+void MainWindow::onCreateBlock()
+{
+    QList<QGraphicsItem*> selected = m_scene->selectedItems();
+    if (selected.isEmpty()) {
+        QMessageBox::information(this, "创建块", "请先选择要创建为块的图元");
+        return;
+    }
+
+    bool ok;
+    QString name = QInputDialog::getText(this, "创建块", "块名称:", QLineEdit::Normal, "Block1", &ok);
+    if (!ok || name.isEmpty()) return;
+
+    QPointF basePoint = QPointF(0, 0);
+    if (!selected.isEmpty()) {
+        basePoint = selected.first()->pos();
+    }
+
+    QString blockName = Zhifen::BlockManager::instance().createBlock(name, basePoint, selected, "用户创建块");
+    if (!blockName.isEmpty()) {
+        // 将选中图元替换为块引用
+        for (QGraphicsItem *item : selected) {
+            m_scene->removeItem(item);
+        }
+        QGraphicsItem *blockRef = Zhifen::BlockManager::instance().createBlockReference(blockName, basePoint);
+        if (blockRef) m_scene->addItem(blockRef);
+        QMessageBox::information(this, "创建块成功", QString("块 '%1' 已创建，包含 %2 个图元").arg(blockName).arg(selected.size()));
+        Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("创建块: %1").arg(blockName));
+    } else {
+        QMessageBox::warning(this, "创建块失败", "块名称已存在或创建失败");
+    }
+}
+
+void MainWindow::onInsertBlock()
+{
+    Zhifen::BlockManager &mgr = Zhifen::BlockManager::instance();
+    QList<QString> names = mgr.blockNames();
+    if (names.isEmpty()) {
+        QMessageBox::information(this, "插入块", "当前没有可用的块，请先创建块");
+        return;
+    }
+
+    bool ok;
+    QString name = QInputDialog::getItem(this, "插入块", "选择块:", names, 0, false, &ok);
+    if (!ok || name.isEmpty()) return;
+
+    QGraphicsItem *blockRef = mgr.createBlockReference(name, m_view->mapToScene(m_view->viewport()->rect().center()));
+    if (blockRef) {
+        m_scene->addItem(blockRef);
+        Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("插入块: %1").arg(name));
+    }
+}
+
+void MainWindow::onBlockManager()
+{
+    Zhifen::BlockManager &mgr = Zhifen::BlockManager::instance();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("块管理器");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QListWidget *listWidget = new QListWidget(dlg);
+    for (const QString &name : mgr.blockNames()) {
+        Zhifen::BlockDefinition *block = mgr.block(name);
+        QString info = QString("%1 (%2个图元, %3个属性)")
+            .arg(name).arg(block ? block->entities.size() : 0)
+            .arg(block ? block->attributes.size() : 0);
+        listWidget->addItem(info);
+    }
+    layout->addWidget(listWidget);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *insertBtn = new QPushButton("插入", dlg);
+    QPushButton *renameBtn = new QPushButton("重命名", dlg);
+    QPushButton *deleteBtn = new QPushButton("删除", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(insertBtn);
+    btnLayout->addWidget(renameBtn);
+    btnLayout->addWidget(deleteBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(insertBtn, &QPushButton::clicked, this, [this, &mgr, listWidget, dlg]() {
+        int row = listWidget->currentRow();
+        if (row >= 0) {
+            QString name = mgr.blockNames()[row];
+            QGraphicsItem *blockRef = mgr.createBlockReference(name, QPointF(0, 0));
+            if (blockRef) m_scene->addItem(blockRef);
+            dlg->accept();
+        }
+    });
+    connect(deleteBtn, &QPushButton::clicked, this, [&mgr, listWidget]() {
+        int row = listWidget->currentRow();
+        if (row >= 0) {
+            QString name = mgr.blockNames()[row];
+            mgr.removeBlock(name);
+            delete listWidget->takeItem(row);
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onModelSpace()
+{
+    Zhifen::LayoutManager::instance().enterModelSpace();
+    m_view->setScene(m_scene);
+    m_view->fitInView(m_scene->itemsBoundingRect(), Qt::KeepAspectRatio);
+    statusBar()->showMessage("当前: 模型空间", 3000);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "切换到模型空间");
+}
+
+void MainWindow::onLayoutSpace()
+{
+    Zhifen::LayoutManager &lm = Zhifen::LayoutManager::instance();
+    if (lm.layoutCount() == 0) {
+        lm.addLayout("布局1", "A3");
+    }
+    QString layoutName = lm.layoutNames().first();
+    lm.enterLayout(layoutName);
+    Zhifen::Layout *layout = lm.layout(layoutName);
+    if (layout && layout->scene) {
+        m_view->setScene(layout->scene);
+        m_view->fitInView(layout->scene->sceneRect(), Qt::KeepAspectRatio);
+    }
+    statusBar()->showMessage(QString("当前: 布局空间 [%1]").arg(layoutName), 3000);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("切换到布局空间: %1").arg(layoutName));
+}
+
 
 
 
