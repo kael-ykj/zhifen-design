@@ -351,11 +351,3 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
     painter->drawText(QRectF(-m_size, m_size * 0.9, m_size * 2, m_size * 0.4),
                       Qt::AlignCenter, m_model.isEmpty() ? deviceTypeName() : m_model);
 }
-
-    // 选中状态
-    if (isSelected()) {
-        painter->setPen(QPen(QColor(0, 120, 215), 1, Qt::DashLine));
-        painter->setBrush(Qt::NoBrush);
-        painter->drawRect(boundingRect());
-    }
-}
