@@ -38,6 +38,8 @@
 #include "core/sheet_set_manager.h"
 #include "core/block_manager.h"
 #include "core/layout_manager.h"
+#include "core/version_manager.h"
+#include "core/change_review_manager.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -1640,6 +1642,208 @@ void MainWindow::onLayoutSpace()
     statusBar()->showMessage(QString("当前: 布局空间 [%1]").arg(layoutName), 3000);
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("切换到布局空间: %1").arg(layoutName));
 }
+
+void MainWindow::onVersionManager()
+{
+    Zhifen::VersionManager &vm = Zhifen::VersionManager::instance();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("版本管理");
+    dlg->resize(600, 450);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QListWidget *listWidget = new QListWidget(dlg);
+    for (Zhifen::VersionSnapshot *v : vm.allVersions()) {
+        QString info = QString("V%1: %2 [%3] 图元:%4 器件:%5 %6")
+            .arg(v->versionNo).arg(v->name)
+            .arg(v->created.toString("MM-dd hh:mm"))
+            .arg(v->entityCount).arg(v->deviceCount)
+            .arg(v->isCurrent ? "(当前)" : "");
+        listWidget->addItem(info);
+    }
+    layout->addWidget(listWidget);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *saveBtn = new QPushButton("保存版本", dlg);
+    QPushButton *rollbackBtn = new QPushButton("回滚版本", dlg);
+    QPushButton *compareBtn = new QPushButton("版本对比", dlg);
+    QPushButton *deleteBtn = new QPushButton("删除版本", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(saveBtn);
+    btnLayout->addWidget(rollbackBtn);
+    btnLayout->addWidget(compareBtn);
+    btnLayout->addWidget(deleteBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    connect(saveBtn, &QPushButton::clicked, this, [this, &vm, listWidget, dlg]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, "保存版本", "版本名称:", QLineEdit::Normal,
+            QString("V%1").arg(vm.versionCount() + 1), &ok);
+        if (!ok || name.isEmpty()) return;
+        QString remark = QInputDialog::getText(this, "保存版本", "版本备注:", QLineEdit::Normal, "", &ok);
+        int vno = vm.saveVersion(m_scene, name, remark);
+        if (vno > 0) {
+            QMessageBox::information(this, "保存成功", QString("版本 V%1 已保存").arg(vno));
+            dlg->accept();
+        }
+    });
+
+    connect(rollbackBtn, &QPushButton::clicked, this, [this, &vm, listWidget, dlg]() {
+        int row = listWidget->currentRow();
+        if (row < 0) { QMessageBox::warning(this, "回滚", "请选择要回滚的版本"); return; }
+        int vno = vm.allVersions()[row]->versionNo;
+        if (QMessageBox::question(this, "确认回滚", QString("确定回滚到 V%1？当前版本将丢失未保存内容").arg(vno))
+            != QMessageBox::Yes) return;
+        if (vm.rollbackToVersion(vno, m_scene)) {
+            QMessageBox::information(this, "回滚成功", QString("已回滚到 V%1").arg(vno));
+            dlg->accept();
+        }
+    });
+
+    connect(compareBtn, &QPushButton::clicked, this, [&vm, listWidget]() {
+        if (vm.versionCount() < 2) { QMessageBox::information(nullptr, "对比", "至少需要2个版本"); return; }
+        int row = listWidget->currentRow();
+        if (row < 0) row = 0;
+        int v1 = vm.allVersions().first()->versionNo;
+        int v2 = vm.allVersions()[row]->versionNo;
+        QString result = vm.compareVersions(v1, v2);
+        QMessageBox::information(nullptr, "版本对比", result);
+    });
+
+    connect(deleteBtn, &QPushButton::clicked, this, [&vm, listWidget]() {
+        int row = listWidget->currentRow();
+        if (row < 0) return;
+        int vno = vm.allVersions()[row]->versionNo;
+        if (vm.deleteVersion(vno)) {
+            delete listWidget->takeItem(row);
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onChangeLog()
+{
+    Zhifen::ChangeReviewManager &crm = Zhifen::ChangeReviewManager::instance();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("变更记录");
+    dlg->resize(700, 500);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(crm.changeReport());
+    layout->addWidget(textEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *refreshBtn = new QPushButton("刷新", dlg);
+    QPushButton *exportBtn = new QPushButton("导出报告", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(refreshBtn);
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(refreshBtn, &QPushButton::clicked, this, [&crm, textEdit]() {
+        textEdit->setPlainText(crm.changeReport());
+    });
+    connect(exportBtn, &QPushButton::clicked, this, [this, &crm]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出变更报告", "变更报告.txt", "文本文件 (*.txt)");
+        if (!fileName.isEmpty()) {
+            QFile file(fileName);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream out(&file);
+                out << crm.changeReport();
+                file.close();
+                QMessageBox::information(this, "导出成功", "变更报告已导出");
+            }
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onDesignReview()
+{
+    Zhifen::ChangeReviewManager &crm = Zhifen::ChangeReviewManager::instance();
+    if (crm.allReviews().isEmpty()) {
+        crm.initReview();
+    }
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("设计校审");
+    dlg->resize(600, 450);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    // 三级校审状态
+    QStringList levels = {"设计", "校对", "审核"};
+    for (int i = 0; i < 3; i++) {
+        Zhifen::ReviewRecord rec = crm.reviewRecord(static_cast<Zhifen::ReviewLevel>(i));
+        QString statusStr;
+        switch (rec.status) {
+            case Zhifen::ReviewStatus_Pending: statusStr = "待校审"; break;
+            case Zhifen::ReviewStatus_Passed: statusStr = "通过"; break;
+            case Zhifen::ReviewStatus_Rejected: statusStr = "驳回"; break;
+        }
+        QGroupBox *group = new QGroupBox(QString("%1级 - %2 [%3]").arg(i + 1).arg(levels[i]).arg(statusStr), dlg);
+        QVBoxLayout *gLayout = new QVBoxLayout(group);
+        QLabel *infoLabel = new QLabel(QString("校审人: %1 | 时间: %2")
+            .arg(rec.reviewer.isEmpty() ? "未填写" : rec.reviewer)
+            .arg(rec.time.isNull() ? "未校审" : rec.time.toString("yyyy-MM-dd hh:mm")), group);
+        QLabel *opinionLabel = new QLabel(QString("意见: %1").arg(rec.opinion.isEmpty() ? "无" : rec.opinion), group);
+        opinionLabel->setWordWrap(true);
+        gLayout->addWidget(infoLabel);
+        gLayout->addWidget(opinionLabel);
+        layout->addWidget(group);
+    }
+
+    // 提交校审
+    QGroupBox *submitGroup = new QGroupBox("提交校审", dlg);
+    QFormLayout *fLayout = new QFormLayout(submitGroup);
+    QComboBox *levelCombo = new QComboBox(submitGroup);
+    levelCombo->addItems(levels);
+    QLineEdit *reviewerEdit = new QLineEdit(submitGroup);
+    QTextEdit *opinionEdit = new QTextEdit(submitGroup);
+    opinionEdit->setMaximumHeight(60);
+    QComboBox *statusCombo = new QComboBox(submitGroup);
+    statusCombo->addItems({"通过", "驳回"});
+    fLayout->addRow("级别:", levelCombo);
+    fLayout->addRow("校审人:", reviewerEdit);
+    fLayout->addRow("意见:", opinionEdit);
+    fLayout->addRow("结果:", statusCombo);
+    layout->addWidget(submitGroup);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *submitBtn = new QPushButton("提交校审", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(submitBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(submitBtn, &QPushButton::clicked, this, [&crm, levelCombo, reviewerEdit, opinionEdit, statusCombo, dlg]() {
+        Zhifen::ReviewLevel level = static_cast<Zhifen::ReviewLevel>(levelCombo->currentIndex());
+        Zhifen::ReviewStatus status = statusCombo->currentIndex() == 0 ? Zhifen::ReviewStatus_Passed : Zhifen::ReviewStatus_Rejected;
+        crm.submitReview(level, reviewerEdit->text(), opinionEdit->toPlainText(), status);
+        QMessageBox::information(nullptr, "提交成功", "校审意见已提交");
+        dlg->accept();
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
 
 
 

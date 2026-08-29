@@ -69,6 +69,8 @@ set(SOURCES
     src/core/sheet_set_manager.cpp
     src/core/block_manager.cpp
     src/core/layout_manager.cpp
+    src/core/version_manager.cpp
+    src/core/change_review_manager.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
     src/snap/snapmanager.cpp
@@ -129,6 +131,8 @@ set(HEADERS
     src/entities/dimension_item.h
     src/core/block_manager.h
     src/core/layout_manager.h
+    src/core/version_manager.h
+    src/core/change_review_manager.h
     src/core/sheet_set_manager.h
     src/core/floor_manager.h
     src/entities/feederitem.h
