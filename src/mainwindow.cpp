@@ -43,6 +43,7 @@
 #include "core/network_planning_tools.h"
 #include "core/performance_manager.h"
 #include "core/format_converter.h"
+#include "core/command_parser.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -2309,27 +2310,109 @@ void MainWindow::onCoordinateChanged(const QPointF &pos)
 
 void MainWindow::onCommandEntered(const QString &command)
 {
-    QString cmd = command.toLower().trimmed();
-    if (cmd == "line" || cmd == "l") setCurrentTool("line");
-    else if (cmd == "circle" || cmd == "c") setCurrentTool("circle");
-    else if (cmd == "arc" || cmd == "a") setCurrentTool("arc");
-    else if (cmd == "polyline" || cmd == "pl") setCurrentTool("polyline");
-    else if (cmd == "rectangle" || cmd == "rec") setCurrentTool("rectangle");
-    else if (cmd == "text" || cmd == "dt") setCurrentTool("text");
-    else if (cmd == "dimension" || cmd == "dli" || cmd == "dim") setCurrentTool("dimension");
-    else if (cmd == "move" || cmd == "m") setCurrentTool("move");
-    else if (cmd == "copy" || cmd == "co") setCurrentTool("copy");
-    else if (cmd == "rotate" || cmd == "ro") setCurrentTool("rotate");
-    else if (cmd == "scale" || cmd == "sc") setCurrentTool("scale");
-    else if (cmd == "pan" || cmd == "p") setCurrentTool("pan");
-    else if (cmd == "zoom" || cmd == "z") setCurrentTool("zoom");
-    else if (cmd == "select" || cmd == "v") setCurrentTool("select");
-    else if (cmd == "ze" || cmd == "zoomextents") onZoomExtents();
-    else if (cmd == "regen" || cmd == "re") { m_view->zoomExtents(); m_commandLine->appendMessage("已重生成", "result"); }
-    else if (cmd == "clear") m_commandLine->clear();
-    else if (cmd == "help") m_commandLine->appendMessage("可用命令: line, circle, pan, zoom, select, ze, regen, clear, help", "result");
-    else if (cmd == "quit" || cmd == "exit") close();
-    else m_commandLine->appendMessage("未知命令: " + command + "，输入 help 查看可用命令", "error");
+    Zhifen::CommandParser &parser = Zhifen::CommandParser::instance();
+    Zhifen::CommandArgs args = parser.parse(command);
+
+    if (!args.valid) {
+        m_commandLine->appendMessage("未知命令: " + command + "，输入 HELP 查看可用命令", "error");
+        return;
+    }
+
+    switch (args.type) {
+    // 绘图命令
+    case Zhifen::Cmd_Line: setCurrentTool("line"); break;
+    case Zhifen::Cmd_Circle: setCurrentTool("circle"); break;
+    case Zhifen::Cmd_Arc: setCurrentTool("arc"); break;
+    case Zhifen::Cmd_Rectangle: setCurrentTool("rectangle"); break;
+
+    // 编辑命令
+    case Zhifen::Cmd_Move: setCurrentTool("move"); break;
+    case Zhifen::Cmd_Copy: setCurrentTool("copy"); break;
+    case Zhifen::Cmd_Rotate: setCurrentTool("rotate"); break;
+    case Zhifen::Cmd_Scale: setCurrentTool("scale"); break;
+    case Zhifen::Cmd_Mirror: setCurrentTool("mirror"); break;
+    case Zhifen::Cmd_Erase: {
+        auto items = m_scene->selectedItems();
+        if (!items.isEmpty()) {
+            for (auto item : items) m_scene->removeItem(item);
+            m_commandLine->appendMessage(QString("已删除 %1 个对象").arg(items.size()), "result");
+        } else {
+            m_commandLine->appendMessage("请先选择要删除的对象", "error");
+        }
+        break;
+    }
+    case Zhifen::Cmd_Offset: setCurrentTool("offset"); break;
+    case Zhifen::Cmd_Explode: onExplode(); break;
+
+    // 块命令
+    case Zhifen::Cmd_Block: onCreateBlock(); break;
+    case Zhifen::Cmd_Insert: onInsertBlock(); break;
+
+    // 视图命令
+    case Zhifen::Cmd_Zoom: {
+        if (args.args.isEmpty() || args.args.first().toUpper() == "E" || args.args.first().toUpper() == "EXTENTS") {
+            onZoomExtents();
+        } else if (args.args.first().toUpper() == "P" || args.args.first().toUpper() == "PREVIOUS") {
+            m_view->scale(0.8, 0.8);
+            m_commandLine->appendMessage("缩放到上一个视图", "result");
+        } else if (args.args.first().toUpper() == "W" || args.args.first().toUpper() == "WINDOW") {
+            m_commandLine->appendMessage("窗口缩放: 请在视图中框选区域", "result");
+        } else {
+            m_commandLine->appendMessage("ZOOM选项: 全部(E)/范围(E)/窗口(W)/上一个(P)", "result");
+        }
+        break;
+    }
+    case Zhifen::Cmd_Pan: setCurrentTool("pan"); break;
+    case Zhifen::Cmd_Regen:
+    case Zhifen::Cmd_Redraw: {
+        m_view->zoomExtents();
+        m_scene->update();
+        m_commandLine->appendMessage("已重生成图形", "result");
+        break;
+    }
+
+    // 查询命令
+    case Zhifen::Cmd_Dist: onQueryDistance(); break;
+    case Zhifen::Cmd_Area: onQueryArea(); break;
+    case Zhifen::Cmd_Id: onQueryPoint(); break;
+    case Zhifen::Cmd_List: {
+        auto items = m_scene->selectedItems();
+        m_commandLine->appendMessage(QString("选中 %1 个对象").arg(items.size()), "result");
+        for (auto item : items) {
+            QString info = QString("  位置: (%.2f, %.2f) 类型: %1").arg(item->pos().x()).arg(item->pos().y()).arg(item->data(0).toString());
+            m_commandLine->appendMessage(info, "result");
+        }
+        break;
+    }
+
+    // 系统命令
+    case Zhifen::Cmd_Layer: onLayerManager(); break;
+    case Zhifen::Cmd_Properties: onPropertyPanel(); break;
+    case Zhifen::Cmd_Matchprop: m_commandLine->appendMessage("特性匹配: 请选择源对象", "result"); break;
+    case Zhifen::Cmd_Undo: onUndo(); break;
+    case Zhifen::Cmd_Redo: onRedo(); break;
+    case Zhifen::Cmd_Save: onSave(); break;
+    case Zhifen::Cmd_Open: onOpen(); break;
+    case Zhifen::Cmd_New: onNew(); break;
+    case Zhifen::Cmd_Plot: onPrint(); break;
+    case Zhifen::Cmd_Preview: onPrintPreview(); break;
+    case Zhifen::Cmd_Quit: close(); break;
+
+    // 帮助
+    case Zhifen::Cmd_Help: {
+        if (args.args.isEmpty()) {
+            m_commandLine->appendMessage(parser.allCommandsHelp(), "result");
+        } else {
+            Zhifen::CommandType type = parser.commandType(args.args.first());
+            m_commandLine->appendMessage(parser.commandHelp(type), "result");
+        }
+        break;
+    }
+
+    default:
+        m_commandLine->appendMessage("命令暂未实现: " + command, "error");
+        break;
+    }
 }
 
 void MainWindow::onToolFinished()

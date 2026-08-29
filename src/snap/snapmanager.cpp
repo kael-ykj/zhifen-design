@@ -109,6 +109,15 @@ void SnapManager::drawSnapMarker(QPainter *painter)
         painter->drawLine(-size, -size, size, size);
         painter->drawLine(size, -size, -size, size);
         break;
+    case SnapPerpendicular:
+        painter->drawLine(-size/2, -size/2, size/2, -size/2);
+        painter->drawLine(size/2, -size/2, size/2, size/2);
+        painter->drawLine(0, 0, size/2, -size/2);
+        break;
+    case SnapTangent:
+        painter->drawArc(QRectF(-size/2, -size/2, size, size), 0, 270*16);
+        painter->drawLine(0, -size/2, size/2, -size/2);
+        break;
     default:
         painter->drawEllipse(QRectF(-size/4, -size/4, size/2, size/2));
     }

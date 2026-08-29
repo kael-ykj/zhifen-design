@@ -10,7 +10,7 @@ class CadScene;
 class CadView;
 class CadItem;
 
-enum SnapType { SnapEndpoint, SnapMidpoint, SnapCenter, SnapIntersection, SnapNearest, SnapQuadrant };
+enum SnapType { SnapEndpoint, SnapMidpoint, SnapCenter, SnapIntersection, SnapNearest, SnapQuadrant, SnapPerpendicular, SnapTangent, SnapExtension, SnapParallel };
 
 struct SnapResult {
     QPointF point;
@@ -38,7 +38,7 @@ private:
     CadScene *m_scene;
     CadView *m_view;
     bool m_enabled = true;
-    QSet<SnapType> m_types = {SnapEndpoint, SnapMidpoint, SnapCenter, SnapNearest};
+    QSet<SnapType> m_types = {SnapEndpoint, SnapMidpoint, SnapCenter, SnapIntersection, SnapNearest, SnapPerpendicular, SnapTangent};
     SnapResult *m_currentSnap = nullptr;
     qreal m_tolerance = 10.0; // 屏幕像素
 };
