@@ -1,5 +1,5 @@
 #include "special_design_tools.h"
-#include "coverage_simulator.h"
+#include "../engine/coverage_simulator.h"
 #include <QtMath>
 #include <QStringList>
 
