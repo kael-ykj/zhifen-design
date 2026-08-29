@@ -35,6 +35,7 @@
 #include "engine/power_balance_optimizer.h"
 #include "tools/special_design_tools.h"
 #include "entities/dimension_item.h"
+#include "core/sheet_set_manager.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -185,6 +186,7 @@ void MainWindow::createMenus()
     dwgMenu->addAction(m_exportDwgSketchAct); dwgMenu->addAction(m_exportDwgFinalAct);
     fileMenu->addSeparator();
     fileMenu->addAction(m_printAct);
+    fileMenu->addAction(m_sheetSetAct);
     QMenu *pdfMenu = fileMenu->addMenu("导出PDF");
     pdfMenu->addAction(m_exportPdfSketchAct); pdfMenu->addAction(m_exportPdfFormalAct);
     fileMenu->addSeparator(); fileMenu->addAction(m_exitAct);
@@ -1356,6 +1358,155 @@ void MainWindow::onAddDimension(Zhifen::DimensionType type)
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("添加标注: 类型%1").arg(type));
 }
+
+void MainWindow::onSheetSetManager()
+{
+    Zhifen::SheetSetManager &mgr = Zhifen::SheetSetManager::instance();
+
+    // 如果图纸集为空，添加默认图纸
+    if (mgr.sheetCount() == 0) {
+        Zhifen::SheetInfo sheet;
+        sheet.name = "一层平面布置图";
+        sheet.projectName = "室分设计项目";
+        sheet.designer = "设计";
+        sheet.reviewer = "审核";
+        sheet.date = QDate::currentDate().toString("yyyy-MM-dd");
+        sheet.operatorName = "中国移动";
+        sheet.scale = "1:100";
+        mgr.addSheet(sheet);
+
+        Zhifen::SheetInfo sheet2;
+        sheet2.name = "系统图";
+        sheet2.projectName = "室分设计项目";
+        sheet2.designer = "设计";
+        sheet2.reviewer = "审核";
+        sheet2.date = QDate::currentDate().toString("yyyy-MM-dd");
+        sheet2.operatorName = "中国移动";
+        sheet2.scale = "1:50";
+        mgr.addSheet(sheet2);
+
+        // 自动编号
+        Zhifen::SheetNumberConfig config;
+        config.prefix = "ZF";
+        config.year = "2026";
+        config.startNumber = 1;
+        config.digits = 3;
+        mgr.autoNumber(config);
+    }
+
+    // 图纸集管理对话框
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("图纸集管理 / 批量出图");
+    dlg->resize(600, 500);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    // 图纸列表
+    QListWidget *listWidget = new QListWidget(dlg);
+    for (int i = 0; i < mgr.sheetCount(); i++) {
+        Zhifen::SheetInfo s = mgr.sheet(i);
+        QListWidgetItem *item = new QListWidgetItem(QString("%1. %2 [%3]").arg(i + 1).arg(s.name).arg(s.sheetNo));
+        item->setCheckState(s.selected ? Qt::Checked : Qt::Unchecked);
+        listWidget->addItem(item);
+    }
+    layout->addWidget(listWidget);
+
+    // 按钮
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *addBtn = new QPushButton("添加图纸", dlg);
+    QPushButton *delBtn = new QPushButton("删除图纸", dlg);
+    QPushButton *autoNumBtn = new QPushButton("自动编号", dlg);
+    QPushButton *printBtn = new QPushButton("批量打印", dlg);
+    QPushButton *pdfBtn = new QPushButton("批量导出PDF", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(delBtn);
+    btnLayout->addWidget(autoNumBtn);
+    btnLayout->addWidget(printBtn);
+    btnLayout->addWidget(pdfBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    connect(addBtn, &QPushButton::clicked, this, [this, &mgr, listWidget]() {
+        bool ok;
+        QString name = QInputDialog::getText(this, "添加图纸", "图纸名称:", QLineEdit::Normal, "", &ok);
+        if (ok && !name.isEmpty()) {
+            Zhifen::SheetInfo sheet;
+            sheet.name = name;
+            sheet.projectName = "室分设计项目";
+            sheet.designer = "设计";
+            sheet.reviewer = "审核";
+            sheet.date = QDate::currentDate().toString("yyyy-MM-dd");
+            sheet.operatorName = "中国移动";
+            sheet.scale = "1:100";
+            mgr.addSheet(sheet);
+            QListWidgetItem *item = new QListWidgetItem(QString("%1. %2").arg(mgr.sheetCount()).arg(name));
+            item->setCheckState(Qt::Checked);
+            listWidget->addItem(item);
+        }
+    });
+
+    connect(delBtn, &QPushButton::clicked, this, [&mgr, listWidget]() {
+        int row = listWidget->currentRow();
+        if (row >= 0) {
+            mgr.removeSheet(row);
+            delete listWidget->takeItem(row);
+        }
+    });
+
+    connect(autoNumBtn, &QPushButton::clicked, this, [&mgr, listWidget]() {
+        Zhifen::SheetNumberConfig config;
+        config.prefix = "ZF";
+        config.year = "2026";
+        config.startNumber = 1;
+        config.digits = 3;
+        mgr.autoNumber(config);
+        listWidget->clear();
+        for (int i = 0; i < mgr.sheetCount(); i++) {
+            Zhifen::SheetInfo s = mgr.sheet(i);
+            QListWidgetItem *item = new QListWidgetItem(QString("%1. %2 [%3]").arg(i + 1).arg(s.name).arg(s.sheetNo));
+            item->setCheckState(s.selected ? Qt::Checked : Qt::Unchecked);
+            listWidget->addItem(item);
+        }
+    });
+
+    connect(printBtn, &QPushButton::clicked, this, [this, &mgr, listWidget]() {
+        // 更新选中状态
+        for (int i = 0; i < listWidget->count(); i++) {
+            Zhifen::SheetInfo s = mgr.sheet(i);
+            s.selected = listWidget->item(i)->checkState() == Qt::Checked;
+            mgr.updateSheet(i, s);
+        }
+        mgr.printAll(m_scene, this);
+    });
+
+    connect(pdfBtn, &QPushButton::clicked, this, [this, &mgr, listWidget]() {
+        // 更新选中状态
+        for (int i = 0; i < listWidget->count(); i++) {
+            Zhifen::SheetInfo s = mgr.sheet(i);
+            s.selected = listWidget->item(i)->checkState() == Qt::Checked;
+            mgr.updateSheet(i, s);
+        }
+        QString fileName = QFileDialog::getSaveFileName(this, "批量导出PDF", "图纸集.pdf", "PDF文件 (*.pdf)");
+        if (!fileName.isEmpty()) {
+            if (!fileName.endsWith(".pdf", Qt::CaseInsensitive)) fileName += ".pdf";
+            if (mgr.exportAllToPdf(m_scene, fileName, true)) {
+                QMessageBox::information(this, "导出成功", QString("图纸集已导出到: %1").arg(fileName));
+            } else {
+                QMessageBox::warning(this, "导出失败", "PDF导出失败");
+            }
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("图纸集管理: %1张图纸").arg(mgr.sheetCount()));
+}
+
 
 
 
