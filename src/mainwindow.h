@@ -92,7 +92,7 @@ private:
     QAction *m_newAct, *m_openAct, *m_saveAct, *m_saveAsAct;
     QAction *m_importDxfAct, *m_importBottomMapAct, *m_batchImportAct, *m_floorManagerAct, *m_pluginManagerAct, *m_exportDxfAct, *m_exportDwgSketchAct, *m_exportDwgFinalAct, *m_printAct, *m_exportPdfSketchAct, *m_exportPdfFormalAct, *m_exitAct;
     QAction *m_undoAct, *m_redoAct;
-    QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct, *m_feederAct;
+    QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct, *m_feederAct, *m_textAct;
     QAction *m_moveAct, *m_copyAct, *m_rotateAct, *m_scaleAct, *m_mirrorAct, *m_explodeAct, *m_offsetAct, *m_queryDistAct, *m_queryAreaAct, *m_queryPointAct, *m_linkCalcAct, *m_bomAct, *m_sysDiagramSketchAct, *m_sysDiagramFormalAct, *m_coverageSimAct, *m_smartRouteAct, *m_powerBalanceAct, *m_elevatorToolAct, *m_leakyCableToolAct, *m_b2bToolAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct, *m_auditLogAct, *m_copyModeAct, *m_eraseAct;
     QAction *m_panAct, *m_zoomAct, *m_zoomExtentsAct;
     QAction *m_gridAct, *m_snapAct, *m_orthoAct;
