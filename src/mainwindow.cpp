@@ -33,6 +33,7 @@
 #include "plugins/batch_rename_plugin.h"
 #include "engine/route_planner.h"
 #include "engine/power_balance_optimizer.h"
+#include "tools/special_design_tools.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -1199,6 +1200,126 @@ void MainWindow::onPowerBalance()
         .arg(result.totalAntennas > 0 ? result.passCountAfter * 100.0 / result.totalAntennas : 0, 0, 'f', 1)
         .arg(result.suggestions.size()));
 }
+
+void MainWindow::onElevatorTool()
+{
+    bool ok;
+    int floors = QInputDialog::getInt(this, "电梯覆盖设计", "楼层数:", 20, 1, 200, 1, &ok);
+    if (!ok) return;
+    qreal floorHeight = QInputDialog::getDouble(this, "电梯覆盖设计", "层高(米):", 3.0, 2.0, 6.0, 1, &ok);
+    if (!ok) return;
+
+    Zhifen::ElevatorParams params;
+    params.floorCount = floors;
+    params.floorHeight = floorHeight;
+    params.txPower = 15.0;
+    params.antennaGain = 8.0;
+    params.targetPower = -85.0;
+    params.band = Zhifen::Band_4G;
+
+    Zhifen::ElevatorResult result = Zhifen::ElevatorCoverageTool::calculate(params);
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("电梯覆盖设计方案");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    layout->addWidget(textEdit);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    layout->addWidget(closeBtn);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("电梯覆盖设计: %1层, 天线%2个").arg(floors).arg(result.antennaCount));
+}
+
+void MainWindow::onLeakyCableTool()
+{
+    bool ok;
+    qreal length = QInputDialog::getDouble(this, "漏缆分段设计", "漏缆总长度(米):", 100, 10, 1000, 1, &ok);
+    if (!ok) return;
+    qreal couplingLoss = QInputDialog::getDouble(this, "漏缆分段设计", "耦合损耗(dB):", 70, 50, 100, 1, &ok);
+    if (!ok) return;
+
+    Zhifen::LeakyCableParams params;
+    params.totalLength = length;
+    params.couplingLoss = couplingLoss;
+    params.transmissionLoss = 2.5;
+    params.txPower = 43.0;
+    params.targetPower = -80.0;
+    params.minPower = -90.0;
+    params.band = Zhifen::Band_4G;
+
+    Zhifen::LeakyCableResult result = Zhifen::LeakyCableTool::calculate(params);
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("漏缆分段设计方案");
+    dlg->resize(550, 450);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    layout->addWidget(textEdit);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    layout->addWidget(closeBtn);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("漏缆分段设计: %1米, %2段").arg(length).arg(result.segmentCount));
+}
+
+void MainWindow::onBuildingToBuildingTool()
+{
+    bool ok;
+    qreal distance = QInputDialog::getDouble(this, "楼间对打设计", "楼间距(米):", 50, 10, 500, 1, &ok);
+    if (!ok) return;
+    qreal txPower = QInputDialog::getDouble(this, "楼间对打设计", "发射功率(dBm):", 43, 20, 60, 1, &ok);
+    if (!ok) return;
+
+    Zhifen::BuildingToBuildingParams params;
+    params.distance = distance;
+    params.txPower = txPower;
+    params.txHeight = 30.0;
+    params.rxHeight = 15.0;
+    params.txAntennaGain = 12.0;
+    params.rxAntennaGain = 2.0;
+    params.buildingPenetration = 15.0;
+    params.targetPower = -90.0;
+    params.band = Zhifen::Band_4G;
+    params.antennaType = "射灯天线";
+
+    Zhifen::BuildingToBuildingResult result = Zhifen::BuildingToBuildingTool::calculate(params);
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("楼间对打设计方案");
+    dlg->resize(500, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    layout->addWidget(textEdit);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    layout->addWidget(closeBtn);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("楼间对打设计: 距离%1米, 接收%2dBm").arg(distance).arg(result.receivedPower, 0, 'f', 1));
+}
+
 
 
 
