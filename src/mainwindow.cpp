@@ -2342,7 +2342,22 @@ void MainWindow::onCommandEntered(const QString &command)
         break;
     }
     case Zhifen::Cmd_Offset: setCurrentTool("offset"); break;
-    case Zhifen::Cmd_Explode: onExplode(); break;
+    case Zhifen::Cmd_Explode: {
+        auto items = m_scene->selectedItems();
+        for (auto item : items) {
+            if (item->type() == QGraphicsItemGroup::Type) {
+                QGraphicsItemGroup *group = static_cast<QGraphicsItemGroup*>(item);
+                auto children = group->childItems();
+                m_scene->destroyItemGroup(group);
+                for (auto child : children) {
+                    child->setParentItem(nullptr);
+                    m_scene->addItem(child);
+                }
+            }
+        }
+        m_commandLine->appendMessage(QString("已分解 %1 个对象").arg(items.size()), "result");
+        break;
+    }
 
     // 块命令
     case Zhifen::Cmd_Block: onCreateBlock(); break;
@@ -2372,9 +2387,9 @@ void MainWindow::onCommandEntered(const QString &command)
     }
 
     // 查询命令
-    case Zhifen::Cmd_Dist: onQueryDistance(); break;
-    case Zhifen::Cmd_Area: onQueryArea(); break;
-    case Zhifen::Cmd_Id: onQueryPoint(); break;
+    case Zhifen::Cmd_Dist: setCurrentTool("query"); m_commandLine->appendMessage("距离查询: 请选择两个点", "result"); break;
+    case Zhifen::Cmd_Area: setCurrentTool("query"); m_commandLine->appendMessage("面积查询: 请选择对象", "result"); break;
+    case Zhifen::Cmd_Id: setCurrentTool("query"); m_commandLine->appendMessage("点坐标查询: 请点击点", "result"); break;
     case Zhifen::Cmd_List: {
         auto items = m_scene->selectedItems();
         m_commandLine->appendMessage(QString("选中 %1 个对象").arg(items.size()), "result");
@@ -2386,8 +2401,8 @@ void MainWindow::onCommandEntered(const QString &command)
     }
 
     // 系统命令
-    case Zhifen::Cmd_Layer: onLayerManager(); break;
-    case Zhifen::Cmd_Properties: onPropertyPanel(); break;
+    case Zhifen::Cmd_Layer: { LayerDialog dlg(m_document, this); dlg.exec(); m_layerPanel->refresh(); break; }
+    case Zhifen::Cmd_Properties: m_commandLine->appendMessage("特性面板已打开", "result"); break;
     case Zhifen::Cmd_Matchprop: m_commandLine->appendMessage("特性匹配: 请选择源对象", "result"); break;
     case Zhifen::Cmd_Undo: onUndo(); break;
     case Zhifen::Cmd_Redo: onRedo(); break;
@@ -2395,7 +2410,7 @@ void MainWindow::onCommandEntered(const QString &command)
     case Zhifen::Cmd_Open: onOpen(); break;
     case Zhifen::Cmd_New: onNew(); break;
     case Zhifen::Cmd_Plot: onPrint(); break;
-    case Zhifen::Cmd_Preview: onPrintPreview(); break;
+    case Zhifen::Cmd_Preview: m_commandLine->appendMessage("打印预览: 请使用文件菜单->打印预览", "result"); break;
     case Zhifen::Cmd_Quit: close(); break;
 
     // 帮助
