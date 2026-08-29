@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QPointF>
 #include <QGraphicsScene>
+#include <QDateTime>
 
 namespace Zhifen {
 
