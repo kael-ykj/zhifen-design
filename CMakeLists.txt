@@ -65,6 +65,7 @@ set(SOURCES
     src/engine/route_planner.cpp
     src/engine/power_balance_optimizer.cpp
     src/tools/special_design_tools.cpp
+    src/entities/dimension_item.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
     src/snap/snapmanager.cpp
@@ -122,6 +123,7 @@ set(HEADERS
     src/engine/route_planner.h
     src/engine/power_balance_optimizer.h
     src/tools/special_design_tools.h
+    src/entities/dimension_item.h
     src/core/floor_manager.h
     src/entities/feederitem.h
     src/tools/devicetool.h

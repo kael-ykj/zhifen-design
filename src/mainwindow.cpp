@@ -34,6 +34,7 @@
 #include "engine/route_planner.h"
 #include "engine/power_balance_optimizer.h"
 #include "tools/special_design_tools.h"
+#include "entities/dimension_item.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -1319,6 +1320,43 @@ void MainWindow::onBuildingToBuildingTool()
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("楼间对打设计: 距离%1米, 接收%2dBm").arg(distance).arg(result.receivedPower, 0, 'f', 1));
 }
+
+void MainWindow::onAddDimension(Zhifen::DimensionType type)
+{
+    // 简化：在场景中心创建示例标注
+    QPointF center = m_view->mapToScene(m_view->viewport()->rect().center());
+
+    if (type == Zhifen::Dim_Linear) {
+        Zhifen::LinearDimension *dim = new Zhifen::LinearDimension();
+        dim->setPoints(center + QPointF(-50, 0), center + QPointF(50, 0), center + QPointF(0, 30));
+        dim->setHorizontal(true);
+        m_scene->addItem(dim);
+        statusBar()->showMessage("已添加线性标注，可拖动调整位置", 3000);
+    } else if (type == Zhifen::Dim_Aligned) {
+        Zhifen::AlignedDimension *dim = new Zhifen::AlignedDimension();
+        dim->setPoints(center + QPointF(-50, -20), center + QPointF(50, 20), center + QPointF(0, 40));
+        m_scene->addItem(dim);
+        statusBar()->showMessage("已添加对齐标注，可拖动调整位置", 3000);
+    } else if (type == Zhifen::Dim_Radius) {
+        Zhifen::RadiusDimension *dim = new Zhifen::RadiusDimension();
+        dim->setCircle(center, 30, center + QPointF(30, 30));
+        m_scene->addItem(dim);
+        statusBar()->showMessage("已添加半径标注，可拖动调整位置", 3000);
+    } else if (type == Zhifen::Dim_Diameter) {
+        Zhifen::DiameterDimension *dim = new Zhifen::DiameterDimension();
+        dim->setCircle(center, 30, center + QPointF(30, 0));
+        m_scene->addItem(dim);
+        statusBar()->showMessage("已添加直径标注，可拖动调整位置", 3000);
+    } else if (type == Zhifen::Dim_Angular) {
+        Zhifen::AngularDimension *dim = new Zhifen::AngularDimension();
+        dim->setLines(center, center + QPointF(50, 0), center + QPointF(30, 40));
+        m_scene->addItem(dim);
+        statusBar()->showMessage("已添加角度标注，可拖动调整位置", 3000);
+    }
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("添加标注: 类型%1").arg(type));
+}
+
 
 
 

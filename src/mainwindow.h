@@ -21,6 +21,7 @@ class DevicePanel;
 
 namespace Zhifen { enum SystemDiagramMode; }
 namespace Zhifen { enum PaperSize; }
+nnamespace Zhifen { enum DimensionType; }
 
 class MainWindow : public QMainWindow
 {
@@ -56,6 +57,7 @@ private slots:
     void onElevatorTool();
     void onLeakyCableTool();
     void onBuildingToBuildingTool();
+    void onAddDimension(Zhifen::DimensionType type);
     void onAuditLog();
     void onToggleCopyMode();
     void onZoomIn();
@@ -92,7 +94,7 @@ private:
     QAction *m_undoAct, *m_redoAct;
     QAction *m_selectAct, *m_lineAct, *m_circleAct, *m_arcAct, *m_polylineAct, *m_rectangleAct, *m_feederAct;
     QAction *m_textAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct;
-    QAction *m_moveAct, *m_copyAct, *m_rotateAct, *m_scaleAct, *m_mirrorAct, *m_explodeAct, *m_offsetAct, *m_queryDistAct, *m_queryAreaAct, *m_queryPointAct, *m_linkCalcAct, *m_bomAct, *m_sysDiagramSketchAct, *m_sysDiagramFormalAct, *m_coverageSimAct, *m_smartRouteAct, *m_powerBalanceAct, *m_elevatorToolAct, *m_leakyCableToolAct, *m_b2bToolAct, *m_auditLogAct, *m_copyModeAct, *m_eraseAct;
+    QAction *m_moveAct, *m_copyAct, *m_rotateAct, *m_scaleAct, *m_mirrorAct, *m_explodeAct, *m_offsetAct, *m_queryDistAct, *m_queryAreaAct, *m_queryPointAct, *m_linkCalcAct, *m_bomAct, *m_sysDiagramSketchAct, *m_sysDiagramFormalAct, *m_coverageSimAct, *m_smartRouteAct, *m_powerBalanceAct, *m_elevatorToolAct, *m_leakyCableToolAct, *m_b2bToolAct, *m_dimLinearAct, *m_dimAlignedAct, *m_dimRadiusAct, *m_dimDiameterAct, *m_dimAngularAct, *m_auditLogAct, *m_copyModeAct, *m_eraseAct;
     QAction *m_panAct, *m_zoomAct, *m_zoomExtentsAct;
     QAction *m_gridAct, *m_snapAct, *m_orthoAct;
     QAction *m_layerManagerAct;
