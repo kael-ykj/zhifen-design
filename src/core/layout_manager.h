@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QList>
+#include <QMap>
 #include <QRectF>
 #include <QGraphicsScene>
 #include <QGraphicsView>
