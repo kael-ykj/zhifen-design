@@ -78,6 +78,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QCheckBox>
+#include <QSpinBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_currentTool(nullptr)

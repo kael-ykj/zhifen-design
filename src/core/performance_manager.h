@@ -9,6 +9,7 @@
 #include <QGraphicsItem>
 #include <QGraphicsScene>
 #include <QElapsedTimer>
+#include <QDateTime>
 
 namespace Zhifen {
 
