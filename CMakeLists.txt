@@ -71,6 +71,7 @@ set(SOURCES
     src/core/layout_manager.cpp
     src/core/version_manager.cpp
     src/core/change_review_manager.cpp
+    src/core/network_planning_tools.cpp
     src/tools/pantool.cpp
     src/tools/zoomtool.cpp
     src/snap/snapmanager.cpp
@@ -134,6 +135,7 @@ set(HEADERS
     src/core/version_manager.h
     src/core/change_review_manager.h
     src/core/sheet_set_manager.h
+    src/core/network_planning_tools.h
     src/core/floor_manager.h
     src/entities/feederitem.h
     src/tools/devicetool.h

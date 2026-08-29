@@ -40,6 +40,7 @@
 #include "core/layout_manager.h"
 #include "core/version_manager.h"
 #include "core/change_review_manager.h"
+#include "core/network_planning_tools.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -1847,6 +1848,162 @@ void MainWindow::onDesignReview()
     dlg->exec();
     dlg->deleteLater();
 }
+
+void MainWindow::onInterferenceAnalysis()
+{
+    Zhifen::NetworkPlanningTools &tools = Zhifen::NetworkPlanningTools::instance();
+    QList<Zhifen::FrequencyBand> bands = tools.defaultBands();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("干扰分析");
+    dlg->resize(800, 600);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+
+    // 生成干扰矩阵和详情
+    QString report = tools.interferenceMatrix(bands);
+    report += "\n=== 干扰详情（非无干扰项）===\n";
+    QList<Zhifen::InterferenceResult> results = tools.analyzeInterference(bands);
+    for (const Zhifen::InterferenceResult &r : results) {
+        if (r.level != Zhifen::Interf_None) {
+            report += "\n" + r.description;
+            report += "\n  所需隔离度: " + QString::number(r.isolationRequired, 'f', 1) + " dB";
+            report += "\n  建议: " + r.recommendation;
+        }
+    }
+    textEdit->setPlainText(report);
+    layout->addWidget(textEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportBtn = new QPushButton("导出报告", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(exportBtn, &QPushButton::clicked, this, [this, textEdit]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出干扰分析报告", "干扰分析报告.txt", "文本文件 (*.txt)");
+        if (!fileName.isEmpty()) {
+            QFile file(fileName);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream out(&file);
+                out << textEdit->toPlainText();
+                file.close();
+                QMessageBox::information(this, "导出成功", "干扰分析报告已导出");
+            }
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "干扰分析");
+}
+
+void MainWindow::onCapacityPlanning()
+{
+    Zhifen::NetworkPlanningTools &tools = Zhifen::NetworkPlanningTools::instance();
+
+    bool ok;
+    qreal area = QInputDialog::getDouble(this, "容量规划", "覆盖面积(m²):", 10000, 100, 10000000, 0, &ok);
+    if (!ok) return;
+    qreal density = QInputDialog::getDouble(this, "容量规划", "用户密度(人/km²):", 10000, 100, 100000, 0, &ok);
+    if (!ok) return;
+    int cellCount = QInputDialog::getInt(this, "容量规划", "小区数量:", 4, 1, 100, 1, &ok);
+    if (!ok) return;
+
+    Zhifen::CapacityParams params;
+    params.area = area;
+    params.userDensity = density;
+    params.voiceTrafficPerUser = 0.02;
+    params.dataTrafficPerUser = 0.05;
+    params.penetrationRate = 0.85;
+    params.cellCount = cellCount;
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("容量规划");
+    dlg->resize(700, 500);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+
+    QString report = "=== 容量规划结果 ===\n\n";
+    report += QString("覆盖面积: %1 m²\n").arg(area);
+    report += QString("用户密度: %1 人/km²\n").arg(density);
+    report += QString("小区数量: %1\n\n").arg(cellCount);
+
+    QList<Zhifen::NetworkStandard> standards = {Zhifen::Net_2G_GSM, Zhifen::Net_4G_LTE, Zhifen::Net_5G_NR};
+    QStringList stdNames = {"2G GSM", "4G LTE", "5G NR"};
+    QList<Zhifen::CapacityResult> results = tools.multiStandardCapacity(standards, params);
+
+    for (int i = 0; i < results.size(); i++) {
+        const Zhifen::CapacityResult &c = results[i];
+        report += QString("[%1]\n").arg(stdNames[i]);
+        report += QString("  总用户: %1  每小区: %2\n").arg(c.totalUsers).arg(c.usersPerCell);
+        report += QString("  语音: %1 Erl (容量%2, 利用率%3%)\n")
+            .arg(c.voiceTraffic, 0, 'f', 2).arg(c.voiceCapacity, 0, 'f', 2).arg(c.voiceUtilization, 0, 'f', 1);
+        report += QString("  数据: %1 Mbps (容量%2, 利用率%3%)\n")
+            .arg(c.dataTraffic, 0, 'f', 2).arg(c.dataCapacity, 0, 'f', 2).arg(c.dataUtilization, 0, 'f', 1);
+        report += QString("  结论: %1\n\n").arg(c.recommendation);
+    }
+
+    textEdit->setPlainText(report);
+    layout->addWidget(textEdit);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    layout->addWidget(closeBtn);
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "容量规划");
+}
+
+void MainWindow::onFrequencyPlanning()
+{
+    Zhifen::NetworkPlanningTools &tools = Zhifen::NetworkPlanningTools::instance();
+    QList<Zhifen::FrequencyBand> bands = tools.defaultBands();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("频率规划");
+    dlg->resize(700, 550);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+
+    QString report = tools.frequencyPlanReport(bands);
+
+    // PCI规划
+    report += "\n=== 5G NR PCI规划 ===\n";
+    QList<Zhifen::PCIResult> pciResults = tools.planPCI(6);
+    for (const Zhifen::PCIResult &p : pciResults) {
+        report += QString("  小区%1: PCI=%2 (模3=%3, 模30=%4) %5\n")
+            .arg(p.cellId).arg(p.pci).arg(p.mod3).arg(p.mod30).arg(p.conflictStatus);
+    }
+    report += QString("  PCI冲突检查: %1\n").arg(tools.checkPCIConflict(pciResults) ? "存在冲突" : "无冲突");
+
+    textEdit->setPlainText(report);
+    layout->addWidget(textEdit);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    layout->addWidget(closeBtn);
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "频率规划");
+}
+
 
 
 
