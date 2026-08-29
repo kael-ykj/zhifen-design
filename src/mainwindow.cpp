@@ -1852,7 +1852,7 @@ void MainWindow::onDesignReview()
 void MainWindow::onInterferenceAnalysis()
 {
     Zhifen::NetworkPlanningTools &tools = Zhifen::NetworkPlanningTools::instance();
-    QList<Zhifen::FrequencyBand> bands = tools.defaultBands();
+    QList<Zhifen::NetworkFrequencyBand> bands = tools.defaultBands();
 
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("干扰分析");
@@ -1969,7 +1969,7 @@ void MainWindow::onCapacityPlanning()
 void MainWindow::onFrequencyPlanning()
 {
     Zhifen::NetworkPlanningTools &tools = Zhifen::NetworkPlanningTools::instance();
-    QList<Zhifen::FrequencyBand> bands = tools.defaultBands();
+    QList<Zhifen::NetworkFrequencyBand> bands = tools.defaultBands();
 
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("频率规划");

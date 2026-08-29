@@ -31,20 +31,20 @@ QList<FrequencyBand> NetworkPlanningTools::defaultBands() const {
 
 QList<FrequencyBand> NetworkPlanningTools::bandsByOperator(const QString &operatorName) const {
     QList<FrequencyBand> result;
-    for (const FrequencyBand &band : m_defaultBands) {
+    for (const NetworkFrequencyBand &band : m_defaultBands) {
         if (band.operatorName == operatorName) result.append(band);
     }
     return result;
 }
 
-FrequencyBand NetworkPlanningTools::bandByName(const QString &name) const {
-    for (const FrequencyBand &band : m_defaultBands) {
+NetworkFrequencyBand NetworkPlanningTools::bandByName(const QString &name) const {
+    for (const NetworkFrequencyBand &band : m_defaultBands) {
         if (band.bandName == name) return band;
     }
     return FrequencyBand();
 }
 
-qreal NetworkPlanningTools::calculateSpurious(const FrequencyBand &source, const FrequencyBand &victim) const {
+qreal NetworkPlanningTools::calculateSpurious(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) const {
     // 简化的杂散干扰计算：基于频段间隔和发射功率
     qreal freqGap = qAbs(source.downlinkHigh - victim.uplinkLow);
     if (freqGap > 500) return -100; // 频段间隔大，杂散可忽略
@@ -52,7 +52,7 @@ qreal NetworkPlanningTools::calculateSpurious(const FrequencyBand &source, const
     return qMax(spurious, -96.0);
 }
 
-qreal NetworkPlanningTools::calculateIntermodulation(const FrequencyBand &band1, const FrequencyBand &band2) const {
+qreal NetworkPlanningTools::calculateIntermodulation(const NetworkFrequencyBand &band1, const NetworkFrequencyBand &band2) const {
     // 简化的互调干扰计算：三阶互调 2f1-f2
     qreal f1 = (band1.uplinkLow + band1.uplinkHigh) / 2;
     qreal f2 = (band2.uplinkLow + band2.uplinkHigh) / 2;
@@ -64,7 +64,7 @@ qreal NetworkPlanningTools::calculateIntermodulation(const FrequencyBand &band1,
     return -120;
 }
 
-qreal NetworkPlanningTools::calculateBlocking(const FrequencyBand &source, const FrequencyBand &victim) const {
+qreal NetworkPlanningTools::calculateBlocking(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) const {
     // 简化的阻塞干扰计算
     qreal freqGap = qAbs(source.downlinkHigh - victim.uplinkLow);
     if (freqGap < 100) return -50; // 近频阻塞
@@ -79,7 +79,7 @@ InterferenceLevel NetworkPlanningTools::determineLevel(qreal isolation) const {
     return Interf_Strong;
 }
 
-InterferenceResult NetworkPlanningTools::analyzePair(const FrequencyBand &source, const FrequencyBand &victim) {
+InterferenceResult NetworkPlanningTools::analyzePair(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) {
     InterferenceResult result;
     result.sourceSystem = source.bandName;
     result.victimSystem = victim.bandName;
@@ -136,7 +136,7 @@ QString NetworkPlanningTools::interferenceMatrix(const QList<FrequencyBand> &ban
     QTextStream stream(&result);
     stream << "=== 系统间干扰矩阵 ===\n\n";
     stream << "源系统\\\\受害系统";
-    for (const FrequencyBand &band : bands) {
+    for (const NetworkFrequencyBand &band : bands) {
         stream << "\t" << band.bandName;
     }
     stream << "\n";
@@ -239,7 +239,7 @@ QString NetworkPlanningTools::frequencyPlanReport(const QList<FrequencyBand> &ba
     QString result;
     QTextStream stream(&result);
     stream << "=== 频率规划报告 ===\n\n";
-    for (const FrequencyBand &band : bands) {
+    for (const NetworkFrequencyBand &band : bands) {
         QString stdStr;
         switch (band.standard) {
             case Net_2G_GSM: stdStr = "2G GSM"; break;

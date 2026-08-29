@@ -17,7 +17,7 @@ enum NetworkStandard {
 };
 
 // 频段配置
-struct FrequencyBand {
+struct NetworkFrequencyBand {
     NetworkStandard standard;
     QString bandName;       // 如"GSM900"、"LTE1800"、"NR3500"
     qreal uplinkLow;        // 上行低频MHz
@@ -91,11 +91,11 @@ public:
     // 频段配置
     QList<FrequencyBand> defaultBands() const;
     QList<FrequencyBand> bandsByOperator(const QString &operatorName) const;
-    FrequencyBand bandByName(const QString &name) const;
+    NetworkFrequencyBand bandByName(const QString &name) const;
 
     // 干扰分析
     QList<InterferenceResult> analyzeInterference(const QList<FrequencyBand> &bands);
-    InterferenceResult analyzePair(const FrequencyBand &source, const FrequencyBand &victim);
+    InterferenceResult analyzePair(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim);
     QString interferenceMatrix(const QList<FrequencyBand> &bands) const;
 
     // 容量规划
@@ -117,9 +117,9 @@ private:
     NetworkPlanningTools();
     QList<FrequencyBand> m_defaultBands;
 
-    qreal calculateSpurious(const FrequencyBand &source, const FrequencyBand &victim) const;
-    qreal calculateIntermodulation(const FrequencyBand &band1, const FrequencyBand &band2) const;
-    qreal calculateBlocking(const FrequencyBand &source, const FrequencyBand &victim) const;
+    qreal calculateSpurious(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) const;
+    qreal calculateIntermodulation(const NetworkFrequencyBand &band1, const NetworkFrequencyBand &band2) const;
+    qreal calculateBlocking(const NetworkFrequencyBand &source, const NetworkFrequencyBand &victim) const;
     InterferenceLevel determineLevel(qreal isolation) const;
     qreal erlangB(int channels, qreal blockingRate) const;
 };
