@@ -4,6 +4,7 @@
 #include <QPrintDialog>
 #include <QPixmap>
 #include <QFile>
+#include <QFileInfo>
 #include <QTextStream>
 #include <QDate>
 #include <QtMath>
