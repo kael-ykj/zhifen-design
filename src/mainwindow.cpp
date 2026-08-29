@@ -71,6 +71,10 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QComboBox>
+#include <QLabel>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_currentTool(nullptr)
