@@ -73,6 +73,7 @@ set(SOURCES
     src/core/change_review_manager.cpp
     src/core/network_planning_tools.cpp
     src/tools/pantool.cpp
+    src/core/performance_manager.cpp
     src/tools/zoomtool.cpp
     src/snap/snapmanager.cpp
     src/io/dxfreader.cpp
@@ -138,6 +139,7 @@ set(HEADERS
     src/core/network_planning_tools.h
     src/core/floor_manager.h
     src/entities/feederitem.h
+    src/core/performance_manager.h
     src/tools/devicetool.h
     src/tools/pantool.h
     src/tools/zoomtool.h

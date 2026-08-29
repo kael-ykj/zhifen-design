@@ -41,6 +41,7 @@
 #include "core/version_manager.h"
 #include "core/change_review_manager.h"
 #include "core/network_planning_tools.h"
+#include "core/performance_manager.h"
 #include "core/audit_logger.h"
 #include "core/copy_mode_manager.h"
 #include <QInputDialog>
@@ -2003,6 +2004,158 @@ void MainWindow::onFrequencyPlanning()
     dlg->deleteLater();
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "频率规划");
 }
+
+void MainWindow::onPerformanceSettings()
+{
+    Zhifen::PerformanceManager &pm = Zhifen::PerformanceManager::instance();
+    Zhifen::PerformanceSettings settings = pm.settings();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("性能设置");
+    dlg->resize(450, 400);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QGroupBox *group = new QGroupBox("渲染优化", dlg);
+    QVBoxLayout *gLayout = new QVBoxLayout(group);
+    QCheckBox *cullCheck = new QCheckBox("视口裁剪（只渲染可见区域）", group);
+    cullCheck->setChecked(settings.viewportCulling);
+    QCheckBox *lodCheck = new QCheckBox("LOD细节层次（缩小时简化绘制）", group);
+    lodCheck->setChecked(settings.lodEnabled);
+    QCheckBox *cacheCheck = new QCheckBox("图元缓存（复杂图元使用缓存）", group);
+    cacheCheck->setChecked(settings.itemCaching);
+    gLayout->addWidget(cullCheck);
+    gLayout->addWidget(lodCheck);
+    gLayout->addWidget(cacheCheck);
+    layout->addWidget(group);
+
+    QGroupBox *group2 = new QGroupBox("文件优化", dlg);
+    QVBoxLayout *g2Layout = new QVBoxLayout(group2);
+    QCheckBox *incSaveCheck = new QCheckBox("增量保存（只保存变更部分）", group2);
+    incSaveCheck->setChecked(settings.incrementalSave);
+    QCheckBox *bgLoadCheck = new QCheckBox("后台加载（大文件不卡UI）", group2);
+    bgLoadCheck->setChecked(settings.backgroundLoading);
+    QCheckBox *memCheck = new QCheckBox("内存优化（共享图元数据）", group2);
+    memCheck->setChecked(settings.memoryOptimization);
+    g2Layout->addWidget(incSaveCheck);
+    g2Layout->addWidget(bgLoadCheck);
+    g2Layout->addWidget(memCheck);
+    layout->addWidget(group2);
+
+    QGroupBox *group3 = new QGroupBox("高级设置", dlg);
+    QFormLayout *fLayout = new QFormLayout(group3);
+    QSpinBox *maxItemsSpin = new QSpinBox(group3);
+    maxItemsSpin->setRange(1000, 50000);
+    maxItemsSpin->setValue(settings.maxItemsPerFrame);
+    maxItemsSpin->setSingleStep(1000);
+    fLayout->addRow("每帧最大绘制:", maxItemsSpin);
+    layout->addWidget(group3);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *applyBtn = new QPushButton("应用", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(applyBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(applyBtn, &QPushButton::clicked, this, [&pm, cullCheck, lodCheck, cacheCheck, incSaveCheck, bgLoadCheck, memCheck, maxItemsSpin, dlg]() {
+        Zhifen::PerformanceSettings s;
+        s.viewportCulling = cullCheck->isChecked();
+        s.lodEnabled = lodCheck->isChecked();
+        s.itemCaching = cacheCheck->isChecked();
+        s.incrementalSave = incSaveCheck->isChecked();
+        s.backgroundLoading = bgLoadCheck->isChecked();
+        s.memoryOptimization = memCheck->isChecked();
+        s.maxItemsPerFrame = maxItemsSpin->value();
+        pm.setSettings(s);
+        QMessageBox::information(nullptr, "应用成功", "性能设置已应用");
+        dlg->accept();
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onPerformanceMonitor()
+{
+    Zhifen::PerformanceManager &pm = Zhifen::PerformanceManager::instance();
+    QRectF viewRect = m_view->mapToScene(m_view->viewport()->rect()).boundingRect();
+    pm.updateStats(m_scene, viewRect);
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("性能监控");
+    dlg->resize(400, 350);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(pm.statsReport());
+    layout->addWidget(textEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *refreshBtn = new QPushButton("刷新", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(refreshBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(refreshBtn, &QPushButton::clicked, this, [&pm, textEdit, this]() {
+        QRectF vr = m_view->mapToScene(m_view->viewport()->rect()).boundingRect();
+        pm.updateStats(m_scene, vr);
+        textEdit->setPlainText(pm.statsReport());
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onPerformanceTest()
+{
+    Zhifen::PerformanceManager &pm = Zhifen::PerformanceManager::instance();
+    QRectF viewRect = m_view->mapToScene(m_view->viewport()->rect()).boundingRect();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("性能测试");
+    dlg->resize(500, 450);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(pm.runPerformanceTest(m_scene, viewRect));
+    layout->addWidget(textEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportBtn = new QPushButton("导出报告", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(exportBtn, &QPushButton::clicked, this, [this, textEdit]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出性能测试报告", "性能测试报告.txt", "文本文件 (*.txt)");
+        if (!fileName.isEmpty()) {
+            QFile file(fileName);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream out(&file);
+                out << textEdit->toPlainText();
+                file.close();
+                QMessageBox::information(this, "导出成功", "性能测试报告已导出");
+            }
+        }
+    });
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "性能测试");
+}
+
 
 
 
