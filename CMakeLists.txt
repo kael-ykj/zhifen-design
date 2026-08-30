@@ -67,7 +67,6 @@ set(SOURCES
     src/tools/special_design_tools.cpp
     src/entities/dimension_item.cpp
     src/core/sheet_set_manager.cpp
-    src/core/block_manager.cpp
     src/core/layout_manager.cpp
     src/core/version_manager.cpp
     src/core/change_review_manager.cpp
@@ -144,7 +143,6 @@ set(HEADERS
     src/engine/power_balance_optimizer.h
     src/tools/special_design_tools.h
     src/entities/dimension_item.h
-    src/core/block_manager.h
     src/core/layout_manager.h
     src/core/version_manager.h
     src/core/change_review_manager.h
