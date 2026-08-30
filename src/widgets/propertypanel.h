@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QDoubleSpinBox>
 #include <QColorDialog>
+#include <QCheckBox>
 #include <QGroupBox>
 
 class CadItem;

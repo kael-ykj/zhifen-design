@@ -7,7 +7,7 @@
 #include "polylineitem.h"
 #include "rectangleitem.h"
 #include "document.h"
-#include "layer.h"
+// #include "layer.h" - 图层通过document访问
 #include <QVBoxLayout>
 #include <QScrollArea>
 #include <QGroupBox>
