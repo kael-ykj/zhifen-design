@@ -232,6 +232,59 @@ void MainWindow::createActions()
     m_orthoAct = new QAction("正交", this); m_orthoAct->setShortcut(Qt::Key_F8); m_orthoAct->setCheckable(true); connect(m_orthoAct, &QAction::triggered, this, &MainWindow::onToggleOrtho);
 
     m_layerManagerAct = new QAction("图层管理", this); m_layerManagerAct->setShortcut(Qt::Key_F2); connect(m_layerManagerAct, &QAction::triggered, this, [this](){ LayerDialog dlg(m_document, this); dlg.exec(); m_layerPanel->refresh(); });
+
+    // === 计算与仿真 ===
+    m_linkCalcAct = new QAction("链路预算", this); connect(m_linkCalcAct, &QAction::triggered, this, &MainWindow::onLinkCalculation);
+    m_bomAct = new QAction("材料统计", this); connect(m_bomAct, &QAction::triggered, this, &MainWindow::onBomReport);
+    m_sysDiagramSketchAct = new QAction("系统图(草图)", this); connect(m_sysDiagramSketchAct, &QAction::triggered, this, [this](){ onGenerateSystemDiagram(Zhifen::SDM_Sketch); });
+    m_sysDiagramFormalAct = new QAction("系统图(正式)", this); connect(m_sysDiagramFormalAct, &QAction::triggered, this, [this](){ onGenerateSystemDiagram(Zhifen::SDM_Formal); });
+    m_coverageSimAct = new QAction("覆盖仿真", this); connect(m_coverageSimAct, &QAction::triggered, this, &MainWindow::onCoverageSimulation);
+    m_smartRouteAct = new QAction("智能路由", this); connect(m_smartRouteAct, &QAction::triggered, this, &MainWindow::onSmartRoute);
+    m_powerBalanceAct = new QAction("功率平衡", this); connect(m_powerBalanceAct, &QAction::triggered, this, &MainWindow::onPowerBalance);
+
+    // === 特殊设计工具 ===
+    m_elevatorToolAct = new QAction("电梯覆盖", this); connect(m_elevatorToolAct, &QAction::triggered, this, &MainWindow::onElevatorTool);
+    m_leakyCableToolAct = new QAction("漏缆设计", this); connect(m_leakyCableToolAct, &QAction::triggered, this, &MainWindow::onLeakyCableTool);
+    m_b2bToolAct = new QAction("楼间对打", this); connect(m_b2bToolAct, &QAction::triggered, this, &MainWindow::onBuildingToBuildingTool);
+
+    // === 块功能 ===
+    m_createBlockAct = new QAction("创建块", this); connect(m_createBlockAct, &QAction::triggered, this, &MainWindow::onCreateBlock);
+    m_insertBlockAct = new QAction("插入块", this); connect(m_insertBlockAct, &QAction::triggered, this, &MainWindow::onInsertBlock);
+    m_blockManagerAct = new QAction("块管理器", this); connect(m_blockManagerAct, &QAction::triggered, this, &MainWindow::onBlockManager);
+
+    // === 图纸与版本 ===
+    m_sheetSetAct = new QAction("图纸集管理", this); connect(m_sheetSetAct, &QAction::triggered, this, &MainWindow::onSheetSetManager);
+    m_modelSpaceAct = new QAction("模型空间", this); connect(m_modelSpaceAct, &QAction::triggered, this, &MainWindow::onModelSpace);
+    m_layoutSpaceAct = new QAction("布局空间", this); connect(m_layoutSpaceAct, &QAction::triggered, this, &MainWindow::onLayoutSpace);
+    m_versionMgrAct = new QAction("版本管理", this); connect(m_versionMgrAct, &QAction::triggered, this, &MainWindow::onVersionManager);
+    m_changeLogAct = new QAction("变更记录", this); connect(m_changeLogAct, &QAction::triggered, this, &MainWindow::onChangeLog);
+    m_reviewAct = new QAction("设计审查", this); connect(m_reviewAct, &QAction::triggered, this, &MainWindow::onDesignReview);
+
+    // === 分析与规划 ===
+    m_interferenceAct = new QAction("干扰分析", this); connect(m_interferenceAct, &QAction::triggered, this, &MainWindow::onInterferenceAnalysis);
+    m_capacityAct = new QAction("容量规划", this); connect(m_capacityAct, &QAction::triggered, this, &MainWindow::onCapacityPlanning);
+    m_frequencyAct = new QAction("频率规划", this); connect(m_frequencyAct, &QAction::triggered, this, &MainWindow::onFrequencyPlanning);
+
+    // === 性能 ===
+    m_perfSettingsAct = new QAction("性能设置", this); connect(m_perfSettingsAct, &QAction::triggered, this, &MainWindow::onPerformanceSettings);
+    m_perfMonitorAct = new QAction("性能监控", this); connect(m_perfMonitorAct, &QAction::triggered, this, &MainWindow::onPerformanceMonitor);
+    m_perfTestAct = new QAction("性能测试", this); connect(m_perfTestAct, &QAction::triggered, this, &MainWindow::onPerformanceTest);
+
+    // === 格式互导 ===
+    m_importTianyueAct = new QAction("导入天越格式", this); connect(m_importTianyueAct, &QAction::triggered, this, &MainWindow::onImportTianyue);
+    m_importAIDPAct = new QAction("导入AIDP格式", this); connect(m_importAIDPAct, &QAction::triggered, this, &MainWindow::onImportAIDP);
+    m_importDifuAct = new QAction("导入迪弗格式", this); connect(m_importDifuAct, &QAction::triggered, this, &MainWindow::onImportDifu);
+    m_exportTianyueAct = new QAction("导出天越格式", this); connect(m_exportTianyueAct, &QAction::triggered, this, &MainWindow::onExportTianyue);
+    m_exportAIDPAct = new QAction("导出AIDP格式", this); connect(m_exportAIDPAct, &QAction::triggered, this, &MainWindow::onExportAIDP);
+
+    // === 查询工具 ===
+    m_queryDistAct = new QAction("距离查询", this); connect(m_queryDistAct, &QAction::triggered, this, [this](){ setCurrentTool("query_dist"); });
+    m_queryAreaAct = new QAction("面积查询", this); connect(m_queryAreaAct, &QAction::triggered, this, [this](){ setCurrentTool("query_area"); });
+    m_queryPointAct = new QAction("点坐标查询", this); connect(m_queryPointAct, &QAction::triggered, this, [this](){ setCurrentTool("query_point"); });
+
+    // === 其他 ===
+    m_mirrorAct = new QAction("镜像", this); connect(m_mirrorAct, &QAction::triggered, this, [this](){ setCurrentTool("mirror"); });
+    m_auditLogAct = new QAction("审计日志", this); connect(m_auditLogAct, &QAction::triggered, this, &MainWindow::onAuditLog);
 }
 
 void MainWindow::createMenus()
