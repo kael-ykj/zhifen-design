@@ -100,7 +100,7 @@ QList<GripPoint*> GripManager::computeArcGrips(ArcItem *arc)
     // 圆心
     grips.append(new GripPoint{arc->centerPoint(), Grip_Center, -1, arc, false});
     // 中点（弧上）
-    qreal midAngle = (arc->startAngle() + arc->endAngle()) / 2;
+    qreal midAngle = arc->startAngle() + arc->spanAngle() / 2;
     QPointF mid(arc->centerPoint().x() + arc->radius() * qCos(midAngle),
                 arc->centerPoint().y() + arc->radius() * qSin(midAngle));
     grips.append(new GripPoint{mid, Grip_Midpoint, -1, arc, false});
@@ -120,7 +120,7 @@ QList<GripPoint*> GripManager::computePolylineGrips(PolylineItem *poly)
 QList<GripPoint*> GripManager::computeRectangleGrips(RectangleItem *rect)
 {
     QList<GripPoint*> grips;
-    QRectF r = rect->rect();
+    QRectF r = rect->rectangle();
     // 四个角点
     grips.append(new GripPoint{r.topLeft(), Grip_Vertex, 0, rect, false});
     grips.append(new GripPoint{r.topRight(), Grip_Vertex, 1, rect, false});
@@ -191,7 +191,7 @@ void GripManager::dragCircleGrip(CircleItem *circle, GripPoint *grip, const QPoi
     } else if (grip->type == Grip_Quadrant) {
         // 修改半径
         qreal newRadius = QLineF(circle->centerPoint(), newPos).length();
-        circle->setRadius(newRadius);
+        circle->setCircle(circle->centerPoint(), newRadius);
     }
 }
 
@@ -205,14 +205,15 @@ void GripManager::dragArcGrip(ArcItem *arc, GripPoint *grip, const QPointF &newP
         QPointF c = arc->centerPoint();
         qreal angle = qAtan2(newPos.y() - c.y(), newPos.x() - c.x());
         if (grip->index == 0) {
-            arc->setStartAngle(angle);
+            arc->setArc(c, arc->radius(), angle, arc->spanAngle());
         } else if (grip->index == 1) {
-            arc->setEndAngle(angle);
+            qreal newSpan = angle - arc->startAngle();
+            arc->setArc(c, arc->radius(), arc->startAngle(), newSpan);
         }
     } else if (grip->type == Grip_Midpoint) {
         // 修改半径
         qreal newRadius = QLineF(arc->centerPoint(), newPos).length();
-        arc->setRadius(newRadius);
+        arc->setArc(arc->centerPoint(), newRadius, arc->startAngle(), arc->spanAngle());
     }
 }
 
@@ -222,14 +223,14 @@ void GripManager::dragPolylineGrip(PolylineItem *poly, GripPoint *grip, const QP
         auto points = poly->points();
         if (grip->index < points.size()) {
             points[grip->index] = newPos;
-            poly->setPoints(points);
+            poly->setPolyline(points, poly->isClosed());
         }
     }
 }
 
 void GripManager::dragRectangleGrip(RectangleItem *rect, GripPoint *grip, const QPointF &newPos)
 {
-    QRectF r = rect->rect();
+    QRectF r = rect->rectangle();
     if (grip->type == Grip_Vertex) {
         // 修改角点
         switch (grip->index) {
@@ -238,7 +239,7 @@ void GripManager::dragRectangleGrip(RectangleItem *rect, GripPoint *grip, const 
         case 2: r.setBottomRight(newPos); break;
         case 3: r.setBottomLeft(newPos); break;
         }
-        rect->setRect(r);
+        rect->setRectangle(r);
     } else if (grip->type == Grip_Midpoint) {
         // 修改边中点（拉伸）
         switch (grip->index) {
@@ -247,7 +248,7 @@ void GripManager::dragRectangleGrip(RectangleItem *rect, GripPoint *grip, const 
         case 6: r.setBottom(newPos.y()); break;
         case 7: r.setLeft(newPos.x()); break;
         }
-        rect->setRect(r);
+        rect->setRectangle(r);
     }
 }
 
