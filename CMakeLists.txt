@@ -85,6 +85,8 @@ set(SOURCES
     src/core/shortcutmanager.cpp
     src/entities/textstyle.cpp
     src/entities/dimensionstylemanager.cpp
+    src/core/plotstyle.cpp
+    src/entities/hatchpattern.cpp
     src/io/dxfwriter.cpp
     src/io/projectio.cpp
     src/widgets/commandline.cpp
@@ -151,6 +153,8 @@ set(HEADERS
     src/tools/devicetool.h
     src/tools/pantool.h
     src/core/format_converter.h
+    src/core/plotstyle.h
+    src/entities/hatchpattern.h
     src/entities/textstyle.h
     src/entities/dimensionstylemanager.h
     src/core/professional_symbols.h
