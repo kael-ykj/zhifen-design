@@ -27,6 +27,18 @@ public:
 
     void setFeederType(FeederType type) { m_type = type; }
     FeederType feederType() const { return m_type; }
+    QString typeName() const {
+        switch (m_type) {
+        case Feeder_1_2: return "1/2馈线";
+        case Feeder_7_8: return "7/8馈线";
+        case Feeder_1_5_8: return "1-5/8馈线";
+        case Feeder_5D: return "5D-FB";
+        case Feeder_8D: return "8D-FB";
+        case Feeder_Fiber: return "光纤";
+        case Feeder_Network: return "网线";
+        }
+        return "未知";
+    }
     QString feederTypeName() const;
 
     qreal length() const { return m_length; }

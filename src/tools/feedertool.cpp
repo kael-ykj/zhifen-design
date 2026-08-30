@@ -15,6 +15,19 @@ void FeederTool::mousePressEvent(QMouseEvent *event)
             FeederItem *feeder = new FeederItem(m_points, m_feederType);
             feeder->setLayer("馈线");
             m_scene->addItem(feeder);
+
+            // 自动标注线长
+            qreal totalLen = feeder->length();
+            QPointF midPoint = m_points.at(m_points.size() / 2);
+            QGraphicsSimpleTextItem *label = new QGraphicsSimpleTextItem(
+                QString("%1m").arg(totalLen, 0, 'f', 2));
+            label->setPos(midPoint.x() + 5, midPoint.y() - 15);
+            label->setFont(QFont("Microsoft YaHei", 8));
+            label->setBrush(QColor(0, 100, 200));
+            label->setZValue(10);
+            m_scene->addItem(label);
+
+            emit statusMessage(QString("馈线绘制完成，类型=%1，长度=%2m").arg(feeder->typeName()).arg(totalLen, 0, 'f', 2));
         }
         m_points.clear();
         m_drawing = false;
@@ -54,7 +67,19 @@ void FeederTool::mouseDoubleClickEvent(QMouseEvent *event)
         FeederItem *feeder = new FeederItem(m_points, m_feederType);
         feeder->setLayer("馈线");
         m_scene->addItem(feeder);
-        emit statusMessage(QString("馈线绘制完成，长度=%1m").arg(feeder->length(), 0, 'f', 2));
+
+        // 自动标注线长（在馈线中点）
+        qreal totalLen = feeder->length();
+        QPointF midPoint = m_points.at(m_points.size() / 2);
+        QGraphicsSimpleTextItem *label = new QGraphicsSimpleTextItem(
+            QString("%1m").arg(totalLen, 0, 'f', 2));
+        label->setPos(midPoint.x() + 5, midPoint.y() - 15);
+        label->setFont(QFont("Microsoft YaHei", 8));
+        label->setBrush(QColor(0, 100, 200));
+        label->setZValue(10);
+        m_scene->addItem(label);
+
+        emit statusMessage(QString("馈线绘制完成，类型=%1，长度=%2m").arg(feeder->typeName()).arg(totalLen, 0, 'f', 2));
     }
     m_points.clear();
     m_drawing = false;
