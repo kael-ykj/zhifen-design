@@ -298,7 +298,7 @@ void BlockEditor::onAddText()
     QString text = QInputDialog::getText(this, "添加文字", "文字内容:", QLineEdit::Normal, "文字", &ok);
     if (!ok || text.isEmpty()) return;
 
-    TextItem *textItem = new TextItem(text);
+    TextItem *textItem = new TextItem(QPointF(0, 0), text);
     textItem->setPos(0, 0);
     m_scene->addItem(textItem);
     m_view->zoomExtents();
