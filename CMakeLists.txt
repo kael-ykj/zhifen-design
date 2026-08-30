@@ -87,6 +87,9 @@ set(SOURCES
     src/entities/dimensionstylemanager.cpp
     src/core/plotstyle.cpp
     src/entities/hatchpattern.cpp
+    src/blocks/blockdefinition.cpp
+    src/blocks/blockreference.cpp
+    src/blocks/blockmanager.cpp
     src/io/dxfwriter.cpp
     src/io/projectio.cpp
     src/widgets/commandline.cpp
@@ -152,6 +155,9 @@ set(HEADERS
     src/core/performance_manager.h
     src/tools/devicetool.h
     src/tools/pantool.h
+    src/blocks/blockdefinition.h
+    src/blocks/blockreference.h
+    src/blocks/blockmanager.h
     src/core/format_converter.h
     src/core/plotstyle.h
     src/entities/hatchpattern.h
