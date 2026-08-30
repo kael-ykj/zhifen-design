@@ -2,6 +2,7 @@
 #define CADSCENE_H
 
 #include <QGraphicsScene>
+#include "blocks/blockmanager.h"
 #include <QPointF>
 #include <QSet>
 
@@ -33,6 +34,9 @@ public:
 
     // 添加图元
     void addCadItem(CadItem *item);
+
+private slots:
+    void onBlockRedefined(const QString &name);
 
 signals:
     void selectionChangedCount(int count);

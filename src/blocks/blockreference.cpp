@@ -1,5 +1,10 @@
 #include "blockreference.h"
 #include "blockmanager.h"
+#include "entities/lineitem.h"
+#include "entities/circleitem.h"
+#include "entities/textitem.h"
+#include "entities/rectangleitem.h"
+#include "entities/arcitem.h"
 #include <QPainter>
 #include <QGraphicsScene>
 #include <QtMath>
@@ -60,9 +65,31 @@ QRectF BlockReference::boundingRect() const
     if (!def) return QRectF(-5, -5, 10, 10);
 
     QRectF rect = def->boundingRect();
-    // 考虑比例和旋转
-    qreal maxDim = qMax(rect.width(), rect.height()) * qMax(m_scaleX, m_scaleY) * 1.5;
-    return QRectF(-maxDim, -maxDim, maxDim * 2, maxDim * 2);
+    if (rect.isNull()) return QRectF(-5, -5, 10, 10);
+
+    // 应用基点偏移
+    rect.translate(-def->basePoint());
+
+    // 应用缩放
+    rect.setWidth(rect.width() * m_scaleX);
+    rect.setHeight(rect.height() * m_scaleY);
+    rect.moveLeft(rect.left() * m_scaleX);
+    rect.moveTop(rect.top() * m_scaleY);
+
+    // 应用旋转（简化：用外接正方形）
+    if (m_rotation != 0) {
+        qreal maxDim = qMax(rect.width(), rect.height()) * 1.5;
+        QPointF center = rect.center();
+        rect = QRectF(center.x() - maxDim, center.y() - maxDim, maxDim * 2, maxDim * 2);
+    }
+
+    // 应用插入点偏移
+    rect.translate(m_insertPoint);
+
+    // 转换为item本地坐标（因为QGraphicsItem的pos已经是插入点）
+    rect.translate(-pos());
+
+    return rect.adjusted(-2, -2, 2, 2);
 }
 
 QPainterPath BlockReference::shape() const
@@ -93,10 +120,50 @@ void BlockReference::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
     painter->scale(m_scaleX, m_scaleY);
     painter->translate(-def->basePoint());
 
-    // 绘制块内图元(简化：只绘制边界和属性)
-    // 实际绘制应该递归绘制每个图元，这里用简化方式
-    painter->setPen(QPen(QColor(200, 200, 200), 0.25, Qt::DashLine));
-    painter->drawRect(def->boundingRect());
+    // 绘制块内所有图元
+    for (QGraphicsItem *item : def->items()) {
+        painter->save();
+        painter->translate(item->pos());
+
+        if (auto line = dynamic_cast<LineItem*>(item)) {
+            QPen pen(line->pen());
+            pen.setWidthF(0.25);
+            painter->setPen(pen);
+            painter->drawLine(line->startPoint(), line->endPoint());
+        }
+        else if (auto circle = dynamic_cast<CircleItem*>(item)) {
+            QPen pen(circle->pen());
+            pen.setWidthF(0.25);
+            painter->setPen(pen);
+            painter->setBrush(circle->brush());
+            painter->drawEllipse(circle->centerPoint(), circle->radius(), circle->radius());
+        }
+        else if (auto text = dynamic_cast<TextItem*>(item)) {
+            painter->setPen(text->defaultTextColor());
+            QFont font = text->font();
+            font.setPointSizeF(2.5);
+            painter->setFont(font);
+            painter->drawText(QPointF(0, 0), text->text());
+        }
+        else if (auto rect = dynamic_cast<RectangleItem*>(item)) {
+            QPen pen(rect->pen());
+            pen.setWidthF(0.25);
+            painter->setPen(pen);
+            painter->setBrush(rect->brush());
+            painter->drawRect(rect->rectangle());
+        }
+        else if (auto arc = dynamic_cast<class ArcItem*>(item)) {
+            QPen pen(arc->pen());
+            pen.setWidthF(0.25);
+            painter->setPen(pen);
+            QRectF rect(arc->centerPoint().x() - arc->radius(),
+                       arc->centerPoint().y() - arc->radius(),
+                       arc->radius() * 2, arc->radius() * 2);
+            painter->drawArc(rect, arc->startAngle() * 16, arc->spanAngle() * 16);
+        }
+
+        painter->restore();
+    }
 
     // 绘制基点标记
     painter->setPen(QPen(QColor(255, 0, 0), 0.5));
