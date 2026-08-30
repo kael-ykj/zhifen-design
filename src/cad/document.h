@@ -10,21 +10,6 @@
 class CadItem;
 class CadScene;
 
-// 图层组
-struct LayerGroup {
-    QString name;
-    QString description;
-    bool expanded = true;
-    QList<QString> layerNames;
-};
-
-// 图层状态
-struct LayerState {
-    QString name;
-    QString description;
-    QMap<QString, LayerInfo> layers;
-};
-
 struct LayerInfo {
     QString name;
     QColor color;
@@ -40,6 +25,21 @@ struct LayerInfo {
     QString description = "";     // 描述
     QString group = "";           // 所属图层组
     int transparency = 0;         // 透明度(0-90)
+};
+
+// 图层组
+struct LayerGroup {
+    QString name;
+    QString description;
+    bool expanded = true;
+    QList<QString> layerNames;
+};
+
+// 图层状态
+struct LayerState {
+    QString name;
+    QString description;
+    QMap<QString, LayerInfo> layers;
 };
 
 class Document : public QObject
