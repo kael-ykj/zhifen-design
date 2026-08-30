@@ -93,6 +93,7 @@ set(SOURCES
     src/widgets/blockcreatedialog.cpp
     src/widgets/attributedialog.cpp
     src/widgets/blockmanagerpanel.cpp
+    src/widgets/blockeditor.cpp
     src/io/projectio.cpp
     src/widgets/commandline.cpp
     src/widgets/layerpanel.cpp
@@ -162,6 +163,7 @@ set(HEADERS
     src/widgets/attributedialog.h
     src/widgets/blockmanagerpanel.h
     src/blocks/blockmanager.h
+    src/widgets/blockeditor.h
     src/core/format_converter.h
     src/core/plotstyle.h
     src/entities/hatchpattern.h

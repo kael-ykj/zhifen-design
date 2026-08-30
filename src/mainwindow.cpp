@@ -42,6 +42,7 @@
 #include "widgets/blockcreatedialog.h"
 #include "widgets/attributedialog.h"
 #include "widgets/blockmanagerpanel.h"
+#include "widgets/blockeditor.h"
 #include "core/layout_manager.h"
 #include "core/version_manager.h"
 #include "core/change_review_manager.h"
@@ -1630,6 +1631,14 @@ void MainWindow::onBlockManager()
     if (!panel) {
         panel = new Zhifen::BlockManagerPanel(this);
         addDockWidget(Qt::RightDockWidgetArea, panel);
+        connect(panel, &Zhifen::BlockManagerPanel::editBlockRequested, this, [this](const QString &name) {
+            Zhifen::BlockEditor *editor = new Zhifen::BlockEditor(name, this);
+            connect(editor, &Zhifen::BlockEditor::blockEdited, this, [this](const QString &bn) {
+                // 块已编辑，刷新场景
+                m_scene->update();
+            });
+            editor->show();
+        });
         connect(panel, &Zhifen::BlockManagerPanel::insertBlockRequested, this, [this](const QString &name) {
             QPointF insertPt = m_view->mapToScene(m_view->viewport()->rect().center());
             Zhifen::BlockReference *blockRef = new Zhifen::BlockReference(name);
