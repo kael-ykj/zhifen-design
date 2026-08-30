@@ -24,6 +24,7 @@
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_generator.h"
 #include "engine/report_engine.h"
+#include "engine/print_engine.h"
 #include "import/dxf_importer.h"
 #include "engine/coverage_simulator.h"
 #include "tools/batch_importer.h"
@@ -884,14 +885,35 @@ void MainWindow::onExportDwgFinal()
 void MainWindow::onPrint()
 {
     QPrinter printer(QPrinter::HighResolution);
-    printer.setPageSize(QPrinter::A4);
+    printer.setPageSize(QPrinter::A3);
     printer.setOrientation(QPrinter::Landscape);
+
     QPrintPreviewDialog preview(&printer, this);
-    preview.setWindowTitle("打印预览");
-    connect(&preview, &QPrintPreviewDialog::paintRequested, this, [this](QPrinter *p){
+    preview.setWindowTitle("打印预览 - 智分Design");
+    preview.resize(1200, 800);
+
+    Zhifen::PrintEngine printEngine;
+    Zhifen::PrintSettings settings;
+    settings.paperSize = Zhifen::Paper_A3;
+    settings.printTitleBlock = true;
+    settings.printLegend = true;
+    settings.printMaterialTable = true;
+    settings.printBorder = true;
+
+    Zhifen::TitleBlockInfo info;
+    info.projectName = "室内分布系统工程";
+    info.drawingName = "平面布置图";
+    info.drawingNumber = "ZF-PLAN-001";
+    info.designer = "设计";
+    info.reviewer = "审核";
+    info.approver = "批准";
+    info.company = "智分Design";
+    info.version = "V3.1";
+
+    connect(&preview, &QPrintPreviewDialog::paintRequested, this, [this, &printEngine, &settings, &info](QPrinter *p){
         QPainter painter(p);
         QRectF rect = p->pageRect();
-        m_scene->render(&painter, rect);
+        printEngine.renderToPainter(m_scene, &painter, rect, settings, info);
     });
     preview.exec();
 }

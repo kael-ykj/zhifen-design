@@ -54,6 +54,7 @@ set(SOURCES
     src/entities/feederitem.cpp
     src/engine/system_diagram_generator.cpp
     src/engine/report_engine.cpp
+    src/engine/print_engine.cpp
     src/import/dxf_importer.cpp
     src/engine/coverage_simulator.cpp
     src/tools/batch_importer.cpp
