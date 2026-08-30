@@ -66,6 +66,8 @@
 #include "widgets/propertypanel.h"
 #include "widgets/layerdialog.h"
 #include "widgets/devicepanel.h"
+#include "widgets/devicelibrarypanel.h"
+#include "entities/deviceitem.h"
 #include "tools/devicetool.h"
 #include "io/dxfreader.h"
 #include "io/dxfwriter.h"
@@ -359,20 +361,33 @@ void MainWindow::createDockWidgets()
     addDockWidget(Qt::BottomDockWidgetArea, bottomDock);
 
     m_commandLine->appendMessage("智分Design V3.1 已启动", "result");
-    // 器件库面板
+    // 器件库面板（新：60种器件，对标天越11大类）
     QDockWidget *deviceDock = new QDockWidget("器件库", this);
     deviceDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    m_devicePanel = new DevicePanel(this);
-    deviceDock->setWidget(m_devicePanel);
+    Zhifen::DeviceLibraryPanel *devLibrary = new Zhifen::DeviceLibraryPanel(this);
+    deviceDock->setWidget(devLibrary);
     addDockWidget(Qt::RightDockWidgetArea, deviceDock);
-    connect(m_devicePanel, &DevicePanel::placeDevice, this, [this](DeviceType type){
-        DeviceTool *tool = new DeviceTool(m_view, type);
-        m_view->setCurrentTool(tool);
-        m_view->setCursor(tool->cursor());
-        m_toolLabel->setText(QString("当前工具: 放置器件"));
-        m_commandLine->appendMessage("放置器件命令", "command");
-        connect(tool, &Tool::finished, this, &MainWindow::onToolFinished);
-        connect(tool, &Tool::statusMessage, this, [this](const QString &msg){ m_commandLine->appendMessage(msg, "result"); });
+    connect(devLibrary, &Zhifen::DeviceLibraryPanel::deviceSelected, this, [this](Zhifen::DeviceItem::DeviceType type, const QString &name){
+        // 进入器件放置模式：点击画布时放置器件
+        m_pendingDeviceType = type;
+        m_pendingDeviceName = name;
+        statusBar()->showMessage(QString("放置器件: %1，点击画布放置，右键取消").arg(name), 5000);
+        // 临时连接鼠标点击事件
+        if (!m_devicePlaceConnection) {
+            m_devicePlaceConnection = connect(m_view, &CadView::sceneClicked, this, [this](QPointF pos){
+                if (m_pendingDeviceName.isEmpty()) return;
+                Zhifen::DeviceItem *dev = new Zhifen::DeviceItem(m_pendingDeviceType);
+                dev->setPos(pos);
+                dev->setToolTip(m_pendingDeviceName);
+                m_scene->addItem(dev);
+                m_scene->clearSelection();
+                dev->setSelected(true);
+                statusBar()->showMessage(QString("已放置: %1").arg(m_pendingDeviceName), 3000);
+                // 放置一个后清除（可改为连续放置）
+                m_pendingDeviceName = "";
+                m_pendingDeviceType = Zhifen::DeviceItem::OmniAntenna;
+            });
+        }
     });
 
     m_commandLine->appendMessage("输入命令或使用工具栏开始绘图", "result");

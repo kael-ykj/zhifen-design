@@ -106,6 +106,10 @@ void CadView::mousePressEvent(QMouseEvent *event)
     if (m_currentTool) {
         m_currentTool->mousePressEvent(event);
     } else {
+        // 左键点击场景（用于器件放置等）
+        if (event->button() == Qt::LeftButton) {
+            emit sceneClicked(mapToScene(event->pos()));
+        }
         QGraphicsView::mousePressEvent(event);
     }
 }

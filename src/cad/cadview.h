@@ -46,6 +46,7 @@ signals:
     void coordinateChanged(const QPointF &worldPos);
     void toolFinished();
     void blockDoubleClicked(Zhifen::BlockReference *block);
+    void sceneClicked(const QPointF &pos);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

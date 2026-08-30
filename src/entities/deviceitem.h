@@ -1,5 +1,5 @@
-#ifndef DEVICEITEM_H
-#define DEVICEITEM_H
+#ifndef ZHIFEN_DEVICE_ITEM_H
+#define ZHIFEN_DEVICE_ITEM_H
 
 #include <QGraphicsItem>
 #include <QString>

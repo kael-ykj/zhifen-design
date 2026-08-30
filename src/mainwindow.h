@@ -19,9 +19,10 @@ class LayerPanel;
 class PropertyPanel;
 class DevicePanel;
 
-namespace Zhifen { enum SystemDiagramMode; }
-namespace Zhifen { enum PaperSize; }
-namespace Zhifen { enum DimensionType; }
+#include "engine/report_engine.h"
+#include "engine/system_diagram_generator.h"
+#include "entities/dimension_item.h"
+#include "entities/deviceitem.h"
 
 class MainWindow : public QMainWindow
 {
@@ -107,6 +108,9 @@ private:
     LayerPanel *m_layerPanel;
     PropertyPanel *m_propertyPanel;
     DevicePanel *m_devicePanel;
+    Zhifen::DeviceItem::DeviceType m_pendingDeviceType = Zhifen::DeviceItem::OmniAntenna;
+    QString m_pendingDeviceName;
+    QMetaObject::Connection m_devicePlaceConnection;
 
     // Actions
     QAction *m_newAct, *m_openAct, *m_saveAct, *m_saveAsAct;

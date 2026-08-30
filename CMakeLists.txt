@@ -105,6 +105,7 @@ set(SOURCES
     src/entities/deviceitem.cpp
     src/widgets/layerdialog.cpp
     src/widgets/devicepanel.cpp
+    src/widgets/devicelibrarypanel.cpp
 )
 
 set(HEADERS
