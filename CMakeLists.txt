@@ -82,6 +82,7 @@ set(SOURCES
     src/core/command_parser.cpp
     src/snap/gripmanager.cpp
     src/widgets/dynamicinput.cpp
+    src/core/shortcutmanager.cpp
     src/io/dxfwriter.cpp
     src/io/projectio.cpp
     src/widgets/commandline.cpp
@@ -149,6 +150,7 @@ set(HEADERS
     src/tools/pantool.h
     src/core/format_converter.h
     src/core/professional_symbols.h
+    src/core/shortcutmanager.h
     src/widgets/dynamicinput.h
     src/snap/gripmanager.h
     src/core/command_parser.h
