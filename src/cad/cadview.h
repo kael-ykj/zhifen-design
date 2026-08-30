@@ -9,7 +9,7 @@
 class CadScene;
 class Tool;
 class SnapManager;
-namespace Zhifen { class GripManager; }
+namespace Zhifen { class GripManager; struct GripPoint; }
 class Document;
 
 class CadView : public QGraphicsView
