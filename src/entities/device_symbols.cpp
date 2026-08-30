@@ -668,7 +668,6 @@ QPointF DeviceSymbols::couplerCoupledPort(qreal scale)
     return QPointF(0, 2.5 * scale);
 }
 
-} // namespace Zhifen
 
 // ==================== 补充天线类 ====================
 
@@ -1256,3 +1255,5 @@ void DeviceSymbols::drawLogPeriodicAntenna(QPainter *painter, qreal scale)
     drawConnectionDot(painter, QPointF(-3, 0));
     painter->restore();
 }
+
+} // namespace Zhifen
