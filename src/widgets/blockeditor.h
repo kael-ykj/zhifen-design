@@ -5,12 +5,14 @@
 #include <QString>
 #include <QPointF>
 #include "blocks/blockdefinition.h"
+#include "cad/cadscene.h"
+#include "cad/cadview.h"
+#include <QListWidget>
+#include <QPushButton>
 
 namespace Zhifen {
 
-class CadScene;
-class CadView;
-class BlockManagerPanel;
+
 
 class BlockEditor : public QDialog
 {
@@ -43,21 +45,21 @@ private:
     BlockDefinition *m_workingCopy;
 
     // 属性列表
-    class QListWidget *m_attrList;
-    class QPushButton *m_addAttrBtn;
-    class QPushButton *m_editAttrBtn;
-    class QPushButton *m_delAttrBtn;
+    QListWidget *m_attrList;
+    QPushButton *m_addAttrBtn;
+    QPushButton *m_editAttrBtn;
+    QPushButton *m_delAttrBtn;
 
     // 工具按钮
-    class QPushButton *m_lineBtn;
-    class QPushButton *m_circleBtn;
-    class QPushButton *m_textBtn;
-    class QPushButton *m_deleteBtn;
-    class QPushButton *m_zoomBtn;
+    QPushButton *m_lineBtn;
+    QPushButton *m_circleBtn;
+    QPushButton *m_textBtn;
+    QPushButton *m_deleteBtn;
+    QPushButton *m_zoomBtn;
 
     // 保存/取消
-    class QPushButton *m_saveBtn;
-    class QPushButton *m_cancelBtn;
+    QPushButton *m_saveBtn;
+    QPushButton *m_cancelBtn;
 
     void setupUI();
     void loadBlock();
