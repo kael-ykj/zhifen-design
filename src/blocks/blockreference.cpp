@@ -126,29 +126,22 @@ void BlockReference::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
         painter->translate(item->pos());
 
         if (auto line = dynamic_cast<LineItem*>(item)) {
-            QPen pen = line->effectivePen();
-            pen.setWidthF(0.25);
-            painter->setPen(pen);
+            painter->setPen(QPen(Qt::black, 0.25));
             painter->drawLine(line->startPoint(), line->endPoint());
         }
         else if (auto circle = dynamic_cast<CircleItem*>(item)) {
-            QPen pen = circle->effectivePen();
-            pen.setWidthF(0.25);
-            painter->setPen(pen);
+            painter->setPen(QPen(Qt::black, 0.25));
             painter->setBrush(Qt::NoBrush);
             painter->drawEllipse(circle->centerPoint(), circle->radius(), circle->radius());
         }
         else if (auto text = dynamic_cast<TextItem*>(item)) {
-            painter->setPen(text->defaultTextColor());
-            QFont font = text->font();
-            font.setPointSizeF(2.5);
+            painter->setPen(QPen(Qt::black, 0.25));
+            QFont font("SimSun", text->textHeight());
             painter->setFont(font);
             painter->drawText(QPointF(0, 0), text->text());
         }
         else if (auto rect = dynamic_cast<RectangleItem*>(item)) {
-            QPen pen = rect->effectivePen();
-            pen.setWidthF(0.25);
-            painter->setPen(pen);
+            painter->setPen(QPen(Qt::black, 0.25));
             painter->setBrush(Qt::NoBrush);
             painter->drawRect(rect->rectangle());
         }

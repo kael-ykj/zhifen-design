@@ -98,7 +98,6 @@ void CadScene::onBlockRedefined(const QString &name)
     for (QGraphicsItem *item : items()) {
         if (auto blockRef = dynamic_cast<Zhifen::BlockReference*>(item)) {
             if (blockRef->blockName() == name) {
-                blockRef->prepareGeometryChange();
                 blockRef->update();
             }
         }
