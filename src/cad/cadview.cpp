@@ -117,6 +117,15 @@ void CadView::mousePressEvent(QMouseEvent *event)
 void CadView::mouseMoveEvent(QMouseEvent *event)
 {
     QPointF worldPos = mapToScene(event->pos());
+
+    // 对象捕捉计算
+    if (m_snapManager && m_snapManager->isEnabled() && !m_panning) {
+        SnapResult *snap = m_snapManager->computeSnap(worldPos);
+        if (snap) {
+            worldPos = snap->point;
+        }
+    }
+
     m_lastWorldPos = worldPos;
     emit coordinateChanged(worldPos);
 
