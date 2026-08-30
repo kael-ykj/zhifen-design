@@ -9,6 +9,7 @@
 class CadScene;
 class Tool;
 class SnapManager;
+class DynamicInput;
 namespace Zhifen { class GripManager; struct GripPoint; }
 class Document;
 
@@ -36,6 +37,8 @@ public:
 
     // 正交模式
     void setOrthoMode(bool enabled) { m_orthoMode = enabled; }
+    void setDynamicInputEnabled(bool enabled) { m_dynamicInputEnabled = enabled; }
+    bool dynamicInputEnabled() const { return m_dynamicInputEnabled; }
     bool orthoMode() const { return m_orthoMode; }
 
 signals:
@@ -58,6 +61,8 @@ private:
     Zhifen::GripManager *m_gripManager = nullptr;
     bool m_gripDragging = false;
     Zhifen::GripPoint *m_draggedGrip = nullptr;
+    DynamicInput *m_dynamicInput = nullptr;
+    bool m_dynamicInputEnabled = true;
     bool m_orthoMode = false;
     bool m_panning = false;
     QPoint m_panStart;

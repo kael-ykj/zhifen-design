@@ -3,6 +3,7 @@
 #include "tool.h"
 #include "snapmanager.h"
 #include "gripmanager.h"
+#include "dynamicinput.h"
 #include "document.h"
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -31,6 +32,7 @@ void CadView::setCadScene(CadScene *scene)
     m_snapManager = new SnapManager(scene, this);
     m_gripManager = new Zhifen::GripManager(scene, this);
     connect(scene, &CadScene::selectionChanged, this, [this](){ if (m_gripManager) m_gripManager->updateGrips(); });
+    m_dynamicInput = new DynamicInput(this);
 }
 
 void CadView::zoomExtents()
@@ -74,6 +76,11 @@ QPoint CadView::worldToScreen(const QPointF &worldPos) const
 
 void CadView::mousePressEvent(QMouseEvent *event)
 {
+    // 隐藏动态输入
+    if (m_dynamicInput && m_dynamicInput->isVisible()) {
+        m_dynamicInput->hideInput();
+    }
+
     // 中键平移
     if (event->button() == Qt::MiddleButton) {
         m_panning = true;
@@ -107,6 +114,13 @@ void CadView::mouseMoveEvent(QMouseEvent *event)
     QPointF worldPos = mapToScene(event->pos());
     m_lastWorldPos = worldPos;
     emit coordinateChanged(worldPos);
+
+    // 动态输入
+    if (m_dynamicInput && m_dynamicInputEnabled && m_currentTool) {
+        m_dynamicInput->updateCoordinate(worldPos);
+        m_dynamicInput->updatePosition(event->globalPos());
+        if (!m_dynamicInput->isVisible()) m_dynamicInput->showInput();
+    }
 
     // 中键平移
     if (m_panning) {
