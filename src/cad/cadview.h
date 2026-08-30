@@ -10,6 +10,7 @@ class CadScene;
 class Tool;
 class SnapManager;
 class DynamicInput;
+namespace Zhifen { class BlockReference; }
 namespace Zhifen { class GripManager; struct GripPoint; }
 class Document;
 
@@ -44,6 +45,7 @@ public:
 signals:
     void coordinateChanged(const QPointF &worldPos);
     void toolFinished();
+    void blockDoubleClicked(Zhifen::BlockReference *block);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -53,6 +55,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void drawForeground(QPainter *painter, const QRectF &rect) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
     Document *m_document = nullptr;

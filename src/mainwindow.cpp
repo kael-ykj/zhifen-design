@@ -39,6 +39,9 @@
 #include "blocks/blockmanager.h"
 #include "blocks/blockreference.h"
 #include "blocks/blockdefinition.h"
+#include "widgets/blockcreatedialog.h"
+#include "widgets/attributedialog.h"
+#include "widgets/blockmanagerpanel.h"
 #include "core/layout_manager.h"
 #include "core/version_manager.h"
 #include "core/change_review_manager.h"
@@ -123,6 +126,18 @@ MainWindow::MainWindow(QWidget *parent)
     // 连接信号
     connect(m_view, &CadView::coordinateChanged, this, &MainWindow::onCoordinateChanged);
     connect(m_view, &CadView::toolFinished, this, &MainWindow::onToolFinished);
+    connect(m_view, &CadView::blockDoubleClicked, this, [this](Zhifen::BlockReference *block) {
+        if (!block) return;
+        Zhifen::BlockDefinition *def = block->blockDefinition();
+        if (def && def->attributeCount() > 0) {
+            Zhifen::AttributeDialog dlg(this);
+            dlg.setBlock(def, block->attributeValues());
+            if (dlg.exec() == QDialog::Accepted) {
+                block->setAttributeValues(dlg.attributeValues());
+                block->update();
+            }
+        }
+    });
     connect(m_scene, &CadScene::selectionChangedCount, this, &MainWindow::onSelectionChanged);
     connect(m_commandLine, &CommandLine::commandEntered, this, &MainWindow::onCommandEntered);
     connect(m_document, &Document::modifiedChanged, this, [this](bool) { updateTitle(); });
@@ -1538,13 +1553,19 @@ void MainWindow::onCreateBlock()
         return;
     }
 
-    bool ok;
-    QString name = QInputDialog::getText(this, "创建块", "块名称:", QLineEdit::Normal, "Block1", &ok);
-    if (!ok || name.isEmpty()) return;
+    Zhifen::BlockCreateDialog dlg(this);
+    QPointF defaultBase = selected.first()->pos();
+    dlg.setBasePoint(defaultBase);
 
-    QPointF basePoint = QPointF(0, 0);
-    if (!selected.isEmpty()) {
-        basePoint = selected.first()->pos();
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    QString name = dlg.blockName();
+    QPointF basePoint = dlg.basePoint();
+
+    if (name.isEmpty()) return;
+    if (Zhifen::BlockManager::instance().hasBlock(name)) {
+        QMessageBox::warning(this, "创建块失败", QString("块 '%1' 已存在").arg(name));
+        return;
     }
 
     // 创建块定义
@@ -1557,13 +1578,16 @@ void MainWindow::onCreateBlock()
     Zhifen::BlockManager::instance().addBlock(def);
 
     // 将选中图元替换为块引用
-    for (QGraphicsItem *item : selected) {
-        m_scene->removeItem(item);
+    if (dlg.convertToBlock()) {
+        for (QGraphicsItem *item : selected) {
+            m_scene->removeItem(item);
+        }
+        Zhifen::BlockReference *blockRef = new Zhifen::BlockReference(name);
+        blockRef->setInsertPoint(basePoint);
+        blockRef->setPos(basePoint);
+        m_scene->addItem(blockRef);
     }
-    Zhifen::BlockReference *blockRef = new Zhifen::BlockReference(name);
-    blockRef->setInsertPoint(basePoint);
-    blockRef->setPos(basePoint);
-    m_scene->addItem(blockRef);
+
     QMessageBox::information(this, "创建块成功", QString("块 '%1' 已创建，包含 %2 个图元").arg(name).arg(selected.size()));
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("创建块: %1").arg(name));
 }
@@ -1585,68 +1609,48 @@ void MainWindow::onInsertBlock()
     Zhifen::BlockReference *blockRef = new Zhifen::BlockReference(name);
     blockRef->setInsertPoint(insertPt);
     blockRef->setPos(insertPt);
-    m_scene->addItem(blockRef);
-    if (blockRef) {
-        m_scene->addItem(blockRef);
-        Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("插入块: %1").arg(name));
+
+    // 如果块有属性，弹出属性编辑对话框
+    Zhifen::BlockDefinition *def = mgr.block(name);
+    if (def && def->attributeCount() > 0) {
+        Zhifen::AttributeDialog attrDlg(this);
+        attrDlg.setBlock(def, blockRef->attributeValues());
+        if (attrDlg.exec() == QDialog::Accepted) {
+            blockRef->setAttributeValues(attrDlg.attributeValues());
+        }
     }
+
+    m_scene->addItem(blockRef);
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("插入块: %1").arg(name));
 }
 
 void MainWindow::onBlockManager()
 {
-    Zhifen::BlockManager &mgr = Zhifen::BlockManager::instance();
-
-    QDialog *dlg = new QDialog(this);
-    dlg->setWindowTitle("块管理器");
-    dlg->resize(500, 400);
-    QVBoxLayout *layout = new QVBoxLayout(dlg);
-
-    QListWidget *listWidget = new QListWidget(dlg);
-    for (const QString &name : mgr.allBlockNames()) {
-        Zhifen::BlockDefinition *block = mgr.block(name);
-        QString info = QString("%1 (%2个图元, %3个属性)")
-            .arg(name).arg(block ? block->itemCount() : 0)
-            .arg(block ? block->attributeCount() : 0);
-        listWidget->addItem(info);
-    }
-    layout->addWidget(listWidget);
-
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    QPushButton *insertBtn = new QPushButton("插入", dlg);
-    QPushButton *renameBtn = new QPushButton("重命名", dlg);
-    QPushButton *deleteBtn = new QPushButton("删除", dlg);
-    QPushButton *closeBtn = new QPushButton("关闭", dlg);
-    btnLayout->addWidget(insertBtn);
-    btnLayout->addWidget(renameBtn);
-    btnLayout->addWidget(deleteBtn);
-    btnLayout->addWidget(closeBtn);
-    layout->addLayout(btnLayout);
-
-    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
-    connect(insertBtn, &QPushButton::clicked, this, [this, &mgr, listWidget, dlg]() {
-        int row = listWidget->currentRow();
-        if (row >= 0) {
-            QString name = mgr.allBlockNames()[row];
+    static Zhifen::BlockManagerPanel *panel = nullptr;
+    if (!panel) {
+        panel = new Zhifen::BlockManagerPanel(this);
+        addDockWidget(Qt::RightDockWidgetArea, panel);
+        connect(panel, &Zhifen::BlockManagerPanel::insertBlockRequested, this, [this](const QString &name) {
+            QPointF insertPt = m_view->mapToScene(m_view->viewport()->rect().center());
             Zhifen::BlockReference *blockRef = new Zhifen::BlockReference(name);
-            blockRef->setInsertPoint(QPointF(0, 0));
-            blockRef->setPos(QPointF(0, 0));
-            m_scene->addItem(blockRef);
-            if (blockRef) m_scene->addItem(blockRef);
-            dlg->accept();
-        }
-    });
-    connect(deleteBtn, &QPushButton::clicked, this, [&mgr, listWidget]() {
-        int row = listWidget->currentRow();
-        if (row >= 0) {
-            QString name = mgr.allBlockNames()[row];
-            mgr.removeBlock(name);
-            delete listWidget->takeItem(row);
-        }
-    });
+            blockRef->setInsertPoint(insertPt);
+            blockRef->setPos(insertPt);
 
-    dlg->setLayout(layout);
-    dlg->exec();
-    dlg->deleteLater();
+            Zhifen::BlockDefinition *def = Zhifen::BlockManager::instance().block(name);
+            if (def && def->attributeCount() > 0) {
+                Zhifen::AttributeDialog attrDlg(this);
+                attrDlg.setBlock(def, blockRef->attributeValues());
+                if (attrDlg.exec() == QDialog::Accepted) {
+                    blockRef->setAttributeValues(attrDlg.attributeValues());
+                }
+            }
+
+            m_scene->addItem(blockRef);
+        });
+    }
+    panel->refresh();
+    panel->show();
+    panel->raise();
 }
 
 void MainWindow::onModelSpace()

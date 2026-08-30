@@ -90,6 +90,9 @@ set(SOURCES
     src/blocks/blockreference.cpp
     src/blocks/blockmanager.cpp
     src/io/dxfwriter.cpp
+    src/widgets/blockcreatedialog.cpp
+    src/widgets/attributedialog.cpp
+    src/widgets/blockmanagerpanel.cpp
     src/io/projectio.cpp
     src/widgets/commandline.cpp
     src/widgets/layerpanel.cpp
@@ -155,6 +158,9 @@ set(HEADERS
     src/tools/pantool.h
     src/blocks/blockdefinition.h
     src/blocks/blockreference.h
+    src/widgets/blockcreatedialog.h
+    src/widgets/attributedialog.h
+    src/widgets/blockmanagerpanel.h
     src/blocks/blockmanager.h
     src/core/format_converter.h
     src/core/plotstyle.h

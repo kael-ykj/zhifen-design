@@ -4,6 +4,7 @@
 #include "snapmanager.h"
 #include "gripmanager.h"
 #include "dynamicinput.h"
+#include "blocks/blockreference.h"
 #include "document.h"
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -361,4 +362,20 @@ void CadView::drawForeground(QPainter *painter, const QRectF &rect)
     if (m_currentTool) {
         m_currentTool->drawOverlay(painter);
     }
+}
+
+void CadView::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        QPointF worldPos = mapToScene(event->pos());
+        QList<QGraphicsItem*> items = scene()->items(worldPos);
+        for (auto item : items) {
+            if (auto blockRef = dynamic_cast<Zhifen::BlockReference*>(item)) {
+                // 双击块引用，发出信号通知主窗口编辑属性
+                emit blockDoubleClicked(blockRef);
+                return;
+            }
+        }
+    }
+    QGraphicsView::mouseDoubleClickEvent(event);
 }
