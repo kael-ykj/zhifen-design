@@ -101,6 +101,8 @@ set(SOURCES
     src/widgets/toolbox.cpp
     src/widgets/layerpanel.cpp
     src/widgets/propertypanel.cpp
+    src/entities/device_symbols.cpp
+    src/entities/deviceitem.cpp
     src/widgets/layerdialog.cpp
     src/widgets/devicepanel.cpp
 )
@@ -174,6 +176,8 @@ set(HEADERS
     src/core/plotstyle.h
     src/entities/hatchpattern.h
     src/entities/textstyle.h
+    src/entities/device_symbols.h
+    src/entities/deviceitem.h
     src/entities/dimensionstylemanager.h
     src/core/professional_symbols.h
     src/core/shortcutmanager.h
