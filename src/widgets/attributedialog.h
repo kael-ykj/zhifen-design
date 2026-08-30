@@ -6,6 +6,8 @@
 #include <QString>
 #include <QPointF>
 #include "blocks/blockdefinition.h"
+#include <QVBoxLayout>
+#include <QPushButton>
 
 namespace Zhifen {
 
@@ -28,9 +30,9 @@ private slots:
 private:
     QMap<QString, QString> m_values;
     QMap<QString, class QLineEdit*> m_edits;
-    class QVBoxLayout *m_attrLayout;
-    class QPushButton *m_okBtn;
-    class QPushButton *m_cancelBtn;
+    QVBoxLayout *m_attrLayout;
+    QPushButton *m_okBtn;
+    QPushButton *m_cancelBtn;
 
     void setupUI();
     void clearAttributes();
