@@ -50,6 +50,16 @@ QString DeviceItem::deviceTypeName(DeviceType type)
     case LightningProtector: return "防雷器";
     case Switch: return "开关";
     case Connector: return "接头";
+    case MainJunction: return "主接点";
+    case SubJunction: return "副接点";
+    case FixedAttenuator: return "固定衰减器";
+    case VariableAttenuator: return "可调衰减器";
+    case OpticalTerminal: return "光端机";
+    case Repeater: return "干线放大器";
+    case FiberCable: return "光纤";
+    case LANCable: return "网线";
+    case GPSMushroom: return "GPS天线";
+    case LogPeriodicAntenna: return "对数周期天线";
     default: return "未知器件";
     }
 }
@@ -167,6 +177,30 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
         break;
     case Connector:
         DeviceSymbols::drawConnector(painter, m_scale);
+        break;
+    case MainJunction:
+        DeviceSymbols::drawMainJunction(painter, m_scale);
+        break;
+    case SubJunction:
+        DeviceSymbols::drawSubJunction(painter, m_scale);
+        break;
+    case FixedAttenuator:
+        DeviceSymbols::drawFixedAttenuator(painter, m_scale, m_attenuatorDb);
+        break;
+    case VariableAttenuator:
+        DeviceSymbols::drawVariableAttenuator(painter, m_scale);
+        break;
+    case OpticalTerminal:
+        DeviceSymbols::drawOpticalTerminal(painter, m_scale);
+        break;
+    case Repeater:
+        DeviceSymbols::drawRepeater(painter, m_scale);
+        break;
+    case GPSMushroom:
+        DeviceSymbols::drawGPSMushroom(painter, m_scale);
+        break;
+    case LogPeriodicAntenna:
+        DeviceSymbols::drawLogPeriodicAntenna(painter, m_scale);
         break;
     }
 

@@ -20,6 +20,11 @@ public:
     static void drawSpotlightAntenna(QPainter *painter, qreal scale = 1.0);
     static void drawExternalAntenna(QPainter *painter, qreal scale = 1.0);
     static void drawWallMountAntenna(QPainter *painter, qreal scale = 1.0);
+    static void drawCeilingAntenna(QPainter *painter, qreal scale = 1.0);
+    static void drawYagiAntenna(QPainter *painter, qreal scale = 1.0);
+    static void drawGridAntenna(QPainter *painter, qreal scale = 1.0);
+    static void drawElevatorAntenna(QPainter *painter, qreal scale = 1.0);
+    static void drawGPSAntenna(QPainter *painter, qreal scale = 1.0);
 
     // 器件类
     static void drawCoupler(QPainter *painter, qreal scale = 1.0, int db = 10);
@@ -30,6 +35,10 @@ public:
     static void drawLoad(QPainter *painter, qreal scale = 1.0);
     static void drawIsolator(QPainter *painter, qreal scale = 1.0);
     static void drawCirculator(QPainter *painter, qreal scale = 1.0);
+    static void drawFilter(QPainter *painter, qreal scale = 1.0);
+    static void drawTrunkAmplifier(QPainter *painter, qreal scale = 1.0);
+    static void drawPOI(QPainter *painter, qreal scale = 1.0);
+    static void drawCavitySplitter(QPainter *painter, qreal scale = 1.0, int ways = 2);
 
     // 信源类
     static void drawMacroBS(QPainter *painter, qreal scale = 1.0);
@@ -38,18 +47,42 @@ public:
     static void drawBBU(QPainter *painter, qreal scale = 1.0);
     static void drawRRU(QPainter *painter, qreal scale = 1.0);
     static void drawPicoStation(QPainter *painter, qreal scale = 1.0);
+    static void drawMAU(QPainter *painter, qreal scale = 1.0);
+    static void drawEU(QPainter *painter, qreal scale = 1.0);
+    static void drawPRRU(QPainter *painter, qreal scale = 1.0);
+    static void drawPOESwitch(QPainter *painter, qreal scale = 1.0);
+    static void drawOpticalModule(QPainter *painter, qreal scale = 1.0);
 
     // 馈线类
     static void drawFeeder12(QPainter *painter, const QPointF &start, const QPointF &end);
     static void drawFeeder78(QPainter *painter, const QPointF &start, const QPointF &end);
     static void drawJumper(QPainter *painter, const QPointF &start, const QPointF &end);
     static void drawLeakyCable(QPainter *painter, const QPointF &start, const QPointF &end);
+    static void drawFeeder158(QPainter *painter, const QPointF &start, const QPointF &end);
+    static void drawSuperFlexJumper(QPainter *painter, const QPointF &start, const QPointF &end);
+    static void drawOpticalFiber(QPainter *painter, const QPointF &start, const QPointF &end);
+    static void drawNetworkCable(QPainter *painter, const QPointF &start, const QPointF &end);
 
     // 其他
     static void drawGround(QPainter *painter, qreal scale = 1.0);
     static void drawLightningProtector(QPainter *painter, qreal scale = 1.0);
     static void drawSwitch(QPainter *painter, qreal scale = 1.0);
     static void drawConnector(QPainter *painter, qreal scale = 1.0);
+    static void drawGroundingKit(QPainter *painter, qreal scale = 1.0);
+    static void drawSurgeProtector(QPainter *painter, qreal scale = 1.0);
+    static void drawNConnector(QPainter *painter, qreal scale = 1.0);
+    static void drawDINConnector(QPainter *painter, qreal scale = 1.0);
+    // 天越11大类补充
+    static void drawMainJunction(QPainter *painter, qreal scale = 1.0);
+    static void drawSubJunction(QPainter *painter, qreal scale = 1.0);
+    static void drawFixedAttenuator(QPainter *painter, qreal scale = 1.0, int db = 10);
+    static void drawVariableAttenuator(QPainter *painter, qreal scale = 1.0);
+    static void drawOpticalTerminal(QPainter *painter, qreal scale = 1.0);
+    static void drawRepeater(QPainter *painter, qreal scale = 1.0);
+    static void drawFiberCable(QPainter *painter, const QPointF &start, const QPointF &end);
+    static void drawLANCable(QPainter *painter, const QPointF &start, const QPointF &end);
+    static void drawGPSMushroom(QPainter *painter, qreal scale = 1.0);
+    static void drawLogPeriodicAntenna(QPainter *painter, qreal scale = 1.0);
 
     // 获取器件标准尺寸
     static QRectF antennaRect(qreal scale = 1.0);

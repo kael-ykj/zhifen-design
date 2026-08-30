@@ -21,6 +21,11 @@ public:
         SpotlightAntenna,
         ExternalAntenna,
         WallMountAntenna,
+        CeilingAntenna,
+        YagiAntenna,
+        GridAntenna,
+        ElevatorAntenna,
+        GPSAntenna,
         // 器件类
         Coupler,
         Splitter,
@@ -30,6 +35,10 @@ public:
         Load,
         Isolator,
         Circulator,
+        Filter,
+        TrunkAmplifier,
+        POI,
+        CavitySplitter,
         // 信源类
         MacroBS,
         MicroBS,
@@ -37,11 +46,30 @@ public:
         BBU,
         RRU,
         PicoStation,
+        MAU,
+        EU,
+        PRRU,
+        POESwitch,
+        OpticalModule,
         // 其他
         Ground,
         LightningProtector,
         Switch,
-        Connector
+        Connector,
+        GroundingKit,
+        SurgeProtector,
+        NConnector,
+        DINConnector,
+        MainJunction,
+        SubJunction,
+        FixedAttenuator,
+        VariableAttenuator,
+        OpticalTerminal,
+        Repeater,
+        FiberCable,
+        LANCable,
+        GPSMushroom,
+        LogPeriodicAntenna
     };
 
     enum { Type = UserType + 200 };
