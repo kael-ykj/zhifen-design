@@ -1605,8 +1605,8 @@ void MainWindow::onBlockManager()
     for (const QString &name : mgr.allBlockNames()) {
         Zhifen::BlockDefinition *block = mgr.block(name);
         QString info = QString("%1 (%2个图元, %3个属性)")
-            .arg(name).arg(block ? block->entities.size() : 0)
-            .arg(block ? block->attributes.size() : 0);
+            .arg(name).arg(block ? block->itemCount() : 0)
+            .arg(block ? block->attributeCount() : 0);
         listWidget->addItem(info);
     }
     layout->addWidget(listWidget);
