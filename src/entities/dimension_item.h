@@ -18,16 +18,103 @@ enum DimensionType {
     Dim_Angular = 4      // 角度标注
 };
 
+// 箭头类型
+enum ArrowType {
+    Arrow_ClosedFilled = 0,   // 闭合实心
+    Arrow_ClosedBlank = 1,    // 闭合空心
+    Arrow_Open = 2,           // 开放
+    Arrow_ArchTick = 3,       // 建筑标记
+    Arrow_Oblique = 4,        // 倾斜
+    Arrow_Dot = 5,            // 点
+    Arrow_None = 6            // 无
+};
+
+// 文字位置
+enum DimTextPosition {
+    TextPos_Above = 0,        // 尺寸线上方
+    TextPos_Centered = 1,     // 尺寸线居中
+    TextPos_Outside = 2       // 尺寸线外侧
+};
+
+// 文字对齐
+enum DimTextAlignment {
+    TextAlign_Horizontal = 0,  // 水平
+    TextAlign_Aligned = 1,     // 与尺寸线对齐
+    TextAlign_ISO = 2          // ISO标准
+};
+
 // 标注样式
 struct DimensionStyle {
-    qreal textHeight = 2.5;       // 文字高度
-    qreal arrowSize = 2.5;        // 箭头大小
-    qreal extensionLineOffset = 1.0; // 尺寸界线偏移
-    qreal extensionLineExtend = 1.5; // 尺寸界线超出
-    int precision = 0;            // 小数精度
-    QColor color = QColor(0, 0, 255); // 标注颜色
-    QString prefix = "";          // 前缀
-    QString suffix = "";          // 后缀
+    QString name = "Standard";  // 样式名称
+
+    // 线
+    QColor dimLineColor = QColor(0, 0, 255);    // 尺寸线颜色
+    qreal dimLineWidth = 0.25;                   // 尺寸线线宽
+    bool dimLineSuppress1 = false;               // 抑制尺寸线1
+    bool dimLineSuppress2 = false;               // 抑制尺寸线2
+    QColor extLineColor = QColor(0, 0, 255);    // 尺寸界线颜色
+    qreal extLineWidth = 0.25;                   // 尺寸界线线宽
+    qreal extLineOffset = 0.625;                 // 尺寸界线偏移
+    qreal extLineExtend = 1.25;                  // 尺寸界线超出
+    bool extLineSuppress1 = false;               // 抑制尺寸界线1
+    bool extLineSuppress2 = false;               // 抑制尺寸界线2
+    qreal extLineFixedLength = 0;                // 固定长度尺寸界线
+
+    // 符号和箭头
+    ArrowType arrowType = Arrow_ClosedFilled;    // 箭头类型
+    qreal arrowSize = 2.5;                       // 箭头大小
+    ArrowType firstArrow = Arrow_ClosedFilled;   // 第一个箭头
+    ArrowType secondArrow = Arrow_ClosedFilled;  // 第二个箭头
+    qreal centerMarkSize = 2.5;                  // 圆心标记大小
+    bool centerMark = true;                      // 圆心标记
+    bool centerLine = false;                     // 中心线
+    qreal arcLengthSymbolHeight = 2.5;           // 弧长符号高度
+
+    // 文字
+    QString textStyle = "Standard";              // 文字样式
+    qreal textHeight = 2.5;                      // 文字高度
+    QColor textColor = QColor(0, 0, 255);       // 文字颜色
+    DimTextPosition textPosition = TextPos_Above; // 文字位置
+    DimTextAlignment textAlignment = TextAlign_Aligned; // 文字对齐
+    qreal textOffset = 0.625;                    // 文字偏移
+    bool textInside = true;                      // 文字在尺寸界线内
+    bool textOutside = true;                     // 文字在尺寸界线外
+    QString textPrefix = "";                     // 文字前缀
+    QString textSuffix = "";                     // 文字后缀
+    bool drawFrameAroundText = false;            // 文字加框
+
+    // 调整
+    bool fitTextOrArrows = true;                 // 文字或箭头最佳效果
+    bool suppressArrowsIfNotFit = false;         // 放不下时抑制箭头
+    qreal scaleFactor = 1.0;                     // 全局比例
+    bool scaleToLayout = false;                  // 按布局缩放
+
+    // 主单位
+    int linearPrecision = 0;                     // 线性精度
+    QString linearDecimalSeparator = ".";        // 小数分隔符
+    QString linearPrefix = "";                   // 线性前缀
+    QString linearSuffix = "";                   // 线性后缀
+    qreal linearScaleFactor = 1.0;               // 线性比例因子
+    bool linearSuppressLeadingZeros = false;     // 抑制前导零
+    bool linearSuppressTrailingZeros = false;    // 抑制后续零
+    int angularPrecision = 0;                    // 角度精度
+    QString angularUnits = "Decimal Degrees";    // 角度单位
+
+    // 换算单位
+    bool altUnitsEnabled = false;                // 启用换算单位
+    int altPrecision = 2;                        // 换算精度
+    qreal altScaleFactor = 25.4;                 // 换算比例因子
+    QString altPrefix = "";                      // 换算前缀
+    QString altSuffix = "mm";                    // 换算后缀
+
+    // 公差
+    bool toleranceEnabled = false;               // 启用公差
+    int toleranceType = 0;                       // 公差类型(0=无,1=对称,2=极限偏差,3=极限尺寸,4=基本尺寸)
+    qreal toleranceUpper = 0.0;                  // 上偏差
+    qreal toleranceLower = 0.0;                  // 下偏差
+    int tolerancePrecision = 0;                  // 公差精度
+    qreal toleranceHeightScale = 0.5;            // 公差高度比例
+    int toleranceVerticalPosition = 1;           // 公差垂直位置(0=下,1=中,2=上)
 };
 
 // 标注图元基类
