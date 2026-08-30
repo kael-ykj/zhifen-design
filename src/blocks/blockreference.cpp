@@ -146,9 +146,7 @@ void BlockReference::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
             painter->drawRect(rect->rectangle());
         }
         else if (auto arc = dynamic_cast<class ArcItem*>(item)) {
-            QPen pen(arc->pen());
-            pen.setWidthF(0.25);
-            painter->setPen(pen);
+            painter->setPen(QPen(Qt::black, 0.25));
             QRectF rect(arc->centerPoint().x() - arc->radius(),
                        arc->centerPoint().y() - arc->radius(),
                        arc->radius() * 2, arc->radius() * 2);
