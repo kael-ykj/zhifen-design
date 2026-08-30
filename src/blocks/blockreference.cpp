@@ -126,16 +126,16 @@ void BlockReference::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
         painter->translate(item->pos());
 
         if (auto line = dynamic_cast<LineItem*>(item)) {
-            QPen pen(line->pen());
+            QPen pen = line->effectivePen();
             pen.setWidthF(0.25);
             painter->setPen(pen);
             painter->drawLine(line->startPoint(), line->endPoint());
         }
         else if (auto circle = dynamic_cast<CircleItem*>(item)) {
-            QPen pen(circle->pen());
+            QPen pen = circle->effectivePen();
             pen.setWidthF(0.25);
             painter->setPen(pen);
-            painter->setBrush(circle->brush());
+            painter->setBrush(Qt::NoBrush);
             painter->drawEllipse(circle->centerPoint(), circle->radius(), circle->radius());
         }
         else if (auto text = dynamic_cast<TextItem*>(item)) {
@@ -146,10 +146,10 @@ void BlockReference::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
             painter->drawText(QPointF(0, 0), text->text());
         }
         else if (auto rect = dynamic_cast<RectangleItem*>(item)) {
-            QPen pen(rect->pen());
+            QPen pen = rect->effectivePen();
             pen.setWidthF(0.25);
             painter->setPen(pen);
-            painter->setBrush(rect->brush());
+            painter->setBrush(Qt::NoBrush);
             painter->drawRect(rect->rectangle());
         }
         else if (auto arc = dynamic_cast<class ArcItem*>(item)) {

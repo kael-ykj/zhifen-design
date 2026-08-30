@@ -1,5 +1,6 @@
 #include "cadscene.h"
 #include "blocks/blockreference.h"
+#include "blocks/blockmanager.h"
 #include "caditem.h"
 #include "document.h"
 #include <QPainter>
@@ -13,7 +14,7 @@ CadScene::CadScene(QObject *parent)
     connect(this, &QGraphicsScene::selectionChanged, this, [this]() {
         emit selectionChangedCount(selectedItems().count());
     });
-    connect(&BlockManager::instance(), &BlockManager::blockRedefined, this, &CadScene::onBlockRedefined);
+    connect(&Zhifen::BlockManager::instance(), &Zhifen::BlockManager::blockRedefined, this, &CadScene::onBlockRedefined);
 }
 
 QList<CadItem*> CadScene::selectedCadItems() const
@@ -95,7 +96,7 @@ void CadScene::onBlockRedefined(const QString &name)
 {
     // 更新所有引用该块的BlockReference
     for (QGraphicsItem *item : items()) {
-        if (auto blockRef = dynamic_cast<BlockReference*>(item)) {
+        if (auto blockRef = dynamic_cast<Zhifen::BlockReference*>(item)) {
             if (blockRef->blockName() == name) {
                 blockRef->prepareGeometryChange();
                 blockRef->update();
