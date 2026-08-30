@@ -79,6 +79,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QPrinter>
+#include <QDate>
 #include <QPrintDialog>
 #include <QPrintPreviewDialog>
 #include <QPainter>
@@ -956,12 +957,11 @@ void MainWindow::onPrint()
     Zhifen::TitleBlockInfo info;
     info.projectName = "室内分布系统工程";
     info.drawingName = "平面布置图";
-    info.drawingNumber = "ZF-PLAN-001";
+    info.drawingNo = "ZF-PLAN-001";
     info.designer = "设计";
     info.reviewer = "审核";
-    info.approver = "批准";
-    info.company = "智分Design";
-    info.version = "V3.1";
+    info.date = QDate::currentDate().toString("yyyy-MM-dd");
+    info.operatorName = "智分Design";
 
     connect(&preview, &QPrintPreviewDialog::paintRequested, this, [this, &printEngine, &settings, &info](QPrinter *p){
         QPainter painter(p);

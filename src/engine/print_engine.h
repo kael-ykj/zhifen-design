@@ -7,21 +7,9 @@
 #include <QGraphicsScene>
 #include <QPrinter>
 #include <QPainter>
+#include "report_engine.h"
 
 namespace Zhifen {
-
-// 图签信息
-struct TitleBlockInfo {
-    QString projectName;      // 工程名称
-    QString drawingName;      // 图纸名称
-    QString drawingNumber;    // 图纸编号
-    QString designer;         // 设计人
-    QString reviewer;         // 审核人
-    QString approver;         // 批准人
-    QString date;             // 日期
-    QString version;          // 版本
-    QString company;          // 设计单位
-};
 
 // 打印设置
 struct PrintSettings {
@@ -45,7 +33,7 @@ public:
     // 打印场景（带图签/图例/材料表）
     void printScene(QGraphicsScene *scene, QPrinter *printer, const PrintSettings &settings, const TitleBlockInfo &info);
 
-    // 打印预览
+    // 打印预览渲染
     void renderToPainter(QGraphicsScene *scene, QPainter *painter, const QRectF &targetRect, const PrintSettings &settings, const TitleBlockInfo &info);
 
     // 批量打印（多个场景）

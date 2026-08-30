@@ -133,15 +133,15 @@ void PrintEngine::drawTitleBlock(QPainter *painter, const QRectF &rect, const Ti
     // 第一行
     drawText(rect.left(), rect.top(), colWidth, rowHeight, "工程名称", info.projectName);
     drawText(rect.left()+colWidth, rect.top(), colWidth*2, rowHeight, "图纸名称", info.drawingName);
-    drawText(rect.left()+3*colWidth, rect.top(), colWidth, rowHeight, "图纸编号", info.drawingNumber);
-    drawText(rect.left()+4*colWidth, rect.top(), colWidth, rowHeight, "版本", info.version);
+    drawText(rect.left()+3*colWidth, rect.top(), colWidth, rowHeight, "图纸编号", info.drawingNo);
+    drawText(rect.left()+4*colWidth, rect.top(), colWidth, rowHeight, "版本", "");
     drawText(rect.left()+5*colWidth, rect.top(), colWidth, rowHeight, "日期", info.date.isEmpty() ? QDateTime::currentDateTime().toString("yyyy-MM-dd") : info.date);
 
     // 第二行
     drawText(rect.left(), rect.top()+rowHeight, colWidth, rowHeight, "设计人", info.designer);
     drawText(rect.left()+colWidth, rect.top()+rowHeight, colWidth, rowHeight, "审核人", info.reviewer);
-    drawText(rect.left()+2*colWidth, rect.top()+rowHeight, colWidth, rowHeight, "批准人", info.approver);
-    drawText(rect.left()+3*colWidth, rect.top()+rowHeight, colWidth*3, rowHeight, "设计单位", info.company);
+    drawText(rect.left()+2*colWidth, rect.top()+rowHeight, colWidth, rowHeight, "批准人", info.operatorName);
+    drawText(rect.left()+3*colWidth, rect.top()+rowHeight, colWidth*3, rowHeight, "设计单位", info.operatorName);
 
     // 第三行（合并为设计说明）
     painter->drawText(QRectF(rect.left()+5, rect.top()+2*rowHeight+2, rect.width()-10, rowHeight-4),
