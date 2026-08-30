@@ -96,6 +96,9 @@ set(SOURCES
     src/widgets/blockeditor.cpp
     src/io/projectio.cpp
     src/widgets/commandline.cpp
+    src/widgets/ribbonmenu.cpp
+    src/widgets/cadstatusbar.cpp
+    src/widgets/toolbox.cpp
     src/widgets/layerpanel.cpp
     src/widgets/propertypanel.cpp
     src/widgets/layerdialog.cpp
@@ -165,6 +168,9 @@ set(HEADERS
     src/blocks/blockmanager.h
     src/widgets/blockeditor.h
     src/core/format_converter.h
+    src/widgets/ribbonmenu.h
+    src/widgets/cadstatusbar.h
+    src/widgets/toolbox.h
     src/core/plotstyle.h
     src/entities/hatchpattern.h
     src/entities/textstyle.h

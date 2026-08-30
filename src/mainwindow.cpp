@@ -43,6 +43,9 @@
 #include "widgets/attributedialog.h"
 #include "widgets/blockmanagerpanel.h"
 #include "widgets/blockeditor.h"
+#include "widgets/ribbonmenu.h"
+#include "widgets/cadstatusbar.h"
+#include "widgets/toolbox.h"
 #include "core/layout_manager.h"
 #include "core/version_manager.h"
 #include "core/change_review_manager.h"
@@ -109,6 +112,24 @@ MainWindow::MainWindow(QWidget *parent)
     createActions();
     createMenus();
     createToolBars();
+
+    // 隐藏传统菜单栏和工具栏，使用Ribbon界面
+    menuBar()->hide();
+    // 创建Ribbon菜单
+    Zhifen::RibbonMenu *ribbon = new Zhifen::RibbonMenu(this);
+    setMenuWidget(ribbon);
+
+    // 创建左侧工具箱
+    Zhifen::ToolBox *toolBox = new Zhifen::ToolBox(this);
+    addDockWidget(Qt::LeftDockWidgetArea, toolBox);
+
+    // 创建专业状态栏
+    Zhifen::CadStatusBar *statusBar = new Zhifen::CadStatusBar(this);
+    setStatusBar(statusBar);
+    statusBar->showMessage("就绪");
+
+    // 连接坐标更新
+    connect(m_view, &CadView::coordinateChanged, statusBar, &Zhifen::CadStatusBar::setCoordinate);
     createDockWidgets();
     createStatusBar();
 
