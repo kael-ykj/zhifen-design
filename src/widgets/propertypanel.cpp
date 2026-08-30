@@ -196,8 +196,8 @@ void PropertyPanel::updateProperties()
         m_layerCombo->blockSignals(true);
         m_layerCombo->clear();
         if (m_scene->document()) {
-            for (auto layer : m_scene->document()->layers()) {
-                m_layerCombo->addItem(layer->name());
+            for (auto &layer : m_scene->document()->getAllLayers()) {
+                m_layerCombo->addItem(layer.name);
             }
         }
         m_layerCombo->setCurrentText(item->layer());

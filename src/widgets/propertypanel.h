@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QDoubleSpinBox>
 #include <QColorDialog>
+#include <QScrollArea>
 #include <QCheckBox>
 #include <QGroupBox>
 
