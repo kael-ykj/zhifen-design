@@ -217,6 +217,8 @@ void MainWindow::createActions()
     m_copyAct = new QAction("复制", this); connect(m_copyAct, &QAction::triggered, this, [this](){ setCurrentTool("copy"); });
     m_rotateAct = new QAction("旋转", this); connect(m_rotateAct, &QAction::triggered, this, [this](){ setCurrentTool("rotate"); });
     m_scaleAct = new QAction("缩放", this); connect(m_scaleAct, &QAction::triggered, this, [this](){ setCurrentTool("scale"); });
+    m_explodeAct = new QAction("分解", this); m_explodeAct->setShortcut(Qt::Key_X); connect(m_explodeAct, &QAction::triggered, this, [this](){ setCurrentTool("explode"); });
+    m_offsetAct = new QAction("偏移", this); m_offsetAct->setShortcut(Qt::Key_O); connect(m_offsetAct, &QAction::triggered, this, [this](){ setCurrentTool("offset"); });
     m_copyModeAct = new QAction("复制模式:轻量", this); m_copyModeAct->setCheckable(true); connect(m_copyModeAct, &QAction::triggered, this, &MainWindow::onToggleCopyMode);
     m_eraseAct = new QAction("删除", this); m_eraseAct->setShortcut(Qt::Key_E); connect(m_eraseAct, &QAction::triggered, this, [this](){ auto items = m_scene->selectedItems(); if(!items.isEmpty()) { Zhifen::AuditLogger::instance().log(items.size() > 1 ? Zhifen::Audit_BatchDelete : Zhifen::Audit_DeviceDelete, QString("删除%1个对象").arg(items.size())); m_undoStack->push(new RemoveItemsCommand(m_scene, items)); } });
 
