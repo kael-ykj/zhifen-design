@@ -9,6 +9,7 @@
 class CadScene;
 class Tool;
 class SnapManager;
+namespace Zhifen { class GripManager; }
 class Document;
 
 class CadView : public QGraphicsView
@@ -54,6 +55,9 @@ private:
     Document *m_document = nullptr;
     Tool *m_currentTool = nullptr;
     SnapManager *m_snapManager = nullptr;
+    Zhifen::GripManager *m_gripManager = nullptr;
+    bool m_gripDragging = false;
+    Zhifen::GripPoint *m_draggedGrip = nullptr;
     bool m_orthoMode = false;
     bool m_panning = false;
     QPoint m_panStart;
