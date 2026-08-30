@@ -19,8 +19,8 @@ DimensionItem::~DimensionItem() {}
 
 QString DimensionItem::autoText() const {
     qreal val = measuredValue();
-    QString num = QString::number(val, 'f', m_style.precision);
-    return m_style.prefix + num + m_style.suffix;
+    QString num = QString::number(val, 'f', m_style.linearPrecision);
+    return m_style.textPrefix + num + m_style.textSuffix;
 }
 
 QRectF DimensionItem::boundingRect() const {
@@ -42,7 +42,7 @@ void DimensionItem::drawArrow(QPainter *painter, const QPointF &pos, qreal angle
     arrow << QPointF(0, 0)
           << QPointF(-size, size * 0.4)
           << QPointF(-size, -size * 0.4);
-    painter->setBrush(QBrush(m_style.color));
+    painter->setBrush(QBrush(m_style.dimLineColor));
     painter->setPen(Qt::NoPen);
     painter->drawPolygon(arrow);
     painter->restore();
@@ -53,7 +53,7 @@ void DimensionItem::drawText(QPainter *painter, const QPointF &pos, const QStrin
     QFont font = painter->font();
     font.setPointSizeF(m_style.textHeight);
     painter->setFont(font);
-    painter->setPen(m_style.color);
+    painter->setPen(m_style.dimLineColor);
     painter->drawText(pos, text);
     painter->restore();
 }
@@ -83,7 +83,7 @@ qreal LinearDimension::measuredValue() const {
 void LinearDimension::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    painter->setPen(QPen(m_style.color, 0.5));
+    painter->setPen(QPen(m_style.dimLineColor, 0.5));
 
     qreal dimVal = m_horizontal ? m_dimPos.y() : m_dimPos.x();
 
@@ -146,7 +146,7 @@ qreal AlignedDimension::measuredValue() const {
 void AlignedDimension::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    painter->setPen(QPen(m_style.color, 0.5));
+    painter->setPen(QPen(m_style.dimLineColor, 0.5));
 
     // 计算标注线位置（平行于p1-p2，偏移到dimPos）
     QLineF baseLine(m_p1, m_p2);
@@ -204,7 +204,7 @@ void RadiusDimension::setCircle(const QPointF &center, qreal radius, const QPoin
 void RadiusDimension::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    painter->setPen(QPen(m_style.color, 0.5));
+    painter->setPen(QPen(m_style.dimLineColor, 0.5));
 
     // 从圆心到标注点的线
     painter->drawLine(m_center, m_dimPos);
@@ -241,7 +241,7 @@ void DiameterDimension::setCircle(const QPointF &center, qreal radius, const QPo
 void DiameterDimension::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    painter->setPen(QPen(m_style.color, 0.5));
+    painter->setPen(QPen(m_style.dimLineColor, 0.5));
 
     // 通过圆心的直径线
     QLineF line(m_dimPos, m_center * 2 - m_dimPos);
@@ -286,7 +286,7 @@ qreal AngularDimension::measuredValue() const {
 void AngularDimension::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    painter->setPen(QPen(m_style.color, 0.5));
+    painter->setPen(QPen(m_style.dimLineColor, 0.5));
 
     qreal radius = 30;
     QLineF l1(m_vertex, m_p1);
