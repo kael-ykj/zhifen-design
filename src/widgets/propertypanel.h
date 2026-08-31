@@ -82,6 +82,7 @@ private:
     // 方法
     void setupUI();
     void setupGeometryWidgets();
+    void setupDeviceWidgets();
     void updateGeometryVisibility(CadItem *item);
     void loadGeometryValues(CadItem *item);
     void updateDeviceProperties(QGraphicsItem *item);
