@@ -1031,16 +1031,106 @@ void MainWindow::onLinkCalculation()
     calc.setBand(static_cast<Zhifen::BandType>(bandIdx));
     calc.setMinAntennaPower(10.0);
     Zhifen::LinkReport report = calc.generateDemoReport();
-    Zhifen::AuditLogger::instance().log(Zhifen::Audit_LinkCalculation, QString("链路预算 频段=%1 天线数=%2").arg(Zhifen::LinkReport::bandName(static_cast<Zhifen::BandType>(bandIdx))).arg(report.totalAntennas));
+
+    // 计算统计信息
+    qreal minP = 999, maxP = -999, sumP = 0;
+    for (const auto &a : report.antennas) {
+        minP = qMin(minP, a.outputPower);
+        maxP = qMax(maxP, a.outputPower);
+        sumP += a.outputPower;
+    }
+    qreal avgP = report.antennas.isEmpty() ? 0 : sumP / report.antennas.size();
+
     QDialog *dlg = new QDialog(this);
-    dlg->setWindowTitle("链路预算报告");
-    dlg->resize(700, 600);
+    dlg->setWindowTitle(QString("链路预算报告 - %1").arg(bandStr));
+    dlg->resize(900, 650);
     QVBoxLayout *layout = new QVBoxLayout(dlg);
-    QTextEdit *text = new QTextEdit(dlg);
-    text->setReadOnly(true);
-    text->setFont(QFont("Consolas", 10));
-    text->setPlainText(report.toText());
-    layout->addWidget(text);
+
+    // 统计信息栏
+    QGroupBox *statGroup = new QGroupBox("统计汇总", dlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("信源:"), 0, 0);
+    statLayout->addWidget(new QLabel(report.sourceId), 0, 1);
+    statLayout->addWidget(new QLabel("发射功率:"), 0, 2);
+    statLayout->addWidget(new QLabel(QString("%1 dBm").arg(report.sourcePower, 0, 'f', 1)), 0, 3);
+    statLayout->addWidget(new QLabel("器件总数:"), 1, 0);
+    statLayout->addWidget(new QLabel(QString::number(report.totalDevices)), 1, 1);
+    statLayout->addWidget(new QLabel("天线总数:"), 1, 2);
+    statLayout->addWidget(new QLabel(QString::number(report.totalAntennas)), 1, 3);
+    statLayout->addWidget(new QLabel("最小天线功率:"), 2, 0);
+    QLabel *minLabel = new QLabel(QString("%1 dBm").arg(minP, 0, 'f', 1));
+    minLabel->setStyleSheet(minP < 10 ? "color: red; font-weight: bold;" : "color: green;");
+    statLayout->addWidget(minLabel, 2, 1);
+    statLayout->addWidget(new QLabel("最大天线功率:"), 2, 2);
+    statLayout->addWidget(new QLabel(QString("%1 dBm").arg(maxP, 0, 'f', 1)), 2, 3);
+    statLayout->addWidget(new QLabel("平均天线功率:"), 3, 0);
+    statLayout->addWidget(new QLabel(QString("%1 dBm").arg(avgP, 0, 'f', 1)), 3, 1);
+    layout->addWidget(statGroup);
+
+    // 详细结果表格
+    QTableWidget *table = new QTableWidget(dlg);
+    table->setColumnCount(8);
+    table->setHorizontalHeaderLabels({"编号", "器件名称", "类型", "馈线长度(m)", "馈线损耗(dB)", "器件损耗(dB)", "输入功率(dBm)", "输出功率(dBm)"});
+    table->setRowCount(report.results.size());
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->setStyleSheet("QTableWidget { gridline-color: #ccc; } QHeaderView::section { background: #007acc; color: white; padding: 4px; }");
+
+    for (int i = 0; i < report.results.size(); i++) {
+        const auto &r = report.results[i];
+        table->setItem(i, 0, new QTableWidgetItem(r.deviceId));
+        table->setItem(i, 1, new QTableWidgetItem(r.deviceName));
+        table->setItem(i, 2, new QTableWidgetItem(r.deviceType));
+        table->setItem(i, 3, new QTableWidgetItem(QString::number(r.cableLength, 'f', 1)));
+        table->setItem(i, 4, new QTableWidgetItem(QString::number(r.cableLoss, 'f', 2)));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(r.deviceLoss, 'f', 2)));
+        table->setItem(i, 6, new QTableWidgetItem(QString::number(r.inputPower, 'f', 1)));
+        QTableWidgetItem *outItem = new QTableWidgetItem(QString::number(r.outputPower, 'f', 1));
+        if (r.alarm) {
+            outItem->setBackground(QColor(255, 200, 200));
+            outItem->setForeground(QColor(200, 0, 0));
+        }
+        table->setItem(i, 7, outItem);
+    }
+    table->resizeColumnsToContents();
+    layout->addWidget(table, 1);
+
+    // 告警信息
+    if (!report.alarms.isEmpty()) {
+        QGroupBox *alarmGroup = new QGroupBox("告警信息", dlg);
+        alarmGroup->setStyleSheet("QGroupBox { color: red; border: 1px solid red; }");
+        QVBoxLayout *alarmLayout = new QVBoxLayout(alarmGroup);
+        for (const auto &alarm : report.alarms) {
+            QLabel *alarmLabel = new QLabel("⚠ " + alarm, alarmGroup);
+            alarmLabel->setStyleSheet("color: red;");
+            alarmLayout->addWidget(alarmLabel);
+        }
+        layout->addWidget(alarmGroup);
+    }
+
+    // 按钮
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportBtn = new QPushButton("导出报告", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(exportBtn, &QPushButton::clicked, dlg, [this, report]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出链路预算报告", "", "文本文件 (*.txt);;CSV文件 (*.csv)");
+        if (!fileName.isEmpty()) {
+            QFile file(fileName);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream out(&file);
+                out << report.toText();
+                file.close();
+                QMessageBox::information(this, "导出成功", "链路预算报告已导出");
+            }
+        }
+    });
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
