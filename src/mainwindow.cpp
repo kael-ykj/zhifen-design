@@ -642,7 +642,7 @@ void MainWindow::onImportBottomMap()
     layerDlg->resize(500, 500);
     QVBoxLayout *layerLayout = new QVBoxLayout(layerDlg);
 
-    QLabel *tipLabel = new QLabel("共发现 %1 个图层，勾选需要保留的图层：").arg(result.layers.size());
+    QLabel *tipLabel = new QLabel(QString("共发现 %1 个图层，勾选需要保留的图层：").arg(result.layers.size()));
     layerLayout->addWidget(tipLabel);
 
     QListWidget *layerList = new QListWidget(layerDlg);
