@@ -1933,7 +1933,7 @@ void MainWindow::onLeakyCableTool()
     endLabel->setStyleSheet(result.endPower < params.minPower ? "color: red; font-weight: bold;" : "color: green;");
     summaryLayout->addWidget(endLabel, 0, 3);
     summaryLayout->addWidget(new QLabel("总损耗:"), 1, 0);
-    summaryLayout->addWidget(new QLabel(QString("%1 dB").arg(result.freeSpaceLoss + params.buildingPenetration, 0, 'f', 1)), 1, 1);
+    summaryLayout->addWidget(new QLabel(QString("%1 dB").arg(result.totalLoss, 0, 'f', 1)), 1, 1);
     layout->addWidget(summaryGroup);
 
     // 分段详情表格
@@ -2117,7 +2117,7 @@ void MainWindow::onBuildingToBuildingTool()
     angleLayout->addWidget(new QLabel("垂直波束宽度:"), 0, 2);
     angleLayout->addWidget(new QLabel(QString("%1°").arg(15.0, 0, 'f', 1)), 0, 3);
     angleLayout->addWidget(new QLabel("下倾角:"), 1, 0);
-    angleLayout->addWidget(new QLabel(QString("%1°").arg(qAtan((params.txHeight - params.rxHeight) / params.distance) * 180 / 3.14159, 0, 'f', 1)), 1, 1);
+    angleLayout->addWidget(new QLabel(QString("%1°").arg(qAtan2(params.txHeight - params.rxHeight, params.distance) * 180 / 3.14159265, 0, 'f', 1)), 1, 1);
     angleLayout->addWidget(new QLabel("覆盖半径:"), 1, 2);
     angleLayout->addWidget(new QLabel(QString("%1 m").arg(result.maxCoverageDistance, 0, 'f', 1)), 1, 3);
     layout->addWidget(angleGroup);
