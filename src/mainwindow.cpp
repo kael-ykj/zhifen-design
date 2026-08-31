@@ -1832,41 +1832,155 @@ void MainWindow::onElevatorTool()
 
 void MainWindow::onLeakyCableTool()
 {
-    bool ok;
-    qreal length = QInputDialog::getDouble(this, "漏缆分段设计", "漏缆总长度(米):", 100, 10, 1000, 1, &ok);
-    if (!ok) return;
-    qreal couplingLoss = QInputDialog::getDouble(this, "漏缆分段设计", "耦合损耗(dB):", 70, 50, 100, 1, &ok);
-    if (!ok) return;
+    // 统一参数设置对话框
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("漏缆分段设计 - 参数设置");
+    paramDlg->resize(400, 380);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QDoubleSpinBox *lengthSpin = new QDoubleSpinBox(paramDlg);
+    lengthSpin->setRange(10, 1000); lengthSpin->setValue(100); lengthSpin->setSuffix(" m");
+    formLayout->addRow("漏缆总长度:", lengthSpin);
+
+    QDoubleSpinBox *couplingSpin = new QDoubleSpinBox(paramDlg);
+    couplingSpin->setRange(50, 100); couplingSpin->setValue(70); couplingSpin->setSuffix(" dB");
+    formLayout->addRow("耦合损耗:", couplingSpin);
+
+    QDoubleSpinBox *transSpin = new QDoubleSpinBox(paramDlg);
+    transSpin->setRange(1.0, 10.0); transSpin->setValue(2.5); transSpin->setSuffix(" dB/100m");
+    formLayout->addRow("传输损耗:", transSpin);
+
+    QDoubleSpinBox *txPowerSpin = new QDoubleSpinBox(paramDlg);
+    txPowerSpin->setRange(20, 60); txPowerSpin->setValue(43.0); txPowerSpin->setSuffix(" dBm");
+    formLayout->addRow("输入端功率:", txPowerSpin);
+
+    QDoubleSpinBox *targetSpin = new QDoubleSpinBox(paramDlg);
+    targetSpin->setRange(-110, -60); targetSpin->setValue(-80.0); targetSpin->setSuffix(" dBm");
+    formLayout->addRow("目标耦合功率:", targetSpin);
+
+    QDoubleSpinBox *minSpin = new QDoubleSpinBox(paramDlg);
+    minSpin->setRange(-120, -70); minSpin->setValue(-90.0); minSpin->setSuffix(" dBm");
+    formLayout->addRow("最小允许功率:", minSpin);
+
+    QComboBox *bandCombo = new QComboBox(paramDlg);
+    bandCombo->addItems({"2G (900MHz)", "3G (2100MHz)", "4G (1800MHz)", "5G (3500MHz)"});
+    bandCombo->setCurrentIndex(2);
+    formLayout->addRow("频段:", bandCombo);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *calcBtn = new QPushButton("计算", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(calcBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(calcBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
 
     Zhifen::LeakyCableParams params;
-    params.totalLength = length;
-    params.couplingLoss = couplingLoss;
-    params.transmissionLoss = 2.5;
-    params.txPower = 43.0;
-    params.targetPower = -80.0;
-    params.minPower = -90.0;
-    params.band = Zhifen::Band_4G;
+    params.totalLength = lengthSpin->value();
+    params.couplingLoss = couplingSpin->value();
+    params.transmissionLoss = transSpin->value();
+    params.txPower = txPowerSpin->value();
+    params.targetPower = targetSpin->value();
+    params.minPower = minSpin->value();
+    params.band = static_cast<Zhifen::FrequencyBand>(bandCombo->currentIndex());
+    QString bandText = bandCombo->currentText();
+    paramDlg->deleteLater();
 
     Zhifen::LeakyCableResult result = Zhifen::LeakyCableTool::calculate(params);
 
+    // 表格化结果展示
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("漏缆分段设计方案");
-    dlg->resize(550, 450);
+    dlg->resize(800, 600);
     QVBoxLayout *layout = new QVBoxLayout(dlg);
-    QTextEdit *textEdit = new QTextEdit(dlg);
-    textEdit->setReadOnly(true);
-    textEdit->setFont(QFont("Consolas", 9));
-    textEdit->setPlainText(result.report);
-    layout->addWidget(textEdit);
+
+    // 设计参数汇总
+    QGroupBox *paramGroup = new QGroupBox("设计参数", dlg);
+    QGridLayout *paramLayout = new QGridLayout(paramGroup);
+    paramLayout->addWidget(new QLabel("总长度:"), 0, 0);
+    paramLayout->addWidget(new QLabel(QString("%1 m").arg(params.totalLength)), 0, 1);
+    paramLayout->addWidget(new QLabel("耦合损耗:"), 0, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 dB").arg(params.couplingLoss)), 0, 3);
+    paramLayout->addWidget(new QLabel("传输损耗:"), 1, 0);
+    paramLayout->addWidget(new QLabel(QString("%1 dB/100m").arg(params.transmissionLoss)), 1, 1);
+    paramLayout->addWidget(new QLabel("输入功率:"), 1, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 dBm").arg(params.txPower)), 1, 3);
+    paramLayout->addWidget(new QLabel("频段:"), 2, 0);
+    paramLayout->addWidget(new QLabel(bandText), 2, 1);
+    paramLayout->addWidget(new QLabel("目标功率:"), 2, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 dBm").arg(params.targetPower)), 2, 3);
+    layout->addWidget(paramGroup);
+
+    // 总体结果
+    QGroupBox *summaryGroup = new QGroupBox("总体结果", dlg);
+    QGridLayout *summaryLayout = new QGridLayout(summaryGroup);
+    summaryLayout->addWidget(new QLabel("分段数量:"), 0, 0);
+    QLabel *segLabel = new QLabel(QString::number(result.segmentCount));
+    segLabel->setStyleSheet("color: #1976d2; font-weight: bold; font-size: 14pt;");
+    summaryLayout->addWidget(segLabel, 0, 1);
+    summaryLayout->addWidget(new QLabel("末端功率:"), 0, 2);
+    QLabel *endLabel = new QLabel(QString("%1 dBm").arg(result.endPower, 0, 'f', 1));
+    endLabel->setStyleSheet(result.endPower < params.minPower ? "color: red; font-weight: bold;" : "color: green;");
+    summaryLayout->addWidget(endLabel, 0, 3);
+    summaryLayout->addWidget(new QLabel("总损耗:"), 1, 0);
+    summaryLayout->addWidget(new QLabel(QString("%1 dB").arg(result.totalLoss, 0, 'f', 1)), 1, 1);
+    layout->addWidget(summaryGroup);
+
+    // 分段详情表格
+    QGroupBox *segGroup = new QGroupBox("分段详情", dlg);
+    QVBoxLayout *segLayout = new QVBoxLayout(segGroup);
+    QTableWidget *table = new QTableWidget(result.segments.size(), 7, dlg);
+    table->setHorizontalHeaderLabels({"段号", "起始(m)", "结束(m)", "长度(m)", "输入功率(dBm)", "输出功率(dBm)", "达标"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    for (int i = 0; i < result.segments.size(); i++) {
+        const auto &seg = result.segments[i];
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(seg.segmentIndex)));
+        table->setItem(i, 1, new QTableWidgetItem(QString::number(seg.startPos, 'f', 1)));
+        table->setItem(i, 2, new QTableWidgetItem(QString::number(seg.endPos, 'f', 1)));
+        table->setItem(i, 3, new QTableWidgetItem(QString::number(seg.length, 'f', 1)));
+        table->setItem(i, 4, new QTableWidgetItem(QString::number(seg.inputPower, 'f', 1)));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(seg.outputPower, 'f', 1)));
+        QTableWidgetItem *passItem = new QTableWidgetItem(seg.pass ? "✓ 达标" : "✗ 不达标");
+        passItem->setForeground(seg.pass ? QColor("#2e7d32") : QColor("#c62828"));
+        table->setItem(i, 6, passItem);
+    }
+    table->resizeColumnsToContents();
+    segLayout->addWidget(table);
+    layout->addWidget(segGroup, 1);
+
+    // 达标判断
+    bool allPass = true;
+    for (const auto &seg : result.segments) {
+        if (!seg.pass) { allPass = false; break; }
+    }
+    if (!allPass || result.endPower < params.minPower) {
+        QLabel *warnLabel = new QLabel("⚠ 警告: 部分分段或末端功率不达标，建议增加信号源或缩短漏缆长度");
+        warnLabel->setStyleSheet("background: #ffebee; color: #c62828; padding: 8px; border-radius: 4px;");
+        layout->addWidget(warnLabel);
+    } else {
+        QLabel *okLabel = new QLabel("✓ 设计达标: 所有分段耦合功率均满足要求");
+        okLabel->setStyleSheet("background: #e8f5e9; color: #2e7d32; padding: 8px; border-radius: 4px;");
+        layout->addWidget(okLabel);
+    }
+
     QPushButton *closeBtn = new QPushButton("关闭", dlg);
     layout->addWidget(closeBtn);
     connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
-        QString("漏缆分段设计: %1米, %2段").arg(length).arg(result.segmentCount));
+        QString("漏缆分段设计: %1m, %2段, 末端%3dBm").arg(params.totalLength).arg(result.segmentCount).arg(result.endPower, 0, 'f', 1));
 }
 
 void MainWindow::onBuildingToBuildingTool()
