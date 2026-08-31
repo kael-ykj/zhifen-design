@@ -442,3 +442,30 @@ void PropertyPanel::setColorButtonColor(const QColor &color)
     m_colorButton->setStyleSheet(QString("background-color: %1; border: 1px solid #555;").arg(color.name()));
     m_colorButton->setText(color.name());
 }
+
+void PropertyPanel::updateDeviceProperties(QGraphicsItem *item)
+{
+    auto dev = dynamic_cast<Zhifen::DeviceItem*>(item);
+    if (!dev) return;
+
+    m_deviceGroup->show();
+    m_deviceTypeLabel->setText(dev->deviceTypeName(dev->deviceType()));
+    m_deviceNameLabel->setText(dev->toolTip().isEmpty() ? "未命名" : dev->toolTip());
+    m_devicePowerLabel->setText("待计算");
+    m_deviceLossLabel->setText(dev->deviceTypeName(dev->deviceType()).contains("耦合") ? "耦合度: 待配置" : "待计算");
+}
+
+void PropertyPanel::updateFeederProperties(QGraphicsItem *item)
+{
+    auto feeder = dynamic_cast<FeederItem*>(item);
+    if (!feeder) return;
+
+    m_feederGroup->show();
+    m_feederTypeLabel->setText(feeder->typeName());
+    m_feederLengthLabel->setText(QString("%1 m").arg(feeder->length(), 0, 'f', 2));
+    QPolygonF pts = feeder->points();
+    if (!pts.isEmpty()) {
+        m_feederStartLabel->setText(QString("(%1, %2)").arg(pts.first().x(), 0, 'f', 1).arg(pts.first().y(), 0, 'f', 1));
+        m_feederEndLabel->setText(QString("(%1, %2)").arg(pts.last().x(), 0, 'f', 1).arg(pts.last().y(), 0, 'f', 1));
+    }
+}
