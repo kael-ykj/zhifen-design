@@ -215,7 +215,7 @@ void SystemDiagramGenerator::calculatePower(SystemDiagramResult &result) {
         } else if (node->parent) {
             // 馈线损耗：根据连接长度计算（1/2馈线0.07dB/m）
             qreal feederLoss = 0.0;
-            for (const auto &conn : result.connections) {
+            for (auto &conn : result.connections) {
                 if (conn.from == node->parent && conn.to == node) {
                     feederLoss = conn.length * 0.07;  // 1/2馈线损耗
                     conn.loss = feederLoss;
