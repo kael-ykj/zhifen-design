@@ -1391,26 +1391,76 @@ void MainWindow::onCoverageSimulation()
     heatmapLabel->setPixmap(pixmap.scaled(800, 500, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     layout->addWidget(heatmapLabel);
 
-    // 统计信息
-    QString stats = QString("频段: %1 | 天线数: %2 | 网格: %3 x %4\n"
-                            "最强信号: %5 dBm | 最弱信号: %6 dBm | 平均: %7 dBm\n"
-                            "弱覆盖比例(< -95dBm): %8%")
-        .arg(Zhifen::CoverageSimulator::bandName(band))
-        .arg(result.antennas.size())
-        .arg(result.signalGrid.isEmpty() ? 0 : result.signalGrid[0].size())
-        .arg(result.signalGrid.size())
-        .arg(result.maxSignal, 0, 'f', 1)
-        .arg(result.minSignal, 0, 'f', 1)
-        .arg(result.avgSignal, 0, 'f', 1)
-        .arg(result.weakCoverageRatio * 100, 0, 'f', 1);
-    QLabel *statsLabel = new QLabel(stats, dlg);
-    statsLabel->setFont(QFont("Consolas", 9));
-    layout->addWidget(statsLabel);
+    // 统计信息（表格化）
+    QGroupBox *statGroup = new QGroupBox("仿真统计", dlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("频段:"), 0, 0);
+    statLayout->addWidget(new QLabel(Zhifen::CoverageSimulator::bandName(band)), 0, 1);
+    statLayout->addWidget(new QLabel("天线数:"), 0, 2);
+    statLayout->addWidget(new QLabel(QString::number(result.antennas.size())), 0, 3);
+    statLayout->addWidget(new QLabel("最强信号:"), 1, 0);
+    QLabel *maxLabel = new QLabel(QString("%1 dBm").arg(result.maxSignal, 0, 'f', 1));
+    maxLabel->setStyleSheet("color: green; font-weight: bold;");
+    statLayout->addWidget(maxLabel, 1, 1);
+    statLayout->addWidget(new QLabel("最弱信号:"), 1, 2);
+    QLabel *minLabel = new QLabel(QString("%1 dBm").arg(result.minSignal, 0, 'f', 1));
+    minLabel->setStyleSheet(result.minSignal < -95 ? "color: red; font-weight: bold;" : "color: orange;");
+    statLayout->addWidget(minLabel, 1, 3);
+    statLayout->addWidget(new QLabel("平均信号:"), 2, 0);
+    statLayout->addWidget(new QLabel(QString("%1 dBm").arg(result.avgSignal, 0, 'f', 1)), 2, 1);
+    statLayout->addWidget(new QLabel("弱覆盖比例:"), 2, 2);
+    QLabel *weakLabel = new QLabel(QString("%1%").arg(result.weakCoverageRatio * 100, 0, 'f', 1));
+    weakLabel->setStyleSheet(result.weakCoverageRatio > 0.2 ? "color: red; font-weight: bold;" : "color: green;");
+    statLayout->addWidget(weakLabel, 2, 3);
+    layout->addWidget(statGroup);
 
-    // 图例
-    QLabel *legendLabel = new QLabel("图例: 红色=弱覆盖(-120~-95dBm) | 黄色=中等(-95~-75dBm) | 绿色=良好(-75~-40dBm)", dlg);
-    legendLabel->setStyleSheet("color: gray; font-size: 8pt;");
-    layout->addWidget(legendLabel);
+    // 弱覆盖告警
+    if (result.weakCoverageRatio > 0.2) {
+        QLabel *alarmLabel = new QLabel(QString("⚠ 弱覆盖告警: 弱覆盖比例 %1% 超过20%阈值，建议增加天线或调整天线位置")
+            .arg(result.weakCoverageRatio * 100, 0, 'f', 1), dlg);
+        alarmLabel->setStyleSheet("background: #ffebee; color: #c62828; padding: 8px; border: 1px solid #c62828; border-radius: 4px;");
+        layout->addWidget(alarmLabel);
+    }
+
+    // 颜色图例条
+    QLabel *legendBar = new QLabel(dlg);
+    QPixmap legendPix(600, 20);
+    QPainter painter(&legendPix);
+    for (int x = 0; x < 600; x++) {
+        qreal signal = -120.0 + (x / 600.0) * 80.0; // -120 to -40
+        QColor color;
+        if (signal < -95) color = QColor(255, 0, 0);
+        else if (signal < -75) color = QColor(255, 165, 0);
+        else if (signal < -60) color = QColor(255, 255, 0);
+        else color = QColor(0, 200, 0);
+        painter.setPen(color);
+        painter.drawLine(x, 0, x, 20);
+    }
+    painter.end();
+    legendBar->setPixmap(legendPix);
+    QLabel *legendText = new QLabel("-120dBm (弱覆盖)                          -40dBm (良好)", dlg);
+    legendText->setAlignment(Qt::AlignCenter);
+    legendText->setStyleSheet("font-size: 8pt; color: gray;");
+    layout->addWidget(legendBar);
+    layout->addWidget(legendText);
+
+    // 按钮
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportBtn = new QPushButton("导出热力图", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    connect(exportBtn, &QPushButton::clicked, dlg, [this, result]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出热力图", "覆盖仿真热力图.png", "PNG图片 (*.png);;JPEG图片 (*.jpg)");
+        if (!fileName.isEmpty()) {
+            result.heatmapImage.save(fileName);
+            QMessageBox::information(this, "导出成功", "热力图已导出");
+        }
+    });
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
 
     dlg->setLayout(layout);
     dlg->exec();
