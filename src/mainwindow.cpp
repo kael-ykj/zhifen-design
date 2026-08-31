@@ -94,6 +94,8 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QSpinBox>
+#include <QTableWidget>
+#include <QHeaderView>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_currentTool(nullptr)
