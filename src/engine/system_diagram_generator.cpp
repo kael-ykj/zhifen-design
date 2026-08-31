@@ -196,24 +196,57 @@ void SystemDiagramGenerator::layout(SystemDiagramResult &result) {
 }
 
 void SystemDiagramGenerator::calculatePower(SystemDiagramResult &result) {
-    // 简化的链路预算：信源43dBm，每级损耗
+    // 精确链路预算：根据器件类型计算损耗
+    // 信源输出功率：宏基站43dBm，微基站33dBm，RRU37dBm
     for (auto *node : result.nodes) {
         if (node->level == 0) {
-            node->outputPower = 43.0;  // 信源输出
+            // 根据信源类型设置输出功率
+            if (node->name.contains("宏基站") || node->name.contains("BBU")) {
+                node->outputPower = 43.0;
+            } else if (node->name.contains("微基站") || node->name.contains("RRU")) {
+                node->outputPower = 37.0;
+            } else if (node->name.contains("直放站") || node->name.contains("干放")) {
+                node->outputPower = 33.0;
+            } else if (node->name.contains("皮基站") || node->name.contains("pRRU")) {
+                node->outputPower = 24.0;
+            } else {
+                node->outputPower = 43.0;  // 默认43dBm
+            }
         } else if (node->parent) {
-            node->inputPower = node->parent->outputPower - 1.0;  // 馈线损耗1dB
+            // 馈线损耗：根据连接长度计算（1/2馈线0.07dB/m）
+            qreal feederLoss = 0.0;
+            for (const auto &conn : result.connections) {
+                if (conn.from == node->parent && conn.to == node) {
+                    feederLoss = conn.length * 0.07;  // 1/2馈线损耗
+                    conn.loss = feederLoss;
+                    break;
+                }
+            }
+            node->inputPower = node->parent->outputPower - feederLoss;
+
+            // 器件插入损耗
             if (node->type == "功分器") {
-                node->loss = 3.5;  // 二功分分配损耗+插入损耗
+                // 根据功分器端口数计算分配损耗
+                if (node->name.contains("二功分") || node->name.contains("2功分")) {
+                    node->loss = 3.5;  // 分配3dB + 插入0.5dB
+                } else if (node->name.contains("三功分") || node->name.contains("3功分")) {
+                    node->loss = 5.2;  // 分配4.8dB + 插入0.4dB
+                } else if (node->name.contains("四功分") || node->name.contains("4功分")) {
+                    node->loss = 6.5;  // 分配6dB + 插入0.5dB
+                } else {
+                    node->loss = 3.5;  // 默认二功分
+                }
                 node->outputPower = node->inputPower - node->loss;
             } else if (node->type == "耦合器") {
-                node->loss = 0.5;  // 插入损耗
+                // 耦合器直通损耗0.5dB，耦合端根据耦合度
+                node->loss = 0.5;  // 直通插入损耗
                 node->outputPower = node->inputPower - node->loss;
             } else if (node->type == "合路器") {
-                node->loss = 0.5;
+                node->loss = 0.5;  // 插入损耗
                 node->outputPower = node->inputPower - node->loss;
             } else if (node->type == "天线") {
-                node->loss = 0;
-                node->outputPower = node->inputPower;
+                node->loss = 0.0;
+                node->outputPower = node->inputPower;  // 天线输入功率
             } else {
                 node->outputPower = node->inputPower;
             }
@@ -307,11 +340,21 @@ void SystemDiagramGenerator::renderToScene(const SystemDiagramResult &result, QG
             idText->setPos(node->pos.x() - 35, node->pos.y() + 2);
             idText->setBrush(QColor(0, 0, 128));
 
-            // 输出电平
+            // 输出电平（低于10dBm红色告警）
+            QColor powerColor = (node->outputPower < 10.0 && node->type == "天线") ? QColor(255, 0, 0) : QColor(180, 0, 0);
             QGraphicsSimpleTextItem *powerText = targetScene->addSimpleText(
                 QString("%1dBm").arg(node->outputPower, 0, 'f', 1), powerFont);
             powerText->setPos(node->pos.x() - 35, node->pos.y() + 14);
-            powerText->setBrush(QColor(180, 0, 0));
+            powerText->setBrush(powerColor);
+
+            // 耦合器额外标注耦合端功率
+            if (node->type == "耦合器") {
+                qreal coupledPower = node->inputPower - 10.0;  // 默认10dB耦合度
+                QGraphicsSimpleTextItem *cplText = targetScene->addSimpleText(
+                    QString("耦合:%1dBm").arg(coupledPower, 0, 'f', 1), powerFont);
+                cplText->setPos(node->pos.x() + 45, node->pos.y() - 5);
+                cplText->setBrush(QColor(0, 100, 0));
+            }
         }
     }
 
