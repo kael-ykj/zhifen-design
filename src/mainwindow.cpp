@@ -1697,40 +1697,137 @@ void MainWindow::onPowerBalance()
 
 void MainWindow::onElevatorTool()
 {
-    bool ok;
-    int floors = QInputDialog::getInt(this, "电梯覆盖设计", "楼层数:", 20, 1, 200, 1, &ok);
-    if (!ok) return;
-    qreal floorHeight = QInputDialog::getDouble(this, "电梯覆盖设计", "层高(米):", 3.0, 2.0, 6.0, 1, &ok);
-    if (!ok) return;
+    // 统一参数设置对话框
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("电梯覆盖设计 - 参数设置");
+    paramDlg->resize(400, 350);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QSpinBox *floorSpin = new QSpinBox(paramDlg);
+    floorSpin->setRange(1, 200); floorSpin->setValue(20);
+    formLayout->addRow("楼层数:", floorSpin);
+
+    QDoubleSpinBox *heightSpin = new QDoubleSpinBox(paramDlg);
+    heightSpin->setRange(2.0, 6.0); heightSpin->setValue(3.0); heightSpin->setSuffix(" m");
+    formLayout->addRow("层高:", heightSpin);
+
+    QDoubleSpinBox *txPowerSpin = new QDoubleSpinBox(paramDlg);
+    txPowerSpin->setRange(10, 40); txPowerSpin->setValue(15.0); txPowerSpin->setSuffix(" dBm");
+    formLayout->addRow("发射功率:", txPowerSpin);
+
+    QDoubleSpinBox *gainSpin = new QDoubleSpinBox(paramDlg);
+    gainSpin->setRange(2, 15); gainSpin->setValue(8.0); gainSpin->setSuffix(" dBi");
+    formLayout->addRow("天线增益:", gainSpin);
+
+    QDoubleSpinBox *targetSpin = new QDoubleSpinBox(paramDlg);
+    targetSpin->setRange(-110, -60); targetSpin->setValue(-85.0); targetSpin->setSuffix(" dBm");
+    formLayout->addRow("目标功率:", targetSpin);
+
+    QComboBox *bandCombo = new QComboBox(paramDlg);
+    bandCombo->addItems({"2G (900MHz)", "3G (2100MHz)", "4G (1800MHz)", "5G (3500MHz)"});
+    bandCombo->setCurrentIndex(2);
+    formLayout->addRow("频段:", bandCombo);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *calcBtn = new QPushButton("计算", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(calcBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(calcBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
 
     Zhifen::ElevatorParams params;
-    params.floorCount = floors;
-    params.floorHeight = floorHeight;
-    params.txPower = 15.0;
-    params.antennaGain = 8.0;
-    params.targetPower = -85.0;
-    params.band = Zhifen::Band_4G;
+    params.floorCount = floorSpin->value();
+    params.floorHeight = heightSpin->value();
+    params.txPower = txPowerSpin->value();
+    params.antennaGain = gainSpin->value();
+    params.targetPower = targetSpin->value();
+    params.band = static_cast<Zhifen::FrequencyBand>(bandCombo->currentIndex());
+    QString bandText = bandCombo->currentText();
+    paramDlg->deleteLater();
 
     Zhifen::ElevatorResult result = Zhifen::ElevatorCoverageTool::calculate(params);
 
+    // 表格化结果展示
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("电梯覆盖设计方案");
-    dlg->resize(500, 400);
+    dlg->resize(600, 500);
     QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    // 设计参数汇总
+    QGroupBox *paramGroup = new QGroupBox("设计参数", dlg);
+    QGridLayout *paramLayout = new QGridLayout(paramGroup);
+    paramLayout->addWidget(new QLabel("楼层数:"), 0, 0);
+    paramLayout->addWidget(new QLabel(QString::number(params.floorCount)), 0, 1);
+    paramLayout->addWidget(new QLabel("层高:"), 0, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 m").arg(params.floorHeight)), 0, 3);
+    paramLayout->addWidget(new QLabel("总高度:"), 1, 0);
+    paramLayout->addWidget(new QLabel(QString("%1 m").arg(params.floorCount * params.floorHeight)), 1, 1);
+    paramLayout->addWidget(new QLabel("频段:"), 1, 2);
+    paramLayout->addWidget(new QLabel(bandText), 1, 3);
+    layout->addWidget(paramGroup);
+
+    // 计算结果表格
+    QGroupBox *resultGroup = new QGroupBox("计算结果", dlg);
+    QGridLayout *resultLayout = new QGridLayout(resultGroup);
+    resultLayout->addWidget(new QLabel("推荐天线:"), 0, 0);
+    QLabel *antTypeLabel = new QLabel(result.antennaType);
+    antTypeLabel->setStyleSheet("color: #1976d2; font-weight: bold;");
+    resultLayout->addWidget(antTypeLabel, 0, 1);
+    resultLayout->addWidget(new QLabel("天线数量:"), 0, 2);
+    QLabel *antCountLabel = new QLabel(QString::number(result.antennaCount));
+    antCountLabel->setStyleSheet("color: #388e3c; font-weight: bold; font-size: 14pt;");
+    resultLayout->addWidget(antCountLabel, 0, 3);
+    resultLayout->addWidget(new QLabel("天线间距:"), 1, 0);
+    resultLayout->addWidget(new QLabel(QString("%1 m").arg(result.antennaSpacing, 0, 'f', 1)), 1, 1);
+    resultLayout->addWidget(new QLabel("平均功率:"), 1, 2);
+    resultLayout->addWidget(new QLabel(QString("%1 dBm").arg(result.avgPower, 0, 'f', 1)), 1, 3);
+    resultLayout->addWidget(new QLabel("最弱功率:"), 2, 0);
+    QLabel *minLabel = new QLabel(QString("%1 dBm").arg(result.minPower, 0, 'f', 1));
+    minLabel->setStyleSheet(result.minPower < params.targetPower ? "color: red; font-weight: bold;" : "color: green;");
+    resultLayout->addWidget(minLabel, 2, 1);
+    resultLayout->addWidget(new QLabel("最强功率:"), 2, 2);
+    resultLayout->addWidget(new QLabel(QString("%1 dBm").arg(result.maxPower, 0, 'f', 1)), 2, 3);
+    layout->addWidget(resultGroup);
+
+    // 达标判断
+    if (result.minPower < params.targetPower) {
+        QLabel *warnLabel = new QLabel(QString("⚠ 警告: 最弱功率 %1 dBm 低于目标 %2 dBm，建议增加天线或提高发射功率")
+            .arg(result.minPower, 0, 'f', 1).arg(params.targetPower, 0, 'f', 1));
+        warnLabel->setStyleSheet("background: #ffebee; color: #c62828; padding: 8px; border-radius: 4px;");
+        layout->addWidget(warnLabel);
+    } else {
+        QLabel *okLabel = new QLabel("✓ 设计达标: 所有楼层覆盖功率均满足要求");
+        okLabel->setStyleSheet("background: #e8f5e9; color: #2e7d32; padding: 8px; border-radius: 4px;");
+        layout->addWidget(okLabel);
+    }
+
+    // 详细报告
     QTextEdit *textEdit = new QTextEdit(dlg);
     textEdit->setReadOnly(true);
     textEdit->setFont(QFont("Consolas", 9));
     textEdit->setPlainText(result.report);
+    textEdit->setMaximumHeight(150);
     layout->addWidget(textEdit);
+
     QPushButton *closeBtn = new QPushButton("关闭", dlg);
     layout->addWidget(closeBtn);
     connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
-        QString("电梯覆盖设计: %1层, 天线%2个").arg(floors).arg(result.antennaCount));
+        QString("电梯覆盖设计: %1层, 天线%2个, 最弱%3dBm").arg(params.floorCount).arg(result.antennaCount).arg(result.minPower, 0, 'f', 1));
 }
 
 void MainWindow::onLeakyCableTool()
