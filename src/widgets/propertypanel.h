@@ -12,6 +12,7 @@
 #include <QScrollArea>
 #include <QCheckBox>
 #include <QGroupBox>
+#include <QGraphicsItem>
 
 class CadItem;
 class CadScene;
