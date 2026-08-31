@@ -1138,33 +1138,158 @@ void MainWindow::onLinkCalculation()
 
 void MainWindow::onBomReport()
 {
-    QMap<QString, int> bom;
-    if (m_scene) {
-        for (auto *item : m_scene->items()) {
-            auto *cad = dynamic_cast<CadItem*>(item);
-            if (!cad) continue;
-            QString type = cad->entityType();
-            bom[type]++;
+    // 使用ReportEngine生成结构化BOM
+    Zhifen::ReportEngine reportEngine;
+    QList<Zhifen::BomItem> bom = reportEngine.generateBom(m_scene);
+
+    // 主材/辅材分类
+    QStringList mainCategories = {"天线", "功分器", "耦合器", "合路器", "信源", "馈线", "漏缆"};
+    QList<Zhifen::BomItem> mainMaterials, auxMaterials;
+    for (const auto &item : bom) {
+        if (mainCategories.contains(item.category)) {
+            mainMaterials.append(item);
+        } else {
+            auxMaterials.append(item);
         }
     }
-    QString text = "========== 材料表(BOM) ==========\n";
-    text += QString("序号\t材料名称\t数量\n");
-    text += "--------------------------------\n";
-    int idx = 1;
-    for (auto it = bom.begin(); it != bom.end(); ++it) {
-        text += QString("%1\t%2\t%3\n").arg(idx++).arg(it.key()).arg(it.value());
-    }
-    text += "================================\n";
-    text += QString("合计: %1 项\n").arg(bom.size());
+
     QDialog *dlg = new QDialog(this);
-    dlg->setWindowTitle("材料表统计");
-    dlg->resize(500, 400);
+    dlg->setWindowTitle("材料表统计 - BOM");
+    dlg->resize(800, 600);
     QVBoxLayout *layout = new QVBoxLayout(dlg);
-    QTextEdit *textEdit = new QTextEdit(dlg);
-    textEdit->setReadOnly(true);
-    textEdit->setFont(QFont("Consolas", 10));
-    textEdit->setPlainText(text);
-    layout->addWidget(textEdit);
+
+    // 主材表
+    QGroupBox *mainGroup = new QGroupBox("主材表", dlg);
+    QVBoxLayout *mainLayout = new QVBoxLayout(mainGroup);
+    QTableWidget *mainTable = new QTableWidget(mainGroup);
+    mainTable->setColumnCount(5);
+    mainTable->setHorizontalHeaderLabels({"序号", "类别", "名称", "型号", "数量"});
+    mainTable->setRowCount(mainMaterials.size());
+    mainTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    mainTable->setAlternatingRowColors(true);
+    mainTable->setStyleSheet("QHeaderView::section { background: #1976d2; color: white; padding: 4px; }");
+    for (int i = 0; i < mainMaterials.size(); i++) {
+        const auto &item = mainMaterials[i];
+        mainTable->setItem(i, 0, new QTableWidgetItem(QString::number(i+1)));
+        mainTable->setItem(i, 1, new QTableWidgetItem(item.category));
+        mainTable->setItem(i, 2, new QTableWidgetItem(item.name));
+        mainTable->setItem(i, 3, new QTableWidgetItem(item.model));
+        mainTable->setItem(i, 4, new QTableWidgetItem(QString::number(item.quantity)));
+    }
+    mainTable->resizeColumnsToContents();
+    mainLayout->addWidget(mainTable);
+    layout->addWidget(mainGroup);
+
+    // 辅材表
+    QGroupBox *auxGroup = new QGroupBox("辅材表", dlg);
+    QVBoxLayout *auxLayout = new QVBoxLayout(auxGroup);
+    QTableWidget *auxTable = new QTableWidget(auxGroup);
+    auxTable->setColumnCount(5);
+    auxTable->setHorizontalHeaderLabels({"序号", "类别", "名称", "型号", "数量"});
+    auxTable->setRowCount(auxMaterials.size());
+    auxTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    auxTable->setAlternatingRowColors(true);
+    auxTable->setStyleSheet("QHeaderView::section { background: #388e3c; color: white; padding: 4px; }");
+    for (int i = 0; i < auxMaterials.size(); i++) {
+        const auto &item = auxMaterials[i];
+        auxTable->setItem(i, 0, new QTableWidgetItem(QString::number(i+1)));
+        auxTable->setItem(i, 1, new QTableWidgetItem(item.category));
+        auxTable->setItem(i, 2, new QTableWidgetItem(item.name));
+        auxTable->setItem(i, 3, new QTableWidgetItem(item.model));
+        auxTable->setItem(i, 4, new QTableWidgetItem(QString::number(item.quantity)));
+    }
+    auxTable->resizeColumnsToContents();
+    auxLayout->addWidget(auxTable);
+    layout->addWidget(auxGroup);
+
+    // 预算表（折扣填写）
+    QGroupBox *budgetGroup = new QGroupBox("预算表（折扣设置）", dlg);
+    QGridLayout *budgetLayout = new QGridLayout(budgetGroup);
+    budgetLayout->addWidget(new QLabel("设计折扣:"), 0, 0);
+    QDoubleSpinBox *designDiscount = new QDoubleSpinBox(budgetGroup);
+    designDiscount->setRange(0, 100); designDiscount->setValue(100); designDiscount->setSuffix("%");
+    budgetLayout->addWidget(designDiscount, 0, 1);
+    budgetLayout->addWidget(new QLabel("监理折扣:"), 0, 2);
+    QDoubleSpinBox *supervisionDiscount = new QDoubleSpinBox(budgetGroup);
+    supervisionDiscount->setRange(0, 100); supervisionDiscount->setValue(100); supervisionDiscount->setSuffix("%");
+    budgetLayout->addWidget(supervisionDiscount, 0, 3);
+    budgetLayout->addWidget(new QLabel("施工折扣:"), 1, 0);
+    QDoubleSpinBox *constructionDiscount = new QDoubleSpinBox(budgetGroup);
+    constructionDiscount->setRange(0, 100); constructionDiscount->setValue(100); constructionDiscount->setSuffix("%");
+    budgetLayout->addWidget(constructionDiscount, 1, 1);
+    budgetLayout->addWidget(new QLabel("主材合计:"), 1, 2);
+    int mainTotal = 0;
+    for (const auto &m : mainMaterials) mainTotal += m.quantity;
+    budgetLayout->addWidget(new QLabel(QString("%1 项").arg(mainTotal)), 1, 3);
+    layout->addWidget(budgetGroup);
+
+    // 按钮
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportExcelBtn = new QPushButton("导出Excel(CSV)", dlg);
+    QPushButton *exportBudgetBtn = new QPushButton("导出预算表", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(exportExcelBtn);
+    btnLayout->addWidget(exportBudgetBtn);
+    btnLayout->addWidget(closeBtn);
+    layout->addLayout(btnLayout);
+
+    // 导出Excel
+    connect(exportExcelBtn, &QPushButton::clicked, dlg, [this, mainMaterials, auxMaterials]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出材料表", "材料表.csv", "CSV文件 (*.csv)");
+        if (fileName.isEmpty()) return;
+        QFile file(fileName);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out.setCodec("UTF-8");
+            out << "主材表\n";
+            out << "序号,类别,名称,型号,数量\n";
+            for (int i = 0; i < mainMaterials.size(); i++) {
+                const auto &m = mainMaterials[i];
+                out << QString("%1,%2,%3,%4,%5\n").arg(i+1).arg(m.category).arg(m.name).arg(m.model).arg(m.quantity);
+            }
+            out << "\n辅材表\n";
+            out << "序号,类别,名称,型号,数量\n";
+            for (int i = 0; i < auxMaterials.size(); i++) {
+                const auto &m = auxMaterials[i];
+                out << QString("%1,%2,%3,%4,%5\n").arg(i+1).arg(m.category).arg(m.name).arg(m.model).arg(m.quantity);
+            }
+            file.close();
+            QMessageBox::information(this, "导出成功", "材料表已导出为CSV格式");
+        }
+    });
+
+    // 导出预算表
+    connect(exportBudgetBtn, &QPushButton::clicked, dlg, [this, mainMaterials, auxMaterials, designDiscount, supervisionDiscount, constructionDiscount]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出预算表", "预算表.csv", "CSV文件 (*.csv)");
+        if (fileName.isEmpty()) return;
+        QFile file(fileName);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out.setCodec("UTF-8");
+            out << "预算表\n";
+            out << QString("设计折扣,%1%\n").arg(designDiscount->value());
+            out << QString("监理折扣,%1%\n").arg(supervisionDiscount->value());
+            out << QString("施工折扣,%1%\n").arg(constructionDiscount->value());
+            out << "\n主材预算\n";
+            out << "序号,类别,名称,型号,数量,单价(元),合价(元)\n";
+            for (int i = 0; i < mainMaterials.size(); i++) {
+                const auto &m = mainMaterials[i];
+                out << QString("%1,%2,%3,%4,%5,,\n").arg(i+1).arg(m.category).arg(m.name).arg(m.model).arg(m.quantity);
+            }
+            out << "\n辅材预算\n";
+            out << "序号,类别,名称,型号,数量,单价(元),合价(元)\n";
+            for (int i = 0; i < auxMaterials.size(); i++) {
+                const auto &m = auxMaterials[i];
+                out << QString("%1,%2,%3,%4,%5,,\n").arg(i+1).arg(m.category).arg(m.name).arg(m.model).arg(m.quantity);
+            }
+            file.close();
+            QMessageBox::information(this, "导出成功", "预算表已导出，请填写单价后计算合价");
+        }
+    });
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
