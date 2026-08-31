@@ -615,9 +615,9 @@ void MainWindow::onImportBottomMap()
     QString fileName = QFileDialog::getOpenFileName(this, "导入建筑底图", "", "DXF文件 (*.dxf);;所有文件 (*.*)");
     if (fileName.isEmpty()) return;
 
-    // 让用户选择精简模式
+    // 第一步：选择精简模式
     QStringList items;
-    items << "不精简(全部导入)" << "基础精简(保留墙体/门窗/管线)" << "深度精简(仅保留墙体)";
+    items << "不精简(全部导入)" << "AI基础精简(保留墙体/门窗/管线)" << "AI深度精简(仅保留墙体)";
     bool ok;
     QString choice = QInputDialog::getItem(this, "AI精简模式", "请选择底图精简模式:", items, 1, false, &ok);
     if (!ok) return;
@@ -626,8 +626,9 @@ void MainWindow::onImportBottomMap()
     if (choice.contains("不精简")) mode = Zhifen::Simplify_None;
     else if (choice.contains("深度")) mode = Zhifen::Simplify_Aggressive;
 
+    // 先解析DXF获取图层列表
     Zhifen::DxfImporter importer;
-    Zhifen::DxfImportResult result = importer.importFromFile(fileName, mode);
+    Zhifen::DxfImportResult result = importer.importFromFile(fileName, Zhifen::Simplify_None);
 
     if (!result.success) {
         QString err = result.errors.isEmpty() ? "导入失败" : result.errors.join("\n");
@@ -635,12 +636,85 @@ void MainWindow::onImportBottomMap()
         return;
     }
 
+    // 第二步：图层选择对话框
+    QDialog *layerDlg = new QDialog(this);
+    layerDlg->setWindowTitle("图层选择 - 勾选要保留的图层");
+    layerDlg->resize(500, 500);
+    QVBoxLayout *layerLayout = new QVBoxLayout(layerDlg);
+
+    QLabel *tipLabel = new QLabel("共发现 %1 个图层，勾选需要保留的图层：").arg(result.layers.size());
+    layerLayout->addWidget(tipLabel);
+
+    QListWidget *layerList = new QListWidget(layerDlg);
+    layerList->setSelectionMode(QAbstractItemView::MultiSelection);
+    for (const auto &layer : result.layers) {
+        QListWidgetItem *item = new QListWidgetItem(QString("%1 (%2个图元)").arg(layer.name).arg(layer.entityCount));
+        item->setCheckState(Qt::Checked);
+        item->setData(Qt::UserRole, layer.name);
+        layerList->addItem(item);
+    }
+    layerLayout->addWidget(layerList, 1);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *selectAllBtn = new QPushButton("全选", layerDlg);
+    QPushButton *clearAllBtn = new QPushButton("全不选", layerDlg);
+    QPushButton *wallOnlyBtn = new QPushButton("仅墙体", layerDlg);
+    QPushButton *okBtn = new QPushButton("确定导入", layerDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", layerDlg);
+    btnLayout->addWidget(selectAllBtn);
+    btnLayout->addWidget(clearAllBtn);
+    btnLayout->addWidget(wallOnlyBtn);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    layerLayout->addLayout(btnLayout);
+
+    connect(selectAllBtn, &QPushButton::clicked, layerList, [layerList]() {
+        for (int i = 0; i < layerList->count(); i++) layerList->item(i)->setCheckState(Qt::Checked);
+    });
+    connect(clearAllBtn, &QPushButton::clicked, layerList, [layerList]() {
+        for (int i = 0; i < layerList->count(); i++) layerList->item(i)->setCheckState(Qt::Unchecked);
+    });
+    connect(wallOnlyBtn, &QPushButton::clicked, layerList, [layerList]() {
+        for (int i = 0; i < layerList->count(); i++) {
+            QString name = layerList->item(i)->data(Qt::UserRole).toString();
+            bool isWall = name.contains("墙", Qt::CaseInsensitive) || name.contains("WALL", Qt::CaseInsensitive);
+            layerList->item(i)->setCheckState(isWall ? Qt::Checked : Qt::Unchecked);
+        }
+    });
+    connect(okBtn, &QPushButton::clicked, layerDlg, &QDialog::accept);
+    connect(cancelBtn, &QPushButton::clicked, layerDlg, &QDialog::reject);
+
+    if (layerDlg->exec() != QDialog::Accepted) {
+        layerDlg->deleteLater();
+        return;
+    }
+
+    // 收集用户选择的图层
+    QStringList selectedLayers;
+    for (int i = 0; i < layerList->count(); i++) {
+        if (layerList->item(i)->checkState() == Qt::Checked) {
+            selectedLayers.append(layerList->item(i)->data(Qt::UserRole).toString());
+        }
+    }
+    layerDlg->deleteLater();
+
+    // 按用户选择过滤图元
+    QList<Zhifen::DxfEntity> filteredEntities;
+    for (const auto &entity : result.entities) {
+        if (selectedLayers.contains(entity.layer)) {
+            filteredEntities.append(entity);
+        }
+    }
+    result.entities = filteredEntities;
+
     // 渲染到场景（底图锁定）
     importer.renderToScene(result, m_scene, true);
+    m_view->zoomExtents();
 
     // 显示导入信息
-    QString info = QString("底图导入成功!\n图元数: %1\n图层数: %2")
-        .arg(result.entities.size()).arg(result.layers.size());
+    QString info = QString("底图导入成功!\n保留图层: %1/%2\n图元数: %3")
+        .arg(selectedLayers.size()).arg(result.layers.size()).arg(filteredEntities.size());
     if (!result.warnings.isEmpty()) {
         info += "\n\n提示:\n" + result.warnings.join("\n");
     }
@@ -648,8 +722,8 @@ void MainWindow::onImportBottomMap()
 
     statusBar()->showMessage(QString("建筑底图已导入: %1 (已锁定)").arg(fileName), 5000);
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
-        QString("导入建筑底图: %1, 图元%2个, 图层%3个")
-        .arg(fileName).arg(result.entities.size()).arg(result.layers.size()));
+        QString("导入建筑底图: %1, 保留图层%2/%3, 图元%4个")
+        .arg(fileName).arg(selectedLayers.size()).arg(result.layers.size()).arg(filteredEntities.size()));
 }
 
 void MainWindow::onBatchImport()
