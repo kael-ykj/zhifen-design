@@ -128,6 +128,9 @@ private:
     QStatusBar *m_statusBar;
     QLabel *m_coordLabel;
     QLabel *m_toolLabel;
+    QLabel *m_snapStatusLabel;
+    QLabel *m_orthoStatusLabel;
+    QLabel *m_gridStatusLabel;
     QLabel *m_entityCountLabel;
     QLabel *m_selectedLabel;
 

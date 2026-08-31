@@ -20,6 +20,8 @@ class CircleItem;
 class ArcItem;
 class PolylineItem;
 class RectangleItem;
+class FeederItem;
+namespace Zhifen { class DeviceItem; }
 
 class PropertyPanel : public QWidget
 {
@@ -56,6 +58,16 @@ private:
 
     // 几何属性（根据图元类型动态显示）
     QGroupBox *m_geometryGroup;
+    QGroupBox *m_deviceGroup;
+    QGroupBox *m_feederGroup;
+    QLabel *m_deviceTypeLabel;
+    QLabel *m_deviceNameLabel;
+    QLabel *m_devicePowerLabel;
+    QLabel *m_deviceLossLabel;
+    QLabel *m_feederTypeLabel;
+    QLabel *m_feederLengthLabel;
+    QLabel *m_feederStartLabel;
+    QLabel *m_feederEndLabel;
     QFormLayout *m_geometryLayout;
     QDoubleSpinBox *m_xSpin, *m_ySpin;
     QDoubleSpinBox *m_startXSpin, *m_startYSpin, *m_endXSpin, *m_endYSpin;
@@ -72,6 +84,8 @@ private:
     void setupGeometryWidgets();
     void updateGeometryVisibility(CadItem *item);
     void loadGeometryValues(CadItem *item);
+    void updateDeviceProperties(QGraphicsItem *item);
+    void updateFeederProperties(QGraphicsItem *item);
     void applyGeometryChanges(CadItem *item);
     QColor currentColor() const;
     void setColorButtonColor(const QColor &color);

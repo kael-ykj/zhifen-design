@@ -2441,8 +2441,22 @@ void MainWindow::onZoomIn() { m_view->zoomIn(); }
 void MainWindow::onZoomOut() { m_view->zoomOut(); }
 
 void MainWindow::onToggleGrid() { m_scene->setShowGrid(m_gridAct->isChecked()); }
-void MainWindow::onToggleSnap() { if (m_view->snapManager()) m_view->snapManager()->setEnabled(m_snapAct->isChecked()); }
-void MainWindow::onToggleOrtho() { m_view->setOrthoMode(m_orthoAct->isChecked()); }
+void MainWindow::onToggleSnap() {
+    if (m_view->snapManager()) {
+        m_view->snapManager()->setEnabled(m_snapAct->isChecked());
+        if (m_snapStatusLabel) {
+            m_snapStatusLabel->setText(m_snapAct->isChecked() ? "捕捉: 端点,中点,圆心,交点" : "捕捉: 关");
+            m_snapStatusLabel->setStyleSheet(m_snapAct->isChecked() ? "color: #90EE90;" : "color: #ff6b6b;");
+        }
+    }
+}
+void MainWindow::onToggleOrtho() {
+    m_view->setOrthoMode(m_orthoAct->isChecked());
+    if (m_orthoStatusLabel) {
+        m_orthoStatusLabel->setText(m_orthoAct->isChecked() ? "正交: 开" : "正交: 关");
+        m_orthoStatusLabel->setStyleSheet(m_orthoAct->isChecked() ? "color: #90EE90;" : "color: #ff6b6b;");
+    }
+}
 
 void MainWindow::onCoordinateChanged(const QPointF &pos)
 {

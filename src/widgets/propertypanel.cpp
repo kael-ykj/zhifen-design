@@ -8,6 +8,8 @@
 #include "arcitem.h"
 #include "polylineitem.h"
 #include "rectangleitem.h"
+#include "feederitem.h"
+#include "entities/deviceitem.h"
 #include "document.h"
 // #include "layer.h" - 图层通过document访问
 #include <QVBoxLayout>
@@ -23,6 +25,7 @@ PropertyPanel::PropertyPanel(QWidget *parent)
 {
     setupUI();
     setupGeometryWidgets();
+    setupDeviceWidgets();
 }
 
 void PropertyPanel::setupUI()
@@ -113,6 +116,49 @@ void PropertyPanel::setupUI()
     connect(m_lineWidthCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PropertyPanel::onLineWidthChanged);
     connect(m_lineTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PropertyPanel::onLineTypeChanged);
     connect(m_colorByLayerCheck, &QCheckBox::stateChanged, this, &PropertyPanel::onColorByLayerChanged);
+}
+
+void PropertyPanel::setupDeviceWidgets()
+{
+    // 器件参数组
+    m_deviceGroup = new QGroupBox("器件参数", this);
+    m_deviceGroup->setStyleSheet("QGroupBox { color: #4fc3f7; border: 1px solid #3c3c3c; border-radius: 4px; margin-top: 8px; padding-top: 8px; } QGroupBox::title { subcontrol-origin: margin; left: 6px; padding: 0 4px; }");
+    QFormLayout *devLayout = new QFormLayout(m_deviceGroup);
+    devLayout->setContentsMargins(6, 8, 6, 6);
+    devLayout->setSpacing(4);
+
+    m_deviceTypeLabel = new QLabel("-", this); m_deviceTypeLabel->setStyleSheet("color: #fff;");
+    m_deviceNameLabel = new QLabel("-", this); m_deviceNameLabel->setStyleSheet("color: #fff;");
+    m_devicePowerLabel = new QLabel("-", this); m_devicePowerLabel->setStyleSheet("color: #ffd54f;");
+    m_deviceLossLabel = new QLabel("-", this); m_deviceLossLabel->setStyleSheet("color: #ff8a65;");
+
+    devLayout->addRow("器件类型:", m_deviceTypeLabel);
+    devLayout->addRow("器件名称:", m_deviceNameLabel);
+    devLayout->addRow("输入功率:", m_devicePowerLabel);
+    devLayout->addRow("插入损耗:", m_deviceLossLabel);
+
+    m_contentWidget->layout()->addWidget(m_deviceGroup);
+    m_deviceGroup->hide();
+
+    // 馈线参数组
+    m_feederGroup = new QGroupBox("馈线参数", this);
+    m_feederGroup->setStyleSheet("QGroupBox { color: #81c784; border: 1px solid #3c3c3c; border-radius: 4px; margin-top: 8px; padding-top: 8px; } QGroupBox::title { subcontrol-origin: margin; left: 6px; padding: 0 4px; }");
+    QFormLayout *feederLayout = new QFormLayout(m_feederGroup);
+    feederLayout->setContentsMargins(6, 8, 6, 6);
+    feederLayout->setSpacing(4);
+
+    m_feederTypeLabel = new QLabel("-", this); m_feederTypeLabel->setStyleSheet("color: #fff;");
+    m_feederLengthLabel = new QLabel("-", this); m_feederLengthLabel->setStyleSheet("color: #ffd54f;");
+    m_feederStartLabel = new QLabel("-", this); m_feederStartLabel->setStyleSheet("color: #fff;");
+    m_feederEndLabel = new QLabel("-", this); m_feederEndLabel->setStyleSheet("color: #fff;");
+
+    feederLayout->addRow("馈线类型:", m_feederTypeLabel);
+    feederLayout->addRow("总长度:", m_feederLengthLabel);
+    feederLayout->addRow("起点:", m_feederStartLabel);
+    feederLayout->addRow("终点:", m_feederEndLabel);
+
+    m_contentWidget->layout()->addWidget(m_feederGroup);
+    m_feederGroup->hide();
 }
 
 void PropertyPanel::setupGeometryWidgets()
@@ -221,6 +267,15 @@ void PropertyPanel::updateProperties()
         // 几何属性
         updateGeometryVisibility(item);
         loadGeometryValues(item);
+
+        // 器件和馈线专用参数
+        m_deviceGroup->hide();
+        m_feederGroup->hide();
+        if (auto dev = dynamic_cast<Zhifen::DeviceItem*>(item)) {
+            updateDeviceProperties(dev);
+        } else if (auto feeder = dynamic_cast<FeederItem*>(item)) {
+            updateFeederProperties(feeder);
+        }
     } else {
         m_typeLabel->setText(QString("已选择 %1 个对象").arg(m_selectedItems.size()));
         m_geometryGroup->hide();
