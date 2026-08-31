@@ -1987,44 +1987,172 @@ void MainWindow::onLeakyCableTool()
 
 void MainWindow::onBuildingToBuildingTool()
 {
-    bool ok;
-    qreal distance = QInputDialog::getDouble(this, "楼间对打设计", "楼间距(米):", 50, 10, 500, 1, &ok);
-    if (!ok) return;
-    qreal txPower = QInputDialog::getDouble(this, "楼间对打设计", "发射功率(dBm):", 43, 20, 60, 1, &ok);
-    if (!ok) return;
+    // 统一参数设置对话框
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("楼间对打设计 - 参数设置");
+    paramDlg->resize(420, 450);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QDoubleSpinBox *distanceSpin = new QDoubleSpinBox(paramDlg);
+    distanceSpin->setRange(10, 500); distanceSpin->setValue(50); distanceSpin->setSuffix(" m");
+    formLayout->addRow("楼间距:", distanceSpin);
+
+    QDoubleSpinBox *txPowerSpin = new QDoubleSpinBox(paramDlg);
+    txPowerSpin->setRange(20, 60); txPowerSpin->setValue(43.0); txPowerSpin->setSuffix(" dBm");
+    formLayout->addRow("发射功率:", txPowerSpin);
+
+    QDoubleSpinBox *txHeightSpin = new QDoubleSpinBox(paramDlg);
+    txHeightSpin->setRange(5, 100); txHeightSpin->setValue(30.0); txHeightSpin->setSuffix(" m");
+    formLayout->addRow("发射天线高度:", txHeightSpin);
+
+    QDoubleSpinBox *rxHeightSpin = new QDoubleSpinBox(paramDlg);
+    rxHeightSpin->setRange(1, 50); rxHeightSpin->setValue(15.0); rxHeightSpin->setSuffix(" m");
+    formLayout->addRow("接收天线高度:", rxHeightSpin);
+
+    QDoubleSpinBox *txGainSpin = new QDoubleSpinBox(paramDlg);
+    txGainSpin->setRange(5, 25); txGainSpin->setValue(12.0); txGainSpin->setSuffix(" dBi");
+    formLayout->addRow("发射天线增益:", txGainSpin);
+
+    QDoubleSpinBox *rxGainSpin = new QDoubleSpinBox(paramDlg);
+    rxGainSpin->setRange(0, 10); rxGainSpin->setValue(2.0); rxGainSpin->setSuffix(" dBi");
+    formLayout->addRow("接收天线增益:", rxGainSpin);
+
+    QDoubleSpinBox *penetrationSpin = new QDoubleSpinBox(paramDlg);
+    penetrationSpin->setRange(5, 40); penetrationSpin->setValue(15.0); penetrationSpin->setSuffix(" dB");
+    formLayout->addRow("建筑穿透损耗:", penetrationSpin);
+
+    QDoubleSpinBox *targetSpin = new QDoubleSpinBox(paramDlg);
+    targetSpin->setRange(-110, -60); targetSpin->setValue(-85.0); targetSpin->setSuffix(" dBm");
+    formLayout->addRow("目标接收功率:", targetSpin);
+
+    QComboBox *bandCombo = new QComboBox(paramDlg);
+    bandCombo->addItems({"2G (900MHz)", "3G (2100MHz)", "4G (1800MHz)", "5G (3500MHz)"});
+    bandCombo->setCurrentIndex(2);
+    formLayout->addRow("频段:", bandCombo);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *calcBtn = new QPushButton("计算", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(calcBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(calcBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
 
     Zhifen::BuildingToBuildingParams params;
-    params.distance = distance;
-    params.txPower = txPower;
-    params.txHeight = 30.0;
-    params.rxHeight = 15.0;
-    params.txAntennaGain = 12.0;
-    params.rxAntennaGain = 2.0;
-    params.buildingPenetration = 15.0;
-    params.targetPower = -90.0;
-    params.band = Zhifen::Band_4G;
-    params.antennaType = "射灯天线";
+    params.distance = distanceSpin->value();
+    params.txPower = txPowerSpin->value();
+    params.txHeight = txHeightSpin->value();
+    params.rxHeight = rxHeightSpin->value();
+    params.txAntennaGain = txGainSpin->value();
+    params.rxAntennaGain = rxGainSpin->value();
+    params.buildingPenetration = penetrationSpin->value();
+    params.targetPower = targetSpin->value();
+    params.band = static_cast<Zhifen::FrequencyBand>(bandCombo->currentIndex());
+    QString bandText = bandCombo->currentText();
+    paramDlg->deleteLater();
 
     Zhifen::BuildingToBuildingResult result = Zhifen::BuildingToBuildingTool::calculate(params);
 
+    // 表格化结果展示
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("楼间对打设计方案");
-    dlg->resize(500, 400);
+    dlg->resize(650, 550);
     QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    // 设计参数汇总
+    QGroupBox *paramGroup = new QGroupBox("设计参数", dlg);
+    QGridLayout *paramLayout = new QGridLayout(paramGroup);
+    paramLayout->addWidget(new QLabel("楼间距:"), 0, 0);
+    paramLayout->addWidget(new QLabel(QString("%1 m").arg(params.distance)), 0, 1);
+    paramLayout->addWidget(new QLabel("发射功率:"), 0, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 dBm").arg(params.txPower)), 0, 3);
+    paramLayout->addWidget(new QLabel("发射高度:"), 1, 0);
+    paramLayout->addWidget(new QLabel(QString("%1 m").arg(params.txHeight)), 1, 1);
+    paramLayout->addWidget(new QLabel("接收高度:"), 1, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 m").arg(params.rxHeight)), 1, 3);
+    paramLayout->addWidget(new QLabel("频段:"), 2, 0);
+    paramLayout->addWidget(new QLabel(bandText), 2, 1);
+    paramLayout->addWidget(new QLabel("目标功率:"), 2, 2);
+    paramLayout->addWidget(new QLabel(QString("%1 dBm").arg(params.targetPower)), 2, 3);
+    layout->addWidget(paramGroup);
+
+    // 链路预算计算
+    QGroupBox *linkGroup = new QGroupBox("链路预算", dlg);
+    QGridLayout *linkLayout = new QGridLayout(linkGroup);
+    linkLayout->addWidget(new QLabel("发射功率:"), 0, 0);
+    linkLayout->addWidget(new QLabel(QString("%1 dBm").arg(params.txPower)), 0, 1);
+    linkLayout->addWidget(new QLabel("发射天线增益:"), 0, 2);
+    linkLayout->addWidget(new QLabel(QString("%1 dBi").arg(params.txAntennaGain)), 0, 3);
+    linkLayout->addWidget(new QLabel("自由空间损耗:"), 1, 0);
+    linkLayout->addWidget(new QLabel(QString("%1 dB").arg(result.freeSpaceLoss, 0, 'f', 1)), 1, 1);
+    linkLayout->addWidget(new QLabel("建筑穿透损耗:"), 1, 2);
+    linkLayout->addWidget(new QLabel(QString("%1 dB").arg(params.buildingPenetration)), 1, 3);
+    linkLayout->addWidget(new QLabel("接收天线增益:"), 2, 0);
+    linkLayout->addWidget(new QLabel(QString("%1 dBi").arg(params.rxAntennaGain)), 2, 1);
+    linkLayout->addWidget(new QLabel("总损耗:"), 2, 2);
+    linkLayout->addWidget(new QLabel(QString("%1 dB").arg(result.totalLoss, 0, 'f', 1)), 2, 3);
+    linkLayout->addWidget(new QLabel("接收功率:"), 3, 0);
+    QLabel *rxLabel = new QLabel(QString("%1 dBm").arg(result.rxPower, 0, 'f', 1));
+    rxLabel->setStyleSheet(result.rxPower < params.targetPower ? "color: red; font-weight: bold; font-size: 14pt;" : "color: green; font-weight: bold; font-size: 14pt;");
+    linkLayout->addWidget(rxLabel, 3, 1);
+    linkLayout->addWidget(new QLabel("链路余量:"), 3, 2);
+    QLabel *marginLabel = new QLabel(QString("%1 dB").arg(result.linkMargin, 0, 'f', 1));
+    marginLabel->setStyleSheet(result.linkMargin < 0 ? "color: red; font-weight: bold;" : "color: green;");
+    linkLayout->addWidget(marginLabel, 3, 3);
+    layout->addWidget(linkGroup);
+
+    // 覆盖角度分析
+    QGroupBox *angleGroup = new QGroupBox("覆盖角度分析", dlg);
+    QGridLayout *angleLayout = new QGridLayout(angleGroup);
+    angleLayout->addWidget(new QLabel("水平波束宽度:"), 0, 0);
+    angleLayout->addWidget(new QLabel(QString("%1°").arg(result.horizontalBeamwidth, 0, 'f', 1)), 0, 1);
+    angleLayout->addWidget(new QLabel("垂直波束宽度:"), 0, 2);
+    angleLayout->addWidget(new QLabel(QString("%1°").arg(result.verticalBeamwidth, 0, 'f', 1)), 0, 3);
+    angleLayout->addWidget(new QLabel("下倾角:"), 1, 0);
+    angleLayout->addWidget(new QLabel(QString("%1°").arg(result.downtiltAngle, 0, 'f', 1)), 1, 1);
+    angleLayout->addWidget(new QLabel("覆盖半径:"), 1, 2);
+    angleLayout->addWidget(new QLabel(QString("%1 m").arg(result.coverageRadius, 0, 'f', 1)), 1, 3);
+    layout->addWidget(angleGroup);
+
+    // 达标判断
+    if (result.rxPower < params.targetPower || result.linkMargin < 0) {
+        QLabel *warnLabel = new QLabel(QString("⚠ 警告: 接收功率 %1 dBm 低于目标 %2 dBm，链路余量 %3 dB，建议提高发射功率或使用高增益天线")
+            .arg(result.rxPower, 0, 'f', 1).arg(params.targetPower, 0, 'f', 1).arg(result.linkMargin, 0, 'f', 1));
+        warnLabel->setStyleSheet("background: #ffebee; color: #c62828; padding: 8px; border-radius: 4px;");
+        layout->addWidget(warnLabel);
+    } else {
+        QLabel *okLabel = new QLabel(QString("✓ 设计达标: 接收功率 %1 dBm 满足要求，链路余量 %2 dB")
+            .arg(result.rxPower, 0, 'f', 1).arg(result.linkMargin, 0, 'f', 1));
+        okLabel->setStyleSheet("background: #e8f5e9; color: #2e7d32; padding: 8px; border-radius: 4px;");
+        layout->addWidget(okLabel);
+    }
+
+    // 详细报告
     QTextEdit *textEdit = new QTextEdit(dlg);
     textEdit->setReadOnly(true);
     textEdit->setFont(QFont("Consolas", 9));
     textEdit->setPlainText(result.report);
+    textEdit->setMaximumHeight(120);
     layout->addWidget(textEdit);
+
     QPushButton *closeBtn = new QPushButton("关闭", dlg);
     layout->addWidget(closeBtn);
     connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
-        QString("楼间对打设计: 距离%1米, 接收%2dBm").arg(distance).arg(result.receivedPower, 0, 'f', 1));
+        QString("楼间对打设计: %1m, 接收%2dBm, 余量%3dB").arg(params.distance).arg(result.rxPower, 0, 'f', 1).arg(result.linkMargin, 0, 'f', 1));
 }
 
 void MainWindow::onAddDimension(Zhifen::DimensionType type)
