@@ -1,5 +1,6 @@
 #include "ribbonmenu.h"
 #include "mainwindow.h"
+#include "mainwindow.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -402,7 +403,7 @@ QWidget *RibbonMenu::createOutputTab()
     return tab;
 }
 
-void RibbonMenu::setupActions(MainWindow *mainWindow)
+void RibbonMenu::setupActions(::MainWindow *mainWindow)
 {
     m_mainWindow = mainWindow;
     if (!mainWindow) return;

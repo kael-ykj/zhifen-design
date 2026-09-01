@@ -9,6 +9,7 @@
 namespace Zhifen {
 
 class MainWindow;
+using ::MainWindow;
 
 class RibbonMenu : public QTabWidget
 {
@@ -16,7 +17,7 @@ class RibbonMenu : public QTabWidget
 public:
     explicit RibbonMenu(QWidget *parent = nullptr);
 
-    void setupActions(MainWindow *mainWindow);
+    void setupActions(::MainWindow *mainWindow);
 
 signals:
     void actionTriggered(const QString &actionName);
@@ -36,7 +37,7 @@ private:
     QWidget *createGroup(const QString &title, QWidget *parent);
     QToolBar *createToolBar(QWidget *parent);
 
-    MainWindow *m_mainWindow = nullptr;
+    ::MainWindow *m_mainWindow = nullptr;
 
     // 常用动作
     QAction *m_actionLine = nullptr;
