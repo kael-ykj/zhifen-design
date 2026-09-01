@@ -303,12 +303,12 @@ void SystemDiagramGenerator::renderToScene(const SystemDiagramResult &result, QG
         QGraphicsLineItem *line = targetScene->addLine(
             QLineF(conn.from->pos, conn.to->pos), linePen);
 
-        // 正式模式：标注馈线损耗
+        // 正式模式：标注馈线长度和损耗
         if (mode == SDM_Formal) {
             QPointF mid = (conn.from->pos + conn.to->pos) / 2;
             QGraphicsSimpleTextItem *lossText = targetScene->addSimpleText(
-                QString("%1dB").arg(conn.loss, 0, 'f', 1), powerFont);
-            lossText->setPos(mid + QPointF(5, -10));
+                QString("%1m/%2dB").arg(conn.length, 0, 'f', 0).arg(conn.loss, 0, 'f', 1), powerFont);
+            lossText->setPos(mid + QPointF(5, -12));
             lossText->setBrush(QColor(80, 80, 80));
         }
     }
@@ -340,20 +340,51 @@ void SystemDiagramGenerator::renderToScene(const SystemDiagramResult &result, QG
             idText->setPos(node->pos.x() - 35, node->pos.y() + 2);
             idText->setBrush(QColor(0, 0, 128));
 
-            // 输出电平（低于10dBm红色告警）
-            QColor powerColor = (node->outputPower < 10.0 && node->type == "天线") ? QColor(255, 0, 0) : QColor(180, 0, 0);
+            // 输入功率（左侧）
+            QGraphicsSimpleTextItem *inText = targetScene->addSimpleText(
+                QString("IN:%1dBm").arg(node->inputPower, 0, 'f', 1), powerFont);
+            inText->setPos(node->pos.x() - 80, node->pos.y() - 5);
+            inText->setBrush(QColor(0, 0, 180));
+
+            // 输出功率（右侧），天线功率越限(-15~+15dBm)红色告警
+            bool powerAlarm = (node->type == "天线" && (node->outputPower < -15.0 || node->outputPower > 15.0));
+            QColor powerColor = powerAlarm ? QColor(255, 0, 0) : QColor(180, 0, 0);
             QGraphicsSimpleTextItem *powerText = targetScene->addSimpleText(
-                QString("%1dBm").arg(node->outputPower, 0, 'f', 1), powerFont);
-            powerText->setPos(node->pos.x() - 35, node->pos.y() + 14);
+                QString("OUT:%1dBm").arg(node->outputPower, 0, 'f', 1), powerFont);
+            powerText->setPos(node->pos.x() + 45, node->pos.y() + 14);
             powerText->setBrush(powerColor);
 
-            // 耦合器额外标注耦合端功率
+            // 功率越限告警标记
+            if (powerAlarm) {
+                QGraphicsSimpleTextItem *alarmText = targetScene->addSimpleText("⚠功率越限", powerFont);
+                alarmText->setPos(node->pos.x() - 30, node->pos.y() + 28);
+                alarmText->setBrush(QColor(255, 0, 0));
+            }
+
+            // 耦合器额外标注耦合端功率和直通端功率
             if (node->type == "耦合器") {
                 qreal coupledPower = node->inputPower - 10.0;  // 默认10dB耦合度
                 QGraphicsSimpleTextItem *cplText = targetScene->addSimpleText(
-                    QString("耦合:%1dBm").arg(coupledPower, 0, 'f', 1), powerFont);
-                cplText->setPos(node->pos.x() + 45, node->pos.y() - 5);
+                    QString("耦合端:%1dBm").arg(coupledPower, 0, 'f', 1), powerFont);
+                cplText->setPos(node->pos.x() - 80, node->pos.y() + 28);
                 cplText->setBrush(QColor(0, 100, 0));
+
+                QGraphicsSimpleTextItem *throughText = targetScene->addSimpleText(
+                    QString("直通端:%1dBm").arg(node->outputPower, 0, 'f', 1), powerFont);
+                throughText->setPos(node->pos.x() + 45, node->pos.y() + 28);
+                throughText->setBrush(QColor(0, 100, 0));
+            }
+
+            // 功分器标注各端口分配功率
+            if (node->type == "功分器") {
+                int portCount = 2;
+                if (node->name.contains("三功分")) portCount = 3;
+                else if (node->name.contains("四功分")) portCount = 4;
+                qreal portPower = node->outputPower;  // 输出功率已经是分配后的
+                QGraphicsSimpleTextItem *portText = targetScene->addSimpleText(
+                    QString("%1路均:%2dBm").arg(portCount).arg(portPower, 0, 'f', 1), powerFont);
+                portText->setPos(node->pos.x() - 30, node->pos.y() + 28);
+                portText->setBrush(QColor(0, 100, 0));
             }
         }
     }
