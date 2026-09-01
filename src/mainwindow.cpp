@@ -4219,13 +4219,15 @@ void MainWindow::onCopyStandardFloor()
                 FeederItem *newFeeder = new FeederItem(newPoints, feederItem->feederType());
                 copy = newFeeder;
             } else if (lineItem) {
-                LineItem *newLine = new LineItem();
-                newLine->setStartPoint(lineItem->startPoint() + QPointF(0, yOffset));
-                newLine->setEndPoint(lineItem->endPoint() + QPointF(0, yOffset));
+                LineItem *newLine = new LineItem(
+                    lineItem->startPoint() + QPointF(0, yOffset),
+                    lineItem->endPoint() + QPointF(0, yOffset));
                 copy = newLine;
             } else if (textItem) {
-                TextItem *newText = new TextItem(textItem->text());
-                newText->setPos(textItem->pos() + QPointF(0, yOffset));
+                TextItem *newText = new TextItem(
+                    textItem->pos() + QPointF(0, yOffset),
+                    textItem->text(),
+                    textItem->textHeight());
                 copy = newText;
             }
 
