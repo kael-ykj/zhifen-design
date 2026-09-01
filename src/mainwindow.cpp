@@ -21,6 +21,8 @@
 #include "tools/querytool.h"
 #include "tools/feedertool.h"
 #include "entities/feederitem.h"
+#include "entities/lineitem.h"
+#include "entities/textitem.h"
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_generator.h"
 #include "engine/report_engine.h"
