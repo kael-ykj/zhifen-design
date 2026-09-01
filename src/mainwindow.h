@@ -33,7 +33,7 @@ public:
     ~MainWindow();
     void setCurrentTool(const QString &toolName);
     void placeDevice(Zhifen::DeviceItem::DeviceType type, const QString &name);
-
+                        
 private slots:
     void onNew();
     void onOpen();
@@ -44,14 +44,10 @@ private slots:
     void onBatchImport();
     void onFloorManager();
     void onPluginManager();
-    void onExportDxf();
-    void onExportDwgSketch();
+        void onExportDwgSketch();
     void onExportDwgFinal();
-    void onPrint();
-    void onExportPdf(Zhifen::PaperSize paper, bool formal);
-    void onUndo();
-    void onRedo();
-    void onZoomExtents();
+        void onExportPdf(Zhifen::PaperSize paper, bool formal);
+            void onZoomExtents();
     void onLinkCalculation();
     void onBomReport();
     void onGenerateSystemDiagram(Zhifen::SystemDiagramMode mode);
@@ -98,9 +94,7 @@ private slots:
     void onDrawingCompare();
     void onAutoTrunk();
     void onGenerateDemo();
-    void onErase();
-    void onLayerManager();
-    void onSaveBaseline();
+            void onSaveBaseline();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();
