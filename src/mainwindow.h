@@ -96,7 +96,6 @@ private slots:
     void onDrawingCompare();
     void onAutoTrunk();
     void onGenerateDemo();
-    void placeDevice(Zhifen::DeviceItem::DeviceType type, const QString &name);
     void onErase();
     void onLayerManager();
     void onSaveBaseline();
@@ -110,7 +109,6 @@ private slots:
     void onCommandEntered(const QString &command);
     void onToolFinished();
     void onSelectionChanged(int count);
-    void setCurrentTool(const QString &toolName);
 
 private:
     void createActions();
