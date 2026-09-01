@@ -5070,7 +5070,7 @@ void MainWindow::onDualLink()
 
     // 打开系统图
     connect(openSysBtn, &QPushButton::clicked, this, [&]() {
-        onGenerateSystemDiagram();
+        onGenerateSystemDiagram(Zhifen::SDM_Formal);
         dlg->accept();
     });
 
