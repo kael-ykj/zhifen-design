@@ -5413,8 +5413,7 @@ void MainWindow::onAutoTrunk()
     int branchFeederCount = 0;
     qreal totalLength = 0;
 
-    QPen trunkPen(QColor(0, 100, 200), 3);  // 主干蓝色粗线
-    QPen branchPen(QColor(100, 100, 100), 2);  // 分支灰色线
+    // 主干和分支馈线使用默认样式
 
     // 从信源到各分支点生成主干
     for (const auto &bp : branchPoints) {
@@ -5423,7 +5422,6 @@ void MainWindow::onAutoTrunk()
         points.append(sourcePos);
         points.append(bp);
         trunk->setPoints(points);
-        trunk->setPen(trunkPen);
         m_scene->addItem(trunk);
         trunkCount++;
         totalLength += QLineF(sourcePos, bp).length();
@@ -5445,7 +5443,6 @@ void MainWindow::onAutoTrunk()
             points.append(branchPoints[b]);
             points.append(dev->pos());
             feeder->setPoints(points);
-            feeder->setPen(branchPen);
             m_scene->addItem(feeder);
             branchFeederCount++;
             totalLength += QLineF(branchPoints[b], dev->pos()).length();
