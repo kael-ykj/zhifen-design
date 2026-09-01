@@ -95,6 +95,7 @@ private slots:
     void onDualLink();
     void onDrawingCompare();
     void onAutoTrunk();
+    void onGenerateDemo();
     void onSaveBaseline();
     void onToggleCopyMode();
     void onZoomIn();

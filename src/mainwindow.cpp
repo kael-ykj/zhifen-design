@@ -5494,3 +5494,178 @@ void MainWindow::onAutoTrunk()
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("主干自动生成: %1主干, %2分支, %3m").arg(trunkCount).arg(branchFeederCount).arg(totalLength/10, 0, 'f', 0));
 }
+
+void MainWindow::onGenerateDemo()
+{
+    // 清空场景
+    m_scene->clear();
+
+    // 放置信源（宏基站）
+    Zhifen::DeviceItem *source = new Zhifen::DeviceItem(Zhifen::DeviceItem::MacroBS);
+    source->setPos(200, 300);
+    source->setData(1, "SRC-01");
+    source->setData(2, 43.0);  // 输出功率43dBm
+    m_scene->addItem(source);
+
+    // 放置一级功分器（二功分）
+    Zhifen::DeviceItem *splitter1 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Splitter);
+    splitter1->setPos(400, 300);
+    splitter1->setData(1, "SPL-01");
+    m_scene->addItem(splitter1);
+
+    // 放置二级功分器
+    Zhifen::DeviceItem *splitter2 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Splitter);
+    splitter2->setPos(600, 200);
+    splitter2->setData(1, "SPL-02");
+    m_scene->addItem(splitter2);
+
+    Zhifen::DeviceItem *splitter3 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Splitter);
+    splitter3->setPos(600, 400);
+    splitter3->setData(1, "SPL-03");
+    m_scene->addItem(splitter3);
+
+    // 放置耦合器
+    Zhifen::DeviceItem *coupler1 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Coupler);
+    coupler1->setPos(800, 150);
+    coupler1->setData(1, "CPL-01");
+    m_scene->addItem(coupler1);
+
+    Zhifen::DeviceItem *coupler2 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Coupler);
+    coupler2->setPos(800, 250);
+    coupler2->setData(1, "CPL-02");
+    m_scene->addItem(coupler2);
+
+    Zhifen::DeviceItem *coupler3 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Coupler);
+    coupler3->setPos(800, 350);
+    coupler3->setData(1, "CPL-03");
+    m_scene->addItem(coupler3);
+
+    Zhifen::DeviceItem *coupler4 = new Zhifen::DeviceItem(Zhifen::DeviceItem::Coupler);
+    coupler4->setPos(800, 450);
+    coupler4->setData(1, "CPL-04");
+    m_scene->addItem(coupler4);
+
+    // 放置天线（8根全向吸顶天线）
+    QList<Zhifen::DeviceItem*> antennas;
+    QList<QPointF> antennaPositions = {
+        QPointF(1000, 100), QPointF(1000, 200),
+        QPointF(1000, 300), QPointF(1000, 400),
+        QPointF(1000, 500), QPointF(1150, 150),
+        QPointF(1150, 300), QPointF(1150, 450)
+    };
+    for (int i = 0; i < antennaPositions.size(); i++) {
+        Zhifen::DeviceItem *ant = new Zhifen::DeviceItem(Zhifen::DeviceItem::OmniAntenna);
+        ant->setPos(antennaPositions[i]);
+        ant->setData(1, QString("ANT-%1").arg(i + 1, 2, 10, QChar('0')));
+        ant->setData(2, 10.0 + i * 0.5);  // 模拟不同功率
+        m_scene->addItem(ant);
+        antennas.append(ant);
+    }
+
+    // 连接馈线
+    auto connectDevices = [&](QGraphicsItem *from, QGraphicsItem *to) {
+        FeederItem *feeder = new FeederItem();
+        QPolygonF points;
+        points.append(from->pos());
+        points.append(to->pos());
+        feeder->setPoints(points);
+        m_scene->addItem(feeder);
+        return feeder;
+    };
+
+    // 信源 -> 一级功分器
+    connectDevices(source, splitter1);
+    // 一级功分器 -> 二级功分器
+    connectDevices(splitter1, splitter2);
+    connectDevices(splitter1, splitter3);
+    // 二级功分器 -> 耦合器
+    connectDevices(splitter2, coupler1);
+    connectDevices(splitter2, coupler2);
+    connectDevices(splitter3, coupler3);
+    connectDevices(splitter3, coupler4);
+    // 耦合器 -> 天线
+    connectDevices(coupler1, antennas[0]);
+    connectDevices(coupler1, antennas[5]);
+    connectDevices(coupler2, antennas[1]);
+    connectDevices(coupler2, antennas[2]);
+    connectDevices(coupler3, antennas[3]);
+    connectDevices(coupler3, antennas[6]);
+    connectDevices(coupler4, antennas[4]);
+    connectDevices(coupler4, antennas[7]);
+
+    // 添加器件编号标注
+    QFont labelFont("Arial", 8);
+    auto addLabel = [&](QGraphicsItem *item, const QString &text, QPointF offset) {
+        QGraphicsSimpleTextItem *label = m_scene->addSimpleText(text, labelFont);
+        label->setPos(item->pos() + offset);
+        label->setBrush(QColor(0, 0, 128));
+    };
+
+    addLabel(source, "宏基站 43dBm", QPointF(-30, -35));
+    addLabel(splitter1, "二功分器", QPointF(-25, -30));
+    addLabel(splitter2, "二功分器", QPointF(-25, -30));
+    addLabel(splitter3, "二功分器", QPointF(-25, -30));
+    addLabel(coupler1, "10dB耦合器", QPointF(-30, -30));
+    addLabel(coupler2, "10dB耦合器", QPointF(-30, -30));
+    addLabel(coupler3, "10dB耦合器", QPointF(-30, -30));
+    addLabel(coupler4, "10dB耦合器", QPointF(-30, -30));
+    for (int i = 0; i < antennas.size(); i++) {
+        addLabel(antennas[i], QString("ANT-%1").arg(i + 1, 2, 10, QChar('0')), QPointF(-20, -25));
+    }
+
+    // 添加楼层边框（模拟建筑平面图）
+    QPen wallPen(QColor(100, 100, 100), 3);
+    m_scene->addRect(100, 50, 1150, 550, wallPen, QBrush(QColor(250, 250, 250)));
+
+    // 添加房间分隔
+    m_scene->addLine(650, 50, 650, 600, wallPen);
+    m_scene->addLine(100, 300, 650, 300, wallPen);
+
+    // 添加房间名称
+    QFont roomFont("Arial", 10, QFont::Bold);
+    auto addRoomLabel = [&](const QString &text, QPointF pos) {
+        QGraphicsSimpleTextItem *label = m_scene->addSimpleText(text, roomFont);
+        label->setPos(pos);
+        label->setBrush(QColor(150, 150, 150));
+    };
+    addRoomLabel("大厅", QPointF(350, 150));
+    addRoomLabel("会议室", QPointF(350, 450));
+    addRoomLabel("办公区A", QPointF(850, 150));
+    addRoomLabel("办公区B", QPointF(850, 450));
+
+    // 添加标题
+    QGraphicsSimpleTextItem *title = m_scene->addSimpleText(
+        "Demo演示项目 - 某办公楼室内分布系统平面图", QFont("Arial", 14, QFont::Bold));
+    title->setPos(400, 20);
+    title->setBrush(QColor(0, 0, 0));
+
+    // 设置工程信息
+    Zhifen::ProjectInfo &info = Zhifen::ProjectInfoManager::instance().info();
+    info.projectName = "Demo演示项目 - 某办公楼室分系统";
+    info.constructionUnit = "Demo建设单位";
+    info.designUnit = "智分Design";
+    info.designer = "演示设计师";
+    info.reviewer = "演示审核";
+    info.checker = "演示校对";
+    info.draftsman = "演示绘图";
+    info.drawingNumber = "ZF-DEMO-2026-001";
+
+    m_view->zoomExtents();
+
+    QMessageBox::information(this, "Demo生成完成",
+        "Demo演示项目已生成！\n\n"
+        "包含：\n"
+        "- 1个宏基站信源（43dBm）\n"
+        "- 3个二功分器\n"
+        "- 4个10dB耦合器\n"
+        "- 8根全向吸顶天线\n"
+        "- 完整馈线连接\n"
+        "- 建筑平面图（4个房间）\n\n"
+        "可体验功能：\n"
+        "1. 工具→生成系统图\n"
+        "2. 工具→链路预算\n"
+        "3. 工具→材料统计\n"
+        "4. 工具→天线功率统计\n"
+        "5. 工具→覆盖率仿真\n"
+        "6. 文件→打印预览");
+}
