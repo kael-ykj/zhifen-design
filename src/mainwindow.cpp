@@ -31,6 +31,7 @@
 #include "engine/coverage_simulator.h"
 #include "tools/batch_importer.h"
 #include "core/floor_manager.h"
+#include "core/project_info.h"
 #include "plugins/plugin_manager.h"
 #include "plugins/core_api.h"
 #include "plugins/batch_rename_plugin.h"
@@ -4281,4 +4282,86 @@ void MainWindow::onCopyStandardFloor()
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("标准层批量复制: %1层, 共%2个图元").arg(copyCount).arg(totalCopied));
+}
+
+void MainWindow::onProjectInfo()
+{
+    Zhifen::ProjectInfo &info = Zhifen::ProjectInfoManager::instance().info();
+
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("工程信息设置");
+    dlg->resize(500, 550);
+    QFormLayout *formLayout = new QFormLayout(dlg);
+
+    QLineEdit *projectNameEdit = new QLineEdit(info.projectName, dlg);
+    formLayout->addRow("项目名称:", projectNameEdit);
+
+    QLineEdit *projectCodeEdit = new QLineEdit(info.projectCode, dlg);
+    formLayout->addRow("项目编号:", projectCodeEdit);
+
+    QLineEdit *constructionEdit = new QLineEdit(info.constructionUnit, dlg);
+    formLayout->addRow("建设单位:", constructionEdit);
+
+    QLineEdit *designUnitEdit = new QLineEdit(info.designUnit, dlg);
+    formLayout->addRow("设计单位:", designUnitEdit);
+
+    QLineEdit *designerEdit = new QLineEdit(info.designer, dlg);
+    formLayout->addRow("设计人:", designerEdit);
+
+    QLineEdit *reviewerEdit = new QLineEdit(info.reviewer, dlg);
+    formLayout->addRow("审核人:", reviewerEdit);
+
+    QLineEdit *checkerEdit = new QLineEdit(info.checker, dlg);
+    formLayout->addRow("校对人:", checkerEdit);
+
+    QLineEdit *draftsmanEdit = new QLineEdit(info.draftsman, dlg);
+    formLayout->addRow("绘图人:", draftsmanEdit);
+
+    QLineEdit *drawingNumberEdit = new QLineEdit(info.drawingNumber, dlg);
+    formLayout->addRow("图号:", drawingNumberEdit);
+
+    QDateEdit *drawDateEdit = new QDateEdit(info.drawDate, dlg);
+    drawDateEdit->setCalendarPopup(true);
+    drawDateEdit->setDisplayFormat("yyyy-MM-dd");
+    formLayout->addRow("出图日期:", drawDateEdit);
+
+    QLineEdit *contactPersonEdit = new QLineEdit(info.contactPerson, dlg);
+    formLayout->addRow("联系人:", contactPersonEdit);
+
+    QLineEdit *contactPhoneEdit = new QLineEdit(info.contactPhone, dlg);
+    formLayout->addRow("联系电话:", contactPhoneEdit);
+
+    QLabel *tipLabel = new QLabel("工程信息将自动填充到打印图签和系统图标题中", dlg);
+    tipLabel->setWordWrap(true);
+    tipLabel->setStyleSheet("color: gray; font-size: 9pt; padding: 5px;");
+    formLayout->addRow(tipLabel);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *okBtn = new QPushButton("保存", dlg);
+    QPushButton *cancelBtn = new QPushButton("取消", dlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+    connect(okBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    if (dlg->exec() == QDialog::Accepted) {
+        info.projectName = projectNameEdit->text();
+        info.projectCode = projectCodeEdit->text();
+        info.constructionUnit = constructionEdit->text();
+        info.designUnit = designUnitEdit->text();
+        info.designer = designerEdit->text();
+        info.reviewer = reviewerEdit->text();
+        info.checker = checkerEdit->text();
+        info.draftsman = draftsmanEdit->text();
+        info.drawingNumber = drawingNumberEdit->text();
+        info.drawDate = drawDateEdit->date();
+        info.contactPerson = contactPersonEdit->text();
+        info.contactPhone = contactPhoneEdit->text();
+
+        QMessageBox::information(this, "保存成功", "工程信息已保存，打印出图时将自动填充到图签中。");
+    }
+    dlg->deleteLater();
 }
