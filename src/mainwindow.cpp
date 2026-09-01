@@ -5132,7 +5132,7 @@ void MainWindow::onDrawingCompare()
     // 对比
     QList<QVariantMap> added, removed, modified;
     QList<bool> matched;
-    matched.fill(false, currentSnapshot.size());
+    for (int i = 0; i < currentSnapshot.size(); i++) matched.append(false);
 
     // 查找删除和修改
     for (const auto &base : m_baselineSnapshot) {
