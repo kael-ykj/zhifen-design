@@ -3085,9 +3085,78 @@ void MainWindow::onImportAIDP()
     Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
     Zhifen::ConversionReport report = fc.importAIDP(fileName, m_scene);
 
-    QMessageBox::information(this, "导入结果", report.toString());
+    // 统一转换报告对话框
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("AIDP格式导入报告");
+    dlg->resize(700, 550);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QGroupBox *statGroup = new QGroupBox("转换统计", dlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("总图元数:"), 0, 0);
+    statLayout->addWidget(new QLabel(QString::number(report.totalEntities)), 0, 1);
+    statLayout->addWidget(new QLabel("成功转换:"), 0, 2);
+    QLabel *successLabel = new QLabel(QString::number(report.successCount));
+    successLabel->setStyleSheet("color: #2e7d32; font-weight: bold;");
+    statLayout->addWidget(successLabel, 0, 3);
+    statLayout->addWidget(new QLabel("转换失败:"), 1, 0);
+    QLabel *failLabel = new QLabel(QString::number(report.failedCount));
+    failLabel->setStyleSheet(report.failedCount > 0 ? "color: #c62828; font-weight: bold;" : "color: gray;");
+    statLayout->addWidget(failLabel, 1, 1);
+    statLayout->addWidget(new QLabel("警告:"), 1, 2);
+    QLabel *warnLabel = new QLabel(QString::number(report.warningCount));
+    warnLabel->setStyleSheet(report.warningCount > 0 ? "color: #f57c00; font-weight: bold;" : "color: gray;");
+    statLayout->addWidget(warnLabel, 1, 3);
+    layout->addWidget(statGroup);
+
+    QGroupBox *typeGroup = new QGroupBox("图元类型统计", dlg);
+    QGridLayout *typeLayout = new QGridLayout(typeGroup);
+    QMap<QString, int> typeCount;
+    for (const auto &item : report.items) typeCount[item.entityType]++;
+    QStringList typeNames = {"信源", "天线", "器件", "馈线", "文字", "其他"};
+    QStringList typeKeys = {"source", "antenna", "device", "feeder", "text", "unknown"};
+    for (int i = 0; i < typeNames.size(); i++) {
+        typeLayout->addWidget(new QLabel(typeNames[i] + ":"), i / 2, (i % 2) * 2);
+        typeLayout->addWidget(new QLabel(QString::number(typeCount.value(typeKeys[i], 0))), i / 2, (i % 2) * 2 + 1);
+    }
+    layout->addWidget(typeGroup);
+
+    QGroupBox *detailGroup = new QGroupBox("详细转换结果", dlg);
+    QVBoxLayout *detailLayout = new QVBoxLayout(detailGroup);
+    QTableWidget *table = new QTableWidget(report.items.size(), 5, dlg);
+    table->setHorizontalHeaderLabels({"图元ID", "类型", "型号", "状态", "备注"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    for (int i = 0; i < report.items.size(); i++) {
+        const auto &item = report.items[i];
+        table->setItem(i, 0, new QTableWidgetItem(item.entityId));
+        table->setItem(i, 1, new QTableWidgetItem(item.entityType));
+        table->setItem(i, 2, new QTableWidgetItem(item.entityModel));
+        QTableWidgetItem *statusItem = new QTableWidgetItem(item.success ? "✓ 成功" : "✗ 失败");
+        statusItem->setForeground(item.success ? QColor("#2e7d32") : QColor("#c62828"));
+        table->setItem(i, 3, statusItem);
+        QString note = item.message;
+        if (!item.warning.isEmpty()) note += " [" + item.warning + "]";
+        table->setItem(i, 4, new QTableWidgetItem(note));
+    }
+    table->resizeColumnsToContents();
+    detailLayout->addWidget(table);
+    layout->addWidget(detailGroup, 1);
+
+    QLabel *summaryLabel = new QLabel(report.summary, dlg);
+    summaryLabel->setWordWrap(true);
+    summaryLabel->setStyleSheet("padding: 8px; background: #f5f5f5; border-radius: 4px;");
+    layout->addWidget(summaryLabel);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    layout->addWidget(closeBtn);
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
     m_view->fitInView(m_scene->itemsBoundingRect(), Qt::KeepAspectRatio);
-    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入AIDP格式: %1").arg(fileName));
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入AIDP格式: %1, 成功%2/总%3").arg(fileName).arg(report.successCount).arg(report.totalEntities));
 }
 
 void MainWindow::onImportDifu()
@@ -3098,9 +3167,78 @@ void MainWindow::onImportDifu()
     Zhifen::FormatConverter &fc = Zhifen::FormatConverter::instance();
     Zhifen::ConversionReport report = fc.importDiFu(fileName, m_scene);
 
-    QMessageBox::information(this, "导入结果", report.toString());
+    // 统一转换报告对话框
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("迪弗格式导入报告");
+    dlg->resize(700, 550);
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+
+    QGroupBox *statGroup = new QGroupBox("转换统计", dlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("总图元数:"), 0, 0);
+    statLayout->addWidget(new QLabel(QString::number(report.totalEntities)), 0, 1);
+    statLayout->addWidget(new QLabel("成功转换:"), 0, 2);
+    QLabel *successLabel = new QLabel(QString::number(report.successCount));
+    successLabel->setStyleSheet("color: #2e7d32; font-weight: bold;");
+    statLayout->addWidget(successLabel, 0, 3);
+    statLayout->addWidget(new QLabel("转换失败:"), 1, 0);
+    QLabel *failLabel = new QLabel(QString::number(report.failedCount));
+    failLabel->setStyleSheet(report.failedCount > 0 ? "color: #c62828; font-weight: bold;" : "color: gray;");
+    statLayout->addWidget(failLabel, 1, 1);
+    statLayout->addWidget(new QLabel("警告:"), 1, 2);
+    QLabel *warnLabel = new QLabel(QString::number(report.warningCount));
+    warnLabel->setStyleSheet(report.warningCount > 0 ? "color: #f57c00; font-weight: bold;" : "color: gray;");
+    statLayout->addWidget(warnLabel, 1, 3);
+    layout->addWidget(statGroup);
+
+    QGroupBox *typeGroup = new QGroupBox("图元类型统计", dlg);
+    QGridLayout *typeLayout = new QGridLayout(typeGroup);
+    QMap<QString, int> typeCount;
+    for (const auto &item : report.items) typeCount[item.entityType]++;
+    QStringList typeNames = {"信源", "天线", "器件", "馈线", "文字", "其他"};
+    QStringList typeKeys = {"source", "antenna", "device", "feeder", "text", "unknown"};
+    for (int i = 0; i < typeNames.size(); i++) {
+        typeLayout->addWidget(new QLabel(typeNames[i] + ":"), i / 2, (i % 2) * 2);
+        typeLayout->addWidget(new QLabel(QString::number(typeCount.value(typeKeys[i], 0))), i / 2, (i % 2) * 2 + 1);
+    }
+    layout->addWidget(typeGroup);
+
+    QGroupBox *detailGroup = new QGroupBox("详细转换结果", dlg);
+    QVBoxLayout *detailLayout = new QVBoxLayout(detailGroup);
+    QTableWidget *table = new QTableWidget(report.items.size(), 5, dlg);
+    table->setHorizontalHeaderLabels({"图元ID", "类型", "型号", "状态", "备注"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    for (int i = 0; i < report.items.size(); i++) {
+        const auto &item = report.items[i];
+        table->setItem(i, 0, new QTableWidgetItem(item.entityId));
+        table->setItem(i, 1, new QTableWidgetItem(item.entityType));
+        table->setItem(i, 2, new QTableWidgetItem(item.entityModel));
+        QTableWidgetItem *statusItem = new QTableWidgetItem(item.success ? "✓ 成功" : "✗ 失败");
+        statusItem->setForeground(item.success ? QColor("#2e7d32") : QColor("#c62828"));
+        table->setItem(i, 3, statusItem);
+        QString note = item.message;
+        if (!item.warning.isEmpty()) note += " [" + item.warning + "]";
+        table->setItem(i, 4, new QTableWidgetItem(note));
+    }
+    table->resizeColumnsToContents();
+    detailLayout->addWidget(table);
+    layout->addWidget(detailGroup, 1);
+
+    QLabel *summaryLabel = new QLabel(report.summary, dlg);
+    summaryLabel->setWordWrap(true);
+    summaryLabel->setStyleSheet("padding: 8px; background: #f5f5f5; border-radius: 4px;");
+    layout->addWidget(summaryLabel);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    layout->addWidget(closeBtn);
+
+    dlg->setLayout(layout);
+    dlg->exec();
+    dlg->deleteLater();
+
     m_view->fitInView(m_scene->itemsBoundingRect(), Qt::KeepAspectRatio);
-    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入迪弗格式: %1").arg(fileName));
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, QString("导入迪弗格式: %1, 成功%2/总%3").arg(fileName).arg(report.successCount).arg(report.totalEntities));
 }
 
 void MainWindow::onExportTianyue()
