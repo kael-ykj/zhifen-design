@@ -98,6 +98,7 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QSpinBox>
+#include <QDateEdit>
 #include <QTableWidget>
 #include <QHeaderView>
 #include <cmath>
