@@ -23,6 +23,7 @@
 #include "entities/feederitem.h"
 #include "entities/lineitem.h"
 #include "entities/textitem.h"
+#include "entities/labelitem.h"
 #include "engine/link_calculator.h"
 #include "engine/system_diagram_generator.h"
 #include "engine/report_engine.h"
@@ -353,6 +354,7 @@ void MainWindow::createMenus()
     toolsMenu->addAction("标准层批量复制", this, &MainWindow::onCopyStandardFloor);
     toolsMenu->addAction("天线功率统计", this, &MainWindow::onAntennaPowerStats);
     toolsMenu->addAction("系统图切割分页", this, &MainWindow::onSystemDiagramSplit);
+    toolsMenu->addAction("智能标签系统", this, &MainWindow::onSmartLabel);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
@@ -4770,4 +4772,181 @@ void MainWindow::onSystemDiagramSplit()
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("系统图切割分页: %1页, 每页%2器件").arg(totalPages).arg(maxNodesPerPage));
+}
+
+void MainWindow::onSmartLabel()
+{
+    // 标签管理对话框
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("智能标签系统");
+    dlg->resize(600, 450);
+    QVBoxLayout *mainLayout = new QVBoxLayout(dlg);
+
+    // 标签列表
+    QGroupBox *listGroup = new QGroupBox("当前图纸标签", dlg);
+    QVBoxLayout *listLayout = new QVBoxLayout(listGroup);
+    QListWidget *labelList = new QListWidget(listGroup);
+    listLayout->addWidget(labelList);
+    mainLayout->addWidget(listGroup);
+
+    // 刷新标签列表
+    auto refreshList = [&]() {
+        labelList->clear();
+        int count = 0;
+        for (QGraphicsItem *item : m_scene->items()) {
+            LabelItem *label = dynamic_cast<LabelItem*>(item);
+            if (label) {
+                QString opName = LabelItem::operatorName(label->operatorType());
+                QString prefix = opName.isEmpty() ? "" : "[" + opName + "] ";
+                labelList->addItem(prefix + label->text());
+                count++;
+            }
+        }
+        listGroup->setTitle(QString("当前图纸标签（共%1个）").arg(count));
+    };
+    refreshList();
+
+    // 添加标签区域
+    QGroupBox *addGroup = new QGroupBox("添加标签", dlg);
+    QFormLayout *addLayout = new QFormLayout(addGroup);
+
+    QLineEdit *textEdit = new QLineEdit(addGroup);
+    textEdit->setPlaceholderText("输入标签内容，如：ANT-01 12.5dBm");
+    addLayout->addRow("标签内容:", textEdit);
+
+    QComboBox *operatorCombo = new QComboBox(addGroup);
+    operatorCombo->addItem("无运营商", LabelItem::Op_None);
+    operatorCombo->addItem("中国移动", LabelItem::Op_ChinaMobile);
+    operatorCombo->addItem("中国联通", LabelItem::Op_ChinaUnicom);
+    operatorCombo->addItem("中国电信", LabelItem::Op_ChinaTelecom);
+    operatorCombo->addItem("中国广电", LabelItem::Op_ChinaBroadnet);
+    addLayout->addRow("运营商LOGO:", operatorCombo);
+
+    QComboBox *styleCombo = new QComboBox(addGroup);
+    styleCombo->addItem("白底黑字");
+    styleCombo->addItem("透明背景");
+    styleCombo->addItem("运营商色背景");
+    addLayout->addRow("标签样式:", styleCombo);
+
+    QCheckBox *showLogoCheck = new QCheckBox("显示运营商LOGO", addGroup);
+    showLogoCheck->setChecked(true);
+    addLayout->addRow(showLogoCheck);
+
+    QHBoxLayout *addBtnLayout = new QHBoxLayout();
+    QPushButton *addBtn = new QPushButton("添加标签", addGroup);
+    QPushButton *addSelectedBtn = new QPushButton("为选中器件添加", addGroup);
+    addBtnLayout->addWidget(addBtn);
+    addBtnLayout->addWidget(addSelectedBtn);
+    addLayout->addRow(addBtnLayout);
+
+    mainLayout->addWidget(addGroup);
+
+    // 批量操作
+    QGroupBox *batchGroup = new QGroupBox("批量操作", dlg);
+    QHBoxLayout *batchLayout = new QHBoxLayout(batchGroup);
+    QPushButton *deleteAllBtn = new QPushButton("删除所有标签", batchGroup);
+    QPushButton *autoArrangeBtn = new QPushButton("自动排列标签", batchGroup);
+    batchLayout->addWidget(deleteAllBtn);
+    batchLayout->addWidget(autoArrangeBtn);
+    batchLayout->addStretch();
+    mainLayout->addWidget(batchGroup);
+
+    // 关闭按钮
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    mainLayout->addWidget(closeBtn);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    // 添加标签
+    auto addLabel = [&](QPointF pos) {
+        QString text = textEdit->text().trimmed();
+        if (text.isEmpty()) {
+            QMessageBox::warning(dlg, "添加失败", "请输入标签内容");
+            return;
+        }
+
+        LabelItem::OperatorType op = static_cast<LabelItem::OperatorType>(
+            operatorCombo->currentData().toInt());
+
+        LabelItem *label = new LabelItem(text, op);
+        label->setShowOperatorLogo(showLogoCheck->isChecked());
+
+        // 设置样式
+        if (styleCombo->currentIndex() == 1) {
+            label->setBackgroundColor(QColor(255, 255, 255, 0));
+            label->setBorderColor(QColor(0, 0, 0, 0));
+        } else if (styleCombo->currentIndex() == 2 && op != LabelItem::Op_None) {
+            QColor opColor = LabelItem::operatorColor(op);
+            label->setBackgroundColor(opColor.lighter(180));
+            label->setBorderColor(opColor);
+        }
+
+        label->setPos(pos);
+        m_scene->addItem(label);
+        refreshList();
+    };
+
+    connect(addBtn, &QPushButton::clicked, this, [&]() {
+        addLabel(QPointF(100, 100 + labelList->count() * 30));
+        textEdit->clear();
+    });
+
+    connect(addSelectedBtn, &QPushButton::clicked, this, [&]() {
+        QList<QGraphicsItem*> selected = m_scene->selectedItems();
+        if (selected.isEmpty()) {
+            QMessageBox::warning(dlg, "添加失败", "请先在图纸中选中一个或多个器件");
+            return;
+        }
+        for (QGraphicsItem *item : selected) {
+            Zhifen::DeviceItem *dev = dynamic_cast<Zhifen::DeviceItem*>(item);
+            if (dev) {
+                QString text = textEdit->text().trimmed();
+                if (text.isEmpty()) text = dev->deviceName();
+                LabelItem::OperatorType op = static_cast<LabelItem::OperatorType>(
+                    operatorCombo->currentData().toInt());
+                LabelItem *label = new LabelItem(text, op);
+                label->setShowOperatorLogo(showLogoCheck->isChecked());
+                label->setPos(dev->pos() + QPointF(50, -20));
+                m_scene->addItem(label);
+            }
+        }
+        refreshList();
+        QMessageBox::information(dlg, "添加成功", QString("已为%1个选中器件添加标签").arg(selected.size()));
+    });
+
+    // 删除所有标签
+    connect(deleteAllBtn, &QPushButton::clicked, this, [&]() {
+        if (QMessageBox::question(dlg, "确认删除", "确定要删除所有标签吗？") != QMessageBox::Yes) return;
+        QList<QGraphicsItem*> toRemove;
+        for (QGraphicsItem *item : m_scene->items()) {
+            if (dynamic_cast<LabelItem*>(item)) toRemove.append(item);
+        }
+        for (QGraphicsItem *item : toRemove) m_scene->removeItem(item);
+        refreshList();
+    });
+
+    // 自动排列标签
+    connect(autoArrangeBtn, &QPushButton::clicked, this, [&]() {
+        QList<LabelItem*> labels;
+        for (QGraphicsItem *item : m_scene->items()) {
+            LabelItem *label = dynamic_cast<LabelItem*>(item);
+            if (label) labels.append(label);
+        }
+        // 简单自动排列：按位置排序，避免重叠
+        std::sort(labels.begin(), labels.end(), [](LabelItem *a, LabelItem *b) {
+            return a->pos().y() < b->pos().y();
+        });
+        qreal y = 50;
+        for (LabelItem *label : labels) {
+            label->setPos(50, y);
+            y += 35;
+        }
+        m_view->zoomExtents();
+        QMessageBox::information(dlg, "排列完成", QString("已自动排列%1个标签").arg(labels.size()));
+    });
+
+    dlg->setLayout(mainLayout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other, "智能标签系统操作");
 }

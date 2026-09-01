@@ -52,6 +52,7 @@ set(SOURCES
     src/tools/querytool.cpp
     src/tools/feedertool.cpp
     src/entities/feederitem.cpp
+    src/entities/labelitem.cpp
     src/engine/system_diagram_generator.cpp
     src/engine/report_engine.cpp
     src/engine/print_engine.cpp
@@ -162,6 +163,7 @@ set(HEADERS
     src/core/network_planning_tools.h
     src/core/floor_manager.h
     src/entities/feederitem.h
+    src/entities/labelitem.h
     src/core/performance_manager.h
     src/tools/devicetool.h
     src/tools/pantool.h
