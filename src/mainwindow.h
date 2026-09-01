@@ -94,6 +94,7 @@ private slots:
     void onSmartLabel();
     void onDualLink();
     void onDrawingCompare();
+    void onAutoTrunk();
     void onSaveBaseline();
     void onToggleCopyMode();
     void onZoomIn();

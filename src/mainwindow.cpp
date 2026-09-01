@@ -359,6 +359,7 @@ void MainWindow::createMenus()
     toolsMenu->addSeparator();
     toolsMenu->addAction("保存基准图纸", this, &MainWindow::onSaveBaseline);
     toolsMenu->addAction("图纸对比", this, &MainWindow::onDrawingCompare);
+    toolsMenu->addAction("主干自动生成", this, &MainWindow::onAutoTrunk);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
@@ -5287,4 +5288,212 @@ void MainWindow::onDrawingCompare()
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("图纸对比: 新增%1, 删除%2, 修改%3").arg(added.size()).arg(removed.size()).arg(modified.size()));
+}
+
+void MainWindow::onAutoTrunk()
+{
+    // 收集信源和器件
+    QList<Zhifen::DeviceItem*> sources;
+    QList<Zhifen::DeviceItem*> devices;
+    QList<Zhifen::DeviceItem*> antennas;
+
+    for (QGraphicsItem *item : m_scene->items()) {
+        Zhifen::DeviceItem *dev = dynamic_cast<Zhifen::DeviceItem*>(item);
+        if (!dev) continue;
+        Zhifen::DeviceItem::DeviceType dt = dev->deviceType();
+        if (dt == Zhifen::DeviceItem::MacroBS || dt == Zhifen::DeviceItem::MicroBS ||
+            dt == Zhifen::DeviceItem::RRU || dt == Zhifen::DeviceItem::FiberRepeater) {
+            sources.append(dev);
+        } else if (dt == Zhifen::DeviceItem::OmniAntenna || dt == Zhifen::DeviceItem::DirectionalAntenna ||
+                   dt == Zhifen::DeviceItem::SpotlightAntenna || dt == Zhifen::DeviceItem::ExternalAntenna ||
+                   dt == Zhifen::DeviceItem::WallMountAntenna || dt == Zhifen::DeviceItem::CeilingAntenna) {
+            antennas.append(dev);
+        } else {
+            devices.append(dev);
+        }
+    }
+
+    if (sources.isEmpty()) {
+        QMessageBox::warning(this, "生成失败", "未找到信源器件，请先放置宏基站/微基站/RRU等信源");
+        return;
+    }
+
+    if (antennas.isEmpty() && devices.isEmpty()) {
+        QMessageBox::warning(this, "生成失败", "未找到需要连接的器件和天线");
+        return;
+    }
+
+    // 参数设置对话框
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("主干自动生成设置");
+    paramDlg->resize(400, 300);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QSpinBox *branchCountSpin = new QSpinBox(paramDlg);
+    branchCountSpin->setRange(1, 20); branchCountSpin->setValue(4);
+    formLayout->addRow("分支数量:", branchCountSpin);
+
+    QComboBox *strategyCombo = new QComboBox(paramDlg);
+    strategyCombo->addItem("最短路径树形");
+    strategyCombo->addItem("均匀分布");
+    strategyCombo->addItem("按区域聚类");
+    formLayout->addRow("生成策略:", strategyCombo);
+
+    QCheckBox *addLabelsCheck = new QCheckBox("添加馈线长度标注", paramDlg);
+    addLabelsCheck->setChecked(true);
+    formLayout->addRow(addLabelsCheck);
+
+    QLabel *infoLabel = new QLabel(QString("检测到: %1个信源, %2个器件, %3根天线").arg(sources.size()).arg(devices.size()).arg(antennas.size()), paramDlg);
+    infoLabel->setWordWrap(true);
+    infoLabel->setStyleSheet("color: gray; font-size: 9pt; padding: 5px;");
+    formLayout->addRow(infoLabel);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *okBtn = new QPushButton("开始生成", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(okBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
+
+    int branchCount = branchCountSpin->value();
+    bool addLabels = addLabelsCheck->isChecked();
+    paramDlg->deleteLater();
+
+    // 合并所有待连接器件
+    QList<Zhifen::DeviceItem*> allTargets = devices + antennas;
+
+    // 取第一个信源作为主信源
+    Zhifen::DeviceItem *mainSource = sources.first();
+    QPointF sourcePos = mainSource->pos();
+
+    // 按距离排序
+    QList<QPair<qreal, Zhifen::DeviceItem*>> sortedTargets;
+    for (auto *dev : allTargets) {
+        qreal dist = QLineF(sourcePos, dev->pos()).length();
+        sortedTargets.append(qMakePair(dist, dev));
+    }
+    std::sort(sortedTargets.begin(), sortedTargets.end(), [](const auto &a, const auto &b) {
+        return a.first < b.first;
+    });
+
+    // 生成分支点
+    int perBranch = qMax(1, sortedTargets.size() / branchCount);
+    QList<QPointF> branchPoints;
+    QList<QList<Zhifen::DeviceItem*>> branchDevices;
+
+    for (int b = 0; b < branchCount && b * perBranch < sortedTargets.size(); b++) {
+        QList<Zhifen::DeviceItem*> branchDevs;
+        QPointF center(0, 0);
+        int count = 0;
+        for (int i = b * perBranch; i < qMin((b + 1) * perBranch, sortedTargets.size()); i++) {
+            branchDevs.append(sortedTargets[i].second);
+            center += sortedTargets[i].second->pos();
+            count++;
+        }
+        if (count > 0) {
+            center /= count;
+            // 分支点在信源和中心之间
+            QPointF branchPoint = sourcePos + (center - sourcePos) * 0.6;
+            branchPoints.append(branchPoint);
+            branchDevices.append(branchDevs);
+        }
+    }
+
+    // 生成馈线
+    int trunkCount = 0;
+    int branchFeederCount = 0;
+    qreal totalLength = 0;
+
+    QPen trunkPen(QColor(0, 100, 200), 3);  // 主干蓝色粗线
+    QPen branchPen(QColor(100, 100, 100), 2);  // 分支灰色线
+
+    // 从信源到各分支点生成主干
+    for (const auto &bp : branchPoints) {
+        FeederItem *trunk = new FeederItem();
+        QPolygonF points;
+        points.append(sourcePos);
+        points.append(bp);
+        trunk->setPoints(points);
+        trunk->setPen(trunkPen);
+        m_scene->addItem(trunk);
+        trunkCount++;
+        totalLength += QLineF(sourcePos, bp).length();
+
+        if (addLabels) {
+            QGraphicsSimpleTextItem *label = m_scene->addSimpleText(
+                QString("主干 %1m").arg(QLineF(sourcePos, bp).length() / 10, 0, 'f', 0),
+                QFont("Arial", 8));
+            label->setPos((sourcePos + bp) / 2 + QPointF(5, -10));
+            label->setBrush(QColor(0, 100, 200));
+        }
+    }
+
+    // 从分支点到各器件生成分支馈线
+    for (int b = 0; b < branchPoints.size(); b++) {
+        for (auto *dev : branchDevices[b]) {
+            FeederItem *feeder = new FeederItem();
+            QPolygonF points;
+            points.append(branchPoints[b]);
+            points.append(dev->pos());
+            feeder->setPoints(points);
+            feeder->setPen(branchPen);
+            m_scene->addItem(feeder);
+            branchFeederCount++;
+            totalLength += QLineF(branchPoints[b], dev->pos()).length();
+        }
+    }
+
+    m_view->zoomExtents();
+
+    // 显示生成结果
+    QDialog *resultDlg = new QDialog(this);
+    resultDlg->setWindowTitle("主干自动生成完成");
+    resultDlg->resize(450, 300);
+    QVBoxLayout *resultLayout = new QVBoxLayout(resultDlg);
+
+    QGroupBox *statGroup = new QGroupBox("生成统计", resultDlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("信源数:"), 0, 0);
+    statLayout->addWidget(new QLabel(QString::number(sources.size())), 0, 1);
+    statLayout->addWidget(new QLabel("连接器件数:"), 0, 2);
+    statLayout->addWidget(new QLabel(QString::number(allTargets.size())), 0, 3);
+    statLayout->addWidget(new QLabel("主干数量:"), 1, 0);
+    QLabel *trunkLabel = new QLabel(QString::number(trunkCount));
+    trunkLabel->setStyleSheet("color: #1976d2; font-weight: bold; font-size: 14pt;");
+    statLayout->addWidget(trunkLabel, 1, 1);
+    statLayout->addWidget(new QLabel("分支馈线数:"), 1, 2);
+    statLayout->addWidget(new QLabel(QString::number(branchFeederCount)), 1, 3);
+    statLayout->addWidget(new QLabel("总馈线长度:"), 2, 0);
+    QLabel *lengthLabel = new QLabel(QString("%1m").arg(totalLength / 10, 0, 'f', 0));
+    lengthLabel->setStyleSheet("color: #388e3c; font-weight: bold; font-size: 14pt;");
+    statLayout->addWidget(lengthLabel, 2, 1);
+    statLayout->addWidget(new QLabel("分支点数:"), 2, 2);
+    statLayout->addWidget(new QLabel(QString::number(branchPoints.size())), 2, 3);
+    resultLayout->addWidget(statGroup);
+
+    QLabel *descLabel = new QLabel(QString("已从信源自动生成 %1 条主干和 %2 条分支馈线，连接 %3 个器件。主干为蓝色粗线，分支为灰色细线。")
+        .arg(trunkCount).arg(branchFeederCount).arg(allTargets.size()), resultDlg);
+    descLabel->setWordWrap(true);
+    descLabel->setStyleSheet("padding: 10px; background: #e8f5e9; color: #2e7d32; border-radius: 4px;");
+    resultLayout->addWidget(descLabel);
+
+    QPushButton *closeBtn = new QPushButton("关闭", resultDlg);
+    connect(closeBtn, &QPushButton::clicked, resultDlg, &QDialog::accept);
+    resultLayout->addWidget(closeBtn);
+
+    resultDlg->setLayout(resultLayout);
+    resultDlg->exec();
+    resultDlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("主干自动生成: %1主干, %2分支, %3m").arg(trunkCount).arg(branchFeederCount).arg(totalLength/10, 0, 'f', 0));
 }
