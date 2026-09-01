@@ -4148,9 +4148,9 @@ void MainWindow::onCopyStandardFloor()
 
         // 通过类型判断
         Zhifen::DeviceItem *devItem = dynamic_cast<Zhifen::DeviceItem*>(item);
-        Zhifen::FeederItem *feederItem = dynamic_cast<Zhifen::FeederItem*>(item);
-        QGraphicsLineItem *lineItem = dynamic_cast<QGraphicsLineItem*>(item);
-        QGraphicsTextItem *textItem = dynamic_cast<QGraphicsTextItem*>(item);
+        FeederItem *feederItem = dynamic_cast<FeederItem*>(item);
+        LineItem *lineItem = dynamic_cast<LineItem*>(item);
+        TextItem *textItem = dynamic_cast<TextItem*>(item);
 
         if (devItem || feederItem || lineItem || textItem) {
             itemsToCopy.append(item);
@@ -4176,12 +4176,12 @@ void MainWindow::onCopyStandardFloor()
 
             // 根据类型手动复制
             Zhifen::DeviceItem *devItem = dynamic_cast<Zhifen::DeviceItem*>(item);
-            Zhifen::FeederItem *feederItem = dynamic_cast<Zhifen::FeederItem*>(item);
-            QGraphicsLineItem *lineItem = dynamic_cast<QGraphicsLineItem*>(item);
-            QGraphicsTextItem *textItem = dynamic_cast<QGraphicsTextItem*>(item);
+            FeederItem *feederItem = dynamic_cast<FeederItem*>(item);
+            LineItem *lineItem = dynamic_cast<LineItem*>(item);
+            TextItem *textItem = dynamic_cast<TextItem*>(item);
 
             if (devItem) {
-                Zhifen::DeviceItem *newDev = new Zhifen::DeviceItem(devItem->deviceType(), devItem->deviceName());
+                Zhifen::DeviceItem *newDev = new Zhifen::DeviceItem(devItem->deviceType());
                 newDev->setPos(devItem->pos() + QPointF(0, yOffset));
                 newDev->setRotation(devItem->rotation());
                 newDev->setScale(devItem->scale());
@@ -4209,20 +4209,21 @@ void MainWindow::onCopyStandardFloor()
                     deviceIndex++;
                 }
             } else if (feederItem) {
-                Zhifen::FeederItem *newFeeder = new Zhifen::FeederItem();
-                newFeeder->setLine(feederItem->line().translated(0, yOffset));
-                newFeeder->setPen(feederItem->pen());
+                // 偏移馈线点集
+                QPolygonF newPoints;
+                for (const QPointF &p : feederItem->points()) {
+                    newPoints.append(p + QPointF(0, yOffset));
+                }
+                FeederItem *newFeeder = new FeederItem(newPoints, feederItem->feederType());
                 copy = newFeeder;
             } else if (lineItem) {
-                QGraphicsLineItem *newLine = new QGraphicsLineItem();
-                newLine->setLine(lineItem->line().translated(0, yOffset));
-                newLine->setPen(lineItem->pen());
+                LineItem *newLine = new LineItem();
+                newLine->setStartPoint(lineItem->startPoint() + QPointF(0, yOffset));
+                newLine->setEndPoint(lineItem->endPoint() + QPointF(0, yOffset));
                 copy = newLine;
             } else if (textItem) {
-                QGraphicsTextItem *newText = new QGraphicsTextItem(textItem->toPlainText());
+                TextItem *newText = new TextItem(textItem->text());
                 newText->setPos(textItem->pos() + QPointF(0, yOffset));
-                newText->setFont(textItem->font());
-                newText->setDefaultTextColor(textItem->defaultTextColor());
                 copy = newText;
             }
 
