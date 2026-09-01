@@ -356,6 +356,9 @@ void MainWindow::createMenus()
     toolsMenu->addAction("系统图切割分页", this, &MainWindow::onSystemDiagramSplit);
     toolsMenu->addAction("智能标签系统", this, &MainWindow::onSmartLabel);
     toolsMenu->addAction("平面图系统图双向关联", this, &MainWindow::onDualLink);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction("保存基准图纸", this, &MainWindow::onSaveBaseline);
+    toolsMenu->addAction("图纸对比", this, &MainWindow::onDrawingCompare);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
@@ -5083,4 +5086,204 @@ void MainWindow::onDualLink()
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("双向关联: %1节点, 关联率%2%")
         .arg(result.nodes.size()).arg(linkedCount * 100.0 / result.nodes.size(), 0, 'f', 1));
+}
+
+void MainWindow::onSaveBaseline()
+{
+    m_baselineSnapshot.clear();
+    int count = 0;
+    for (QGraphicsItem *item : m_scene->items()) {
+        Zhifen::DeviceItem *dev = dynamic_cast<Zhifen::DeviceItem*>(item);
+        if (!dev) continue;
+        QVariantMap snap;
+        snap["type"] = dev->deviceType();
+        snap["name"] = dev->deviceName();
+        snap["x"] = dev->pos().x();
+        snap["y"] = dev->pos().y();
+        snap["rotation"] = dev->rotation();
+        m_baselineSnapshot.append(snap);
+        count++;
+    }
+    QMessageBox::information(this, "保存成功", QString("已保存基准图纸，共%1个器件").arg(count));
+}
+
+void MainWindow::onDrawingCompare()
+{
+    if (m_baselineSnapshot.isEmpty()) {
+        QMessageBox::warning(this, "对比失败", "请先保存基准图纸（工具菜单→保存基准图纸）");
+        return;
+    }
+
+    // 收集当前图纸器件
+    QList<QVariantMap> currentSnapshot;
+    for (QGraphicsItem *item : m_scene->items()) {
+        Zhifen::DeviceItem *dev = dynamic_cast<Zhifen::DeviceItem*>(item);
+        if (!dev) continue;
+        QVariantMap snap;
+        snap["type"] = dev->deviceType();
+        snap["name"] = dev->deviceName();
+        snap["x"] = dev->pos().x();
+        snap["y"] = dev->pos().y();
+        snap["rotation"] = dev->rotation();
+        snap["item"] = QVariant::fromValue((void*)dev);
+        currentSnapshot.append(snap);
+    }
+
+    // 对比
+    QList<QVariantMap> added, removed, modified;
+    QList<bool> matched(currentSnapshot.size(), false);
+
+    // 查找删除和修改
+    for (const auto &base : m_baselineSnapshot) {
+        bool found = false;
+        for (int i = 0; i < currentSnapshot.size(); i++) {
+            if (matched[i]) continue;
+            const auto &cur = currentSnapshot[i];
+            if (cur["type"] == base["type"] && cur["name"] == base["name"]) {
+                matched[i] = true;
+                found = true;
+                // 检查位置变化
+                qreal dx = qAbs(cur["x"].toReal() - base["x"].toReal());
+                qreal dy = qAbs(cur["y"].toReal() - base["y"].toReal());
+                if (dx > 5 || dy > 5) {
+                    QVariantMap mod = cur;
+                    mod["oldX"] = base["x"];
+                    mod["oldY"] = base["y"];
+                    modified.append(mod);
+                }
+                break;
+            }
+        }
+        if (!found) removed.append(base);
+    }
+
+    // 查找新增
+    for (int i = 0; i < currentSnapshot.size(); i++) {
+        if (!matched[i]) added.append(currentSnapshot[i]);
+    }
+
+    // 高亮差异器件
+    m_scene->clearSelection();
+    for (const auto &a : added) {
+        Zhifen::DeviceItem *dev = static_cast<Zhifen::DeviceItem*>(a["item"].value<void*>());
+        if (dev) dev->setSelected(true);
+    }
+    for (const auto &m : modified) {
+        Zhifen::DeviceItem *dev = static_cast<Zhifen::DeviceItem*>(m["item"].value<void*>());
+        if (dev) dev->setSelected(true);
+    }
+
+    // 显示对比报告
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("图纸对比报告");
+    dlg->resize(650, 500);
+    QVBoxLayout *mainLayout = new QVBoxLayout(dlg);
+
+    // 摘要
+    QGroupBox *summaryGroup = new QGroupBox("对比摘要", dlg);
+    QGridLayout *summaryLayout = new QGridLayout(summaryGroup);
+    summaryLayout->addWidget(new QLabel("基准图纸器件数:"), 0, 0);
+    summaryLayout->addWidget(new QLabel(QString::number(m_baselineSnapshot.size())), 0, 1);
+    summaryLayout->addWidget(new QLabel("当前图纸器件数:"), 0, 2);
+    summaryLayout->addWidget(new QLabel(QString::number(currentSnapshot.size())), 0, 3);
+    summaryLayout->addWidget(new QLabel("新增器件:"), 1, 0);
+    QLabel *addedLabel = new QLabel(QString("+%1").arg(added.size()));
+    addedLabel->setStyleSheet("color: green; font-weight: bold; font-size: 14pt;");
+    summaryLayout->addWidget(addedLabel, 1, 1);
+    summaryLayout->addWidget(new QLabel("删除器件:"), 1, 2);
+    QLabel *removedLabel = new QLabel(QString("-%1").arg(removed.size()));
+    removedLabel->setStyleSheet("color: red; font-weight: bold; font-size: 14pt;");
+    summaryLayout->addWidget(removedLabel, 1, 3);
+    summaryLayout->addWidget(new QLabel("位置修改:"), 2, 0);
+    QLabel *modifiedLabel = new QLabel(QString::number(modified.size()));
+    modifiedLabel->setStyleSheet("color: orange; font-weight: bold; font-size: 14pt;");
+    summaryLayout->addWidget(modifiedLabel, 2, 1);
+    summaryLayout->addWidget(new QLabel("未变化:"), 2, 2);
+    int unchanged = currentSnapshot.size() - added.size() - modified.size();
+    summaryLayout->addWidget(new QLabel(QString::number(unchanged)), 2, 3);
+    mainLayout->addWidget(summaryGroup);
+
+    // 详细列表
+    QTabWidget *tabWidget = new QTabWidget(dlg);
+
+    // 新增列表
+    QTableWidget *addedTable = new QTableWidget(added.size(), 3, tabWidget);
+    addedTable->setHorizontalHeaderLabels({"器件名称", "类型", "位置(X,Y)"});
+    addedTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    for (int i = 0; i < added.size(); i++) {
+        addedTable->setItem(i, 0, new QTableWidgetItem(added[i]["name"].toString()));
+        addedTable->setItem(i, 1, new QTableWidgetItem(QString::number(added[i]["type"].toInt())));
+        addedTable->setItem(i, 2, new QTableWidgetItem(QString("(%1, %2)").arg(added[i]["x"].toReal(), 0, 'f', 0).arg(added[i]["y"].toReal(), 0, 'f', 0)));
+    }
+    tabWidget->addTab(addedTable, QString("新增 (%1)").arg(added.size()));
+
+    // 删除列表
+    QTableWidget *removedTable = new QTableWidget(removed.size(), 3, tabWidget);
+    removedTable->setHorizontalHeaderLabels({"器件名称", "类型", "原位置(X,Y)"});
+    removedTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    for (int i = 0; i < removed.size(); i++) {
+        removedTable->setItem(i, 0, new QTableWidgetItem(removed[i]["name"].toString()));
+        removedTable->setItem(i, 1, new QTableWidgetItem(QString::number(removed[i]["type"].toInt())));
+        removedTable->setItem(i, 2, new QTableWidgetItem(QString("(%1, %2)").arg(removed[i]["x"].toReal(), 0, 'f', 0).arg(removed[i]["y"].toReal(), 0, 'f', 0)));
+    }
+    tabWidget->addTab(removedTable, QString("删除 (%1)").arg(removed.size()));
+
+    // 修改列表
+    QTableWidget *modifiedTable = new QTableWidget(modified.size(), 4, tabWidget);
+    modifiedTable->setHorizontalHeaderLabels({"器件名称", "原位置", "新位置", "偏移量"});
+    modifiedTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    for (int i = 0; i < modified.size(); i++) {
+        modifiedTable->setItem(i, 0, new QTableWidgetItem(modified[i]["name"].toString()));
+        modifiedTable->setItem(i, 1, new QTableWidgetItem(QString("(%1, %2)").arg(modified[i]["oldX"].toReal(), 0, 'f', 0).arg(modified[i]["oldY"].toReal(), 0, 'f', 0)));
+        modifiedTable->setItem(i, 2, new QTableWidgetItem(QString("(%1, %2)").arg(modified[i]["x"].toReal(), 0, 'f', 0).arg(modified[i]["y"].toReal(), 0, 'f', 0)));
+        qreal dx = modified[i]["x"].toReal() - modified[i]["oldX"].toReal();
+        qreal dy = modified[i]["y"].toReal() - modified[i]["oldY"].toReal();
+        modifiedTable->setItem(i, 3, new QTableWidgetItem(QString("(%1, %2)").arg(dx, 0, 'f', 0).arg(dy, 0, 'f', 0)));
+    }
+    tabWidget->addTab(modifiedTable, QString("修改 (%1)").arg(modified.size()));
+
+    mainLayout->addWidget(tabWidget);
+
+    // 按钮
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportBtn = new QPushButton("导出对比报告", dlg);
+    QPushButton *updateBaselineBtn = new QPushButton("更新基准为当前", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(updateBaselineBtn);
+    btnLayout->addStretch();
+    btnLayout->addWidget(closeBtn);
+    mainLayout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(updateBaselineBtn, &QPushButton::clicked, this, [&]() {
+        onSaveBaseline();
+        dlg->accept();
+    });
+    connect(exportBtn, &QPushButton::clicked, this, [&]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出对比报告", "图纸对比报告.csv", "CSV文件(*.csv)");
+        if (fileName.isEmpty()) return;
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+        QTextStream out(&file);
+        out.setCodec("UTF-8");
+        out << "图纸对比报告\n";
+        out << QString("基准器件数,%1\n").arg(m_baselineSnapshot.size());
+        out << QString("当前器件数,%1\n").arg(currentSnapshot.size());
+        out << QString("新增,%1\n").arg(added.size());
+        out << QString("删除,%1\n").arg(removed.size());
+        out << QString("修改,%1\n").arg(modified.size());
+        out << "\n新增器件\n名称,类型,位置X,位置Y\n";
+        for (const auto &a : added)
+            out << QString("%1,%2,%3,%4\n").arg(a["name"].toString()).arg(a["type"].toInt()).arg(a["x"].toReal(), 0, 'f', 0).arg(a["y"].toReal(), 0, 'f', 0);
+        file.close();
+        QMessageBox::information(this, "导出成功", "对比报告已导出");
+    });
+
+    dlg->setLayout(mainLayout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("图纸对比: 新增%1, 删除%2, 修改%3").arg(added.size()).arg(removed.size()).arg(modified.size()));
 }

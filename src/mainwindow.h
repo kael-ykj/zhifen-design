@@ -93,6 +93,9 @@ private slots:
     void onSystemDiagramSplit();
     void onSmartLabel();
     void onDualLink();
+    void onDrawingCompare();
+    void onSaveBaseline();
+    QList<QVariantMap> m_baselineSnapshot;
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();
