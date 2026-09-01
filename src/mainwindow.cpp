@@ -4452,15 +4452,15 @@ void MainWindow::onAntennaPowerStats()
     totalLabel->setStyleSheet("font-weight: bold; font-size: 14pt;");
     summaryLayout->addWidget(totalLabel, 0, 1);
     summaryLayout->addWidget(new QLabel("达标(-15~+15dBm):"), 0, 2);
-    QLabel *passLabel = new QLabel(QString("%1根 (%2%)").arg(passCount).arg(passCount*100/antennas.size(), 0, 'f', 1));
+    QLabel *passLabel = new QLabel(QString("%1根 (%2%)").arg(passCount).arg((double)passCount*100.0/antennas.size(), 0, 'f', 1));
     passLabel->setStyleSheet("color: green; font-weight: bold;");
     summaryLayout->addWidget(passLabel, 0, 3);
     summaryLayout->addWidget(new QLabel("弱覆盖(<-15dBm):"), 1, 0);
-    QLabel *weakLabel = new QLabel(QString("%1根 (%2%)").arg(weakCount).arg(weakCount*100/antennas.size(), 0, 'f', 1));
+    QLabel *weakLabel = new QLabel(QString("%1根 (%2%)").arg(weakCount).arg((double)weakCount*100.0/antennas.size(), 0, 'f', 1));
     weakLabel->setStyleSheet("color: orange; font-weight: bold;");
     summaryLayout->addWidget(weakLabel, 1, 1);
     summaryLayout->addWidget(new QLabel("过功率(>+15dBm):"), 1, 2);
-    QLabel *overLabel = new QLabel(QString("%1根 (%2%)").arg(overCount).arg(overCount*100/antennas.size(), 0, 'f', 1));
+    QLabel *overLabel = new QLabel(QString("%1根 (%2%)").arg(overCount).arg((double)overCount*100.0/antennas.size(), 0, 'f', 1));
     overLabel->setStyleSheet("color: red; font-weight: bold;");
     summaryLayout->addWidget(overLabel, 1, 3);
     summaryLayout->addWidget(new QLabel("最小功率:"), 2, 0);
