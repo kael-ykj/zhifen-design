@@ -89,6 +89,7 @@ private slots:
     void onMaterialEstimate();
     void onCopyStandardFloor();
     void onProjectInfo();
+    void onAntennaPowerStats();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();

@@ -351,6 +351,7 @@ void MainWindow::createMenus()
     toolsMenu->addAction("AI材料估算", this, &MainWindow::onMaterialEstimate);
     toolsMenu->addSeparator();
     toolsMenu->addAction("标准层批量复制", this, &MainWindow::onCopyStandardFloor);
+    toolsMenu->addAction("天线功率统计", this, &MainWindow::onAntennaPowerStats);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
@@ -4365,4 +4366,181 @@ void MainWindow::onProjectInfo()
         QMessageBox::information(this, "保存成功", "工程信息已保存，打印出图时将自动填充到图签中。");
     }
     dlg->deleteLater();
+}
+
+void MainWindow::onAntennaPowerStats()
+{
+    // 收集所有天线
+    struct AntennaInfo {
+        QString id;
+        QPointF pos;
+        qreal power;
+        QString status;
+        QColor statusColor;
+    };
+    QList<AntennaInfo> antennas;
+
+    int passCount = 0;
+    int weakCount = 0;
+    int overCount = 0;
+    qreal minPower = 999;
+    qreal maxPower = -999;
+    qreal totalPower = 0;
+
+    for (QGraphicsItem *item : m_scene->items()) {
+        Zhifen::DeviceItem *devItem = dynamic_cast<Zhifen::DeviceItem*>(item);
+        if (!devItem) continue;
+
+        Zhifen::DeviceItem::DeviceType dt = devItem->deviceType();
+        bool isAntenna = (dt == Zhifen::DeviceItem::OmniAntenna ||
+                          dt == Zhifen::DeviceItem::DirectionalAntenna ||
+                          dt == Zhifen::DeviceItem::SpotlightAntenna ||
+                          dt == Zhifen::DeviceItem::ExternalAntenna ||
+                          dt == Zhifen::DeviceItem::WallMountAntenna ||
+                          dt == Zhifen::DeviceItem::CeilingAntenna ||
+                          dt == Zhifen::DeviceItem::ElevatorAntenna);
+        if (!isAntenna) continue;
+
+        // 获取天线功率（从data中读取，或使用默认值）
+        qreal power = devItem->data(2).toReal();
+        if (power == 0) power = 10.0;  // 默认10dBm
+
+        QString id = devItem->data(1).toString();
+        if (id.isEmpty()) id = QString("ANT-%1").arg(antennas.size() + 1);
+
+        QString status;
+        QColor statusColor;
+        if (power < -15.0) {
+            status = "弱覆盖";
+            statusColor = QColor(255, 100, 0);
+            weakCount++;
+        } else if (power > 15.0) {
+            status = "过功率";
+            statusColor = QColor(255, 0, 0);
+            overCount++;
+        } else {
+            status = "达标";
+            statusColor = QColor(0, 150, 0);
+            passCount++;
+        }
+
+        antennas.append({id, devItem->pos(), power, status, statusColor});
+
+        if (power < minPower) minPower = power;
+        if (power > maxPower) maxPower = power;
+        totalPower += power;
+    }
+
+    if (antennas.isEmpty()) {
+        QMessageBox::warning(this, "统计失败", "当前图纸中没有找到天线器件");
+        return;
+    }
+
+    qreal avgPower = totalPower / antennas.size();
+
+    // 显示统计结果对话框
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle(QString("天线功率统计（共%1根天线）").arg(antennas.size()));
+    dlg->resize(700, 500);
+    QVBoxLayout *mainLayout = new QVBoxLayout(dlg);
+
+    // 统计摘要
+    QGroupBox *summaryGroup = new QGroupBox("统计摘要", dlg);
+    QGridLayout *summaryLayout = new QGridLayout(summaryGroup);
+    summaryLayout->addWidget(new QLabel("天线总数:"), 0, 0);
+    QLabel *totalLabel = new QLabel(QString::number(antennas.size()));
+    totalLabel->setStyleSheet("font-weight: bold; font-size: 14pt;");
+    summaryLayout->addWidget(totalLabel, 0, 1);
+    summaryLayout->addWidget(new QLabel("达标(-15~+15dBm):"), 0, 2);
+    QLabel *passLabel = new QLabel(QString("%1根 (%2%)").arg(passCount).arg(passCount*100/antennas.size(), 0, 'f', 1));
+    passLabel->setStyleSheet("color: green; font-weight: bold;");
+    summaryLayout->addWidget(passLabel, 0, 3);
+    summaryLayout->addWidget(new QLabel("弱覆盖(<-15dBm):"), 1, 0);
+    QLabel *weakLabel = new QLabel(QString("%1根 (%2%)").arg(weakCount).arg(weakCount*100/antennas.size(), 0, 'f', 1));
+    weakLabel->setStyleSheet("color: orange; font-weight: bold;");
+    summaryLayout->addWidget(weakLabel, 1, 1);
+    summaryLayout->addWidget(new QLabel("过功率(>+15dBm):"), 1, 2);
+    QLabel *overLabel = new QLabel(QString("%1根 (%2%)").arg(overCount).arg(overCount*100/antennas.size(), 0, 'f', 1));
+    overLabel->setStyleSheet("color: red; font-weight: bold;");
+    summaryLayout->addWidget(overLabel, 1, 3);
+    summaryLayout->addWidget(new QLabel("最小功率:"), 2, 0);
+    summaryLayout->addWidget(new QLabel(QString("%1dBm").arg(minPower, 0, 'f', 1)), 2, 1);
+    summaryLayout->addWidget(new QLabel("最大功率:"), 2, 2);
+    summaryLayout->addWidget(new QLabel(QString("%1dBm").arg(maxPower, 0, 'f', 1)), 2, 3);
+    summaryLayout->addWidget(new QLabel("平均功率:"), 3, 0);
+    summaryLayout->addWidget(new QLabel(QString("%1dBm").arg(avgPower, 0, 'f', 1)), 3, 1);
+    mainLayout->addWidget(summaryGroup);
+
+    // 详细表格
+    QTableWidget *table = new QTableWidget(antennas.size(), 5, dlg);
+    table->setHorizontalHeaderLabels({"序号", "天线编号", "位置(X,Y)", "输入功率(dBm)", "状态"});
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+
+    for (int i = 0; i < antennas.size(); i++) {
+        const auto &ant = antennas[i];
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(i + 1)));
+        table->setItem(i, 1, new QTableWidgetItem(ant.id));
+        table->setItem(i, 2, new QTableWidgetItem(QString("(%1, %2)").arg(ant.pos.x(), 0, 'f', 0).arg(ant.pos.y(), 0, 'f', 0)));
+        QTableWidgetItem *powerItem = new QTableWidgetItem(QString("%1").arg(ant.power, 0, 'f', 1));
+        powerItem->setTextAlignment(Qt::AlignCenter);
+        table->setItem(i, 3, powerItem);
+        QTableWidgetItem *statusItem = new QTableWidgetItem(ant.status);
+        statusItem->setTextAlignment(Qt::AlignCenter);
+        statusItem->setForeground(QBrush(ant.statusColor));
+        statusItem->setFont(QFont("", -1, QFont::Bold));
+        table->setItem(i, 4, statusItem);
+    }
+    mainLayout->addWidget(table);
+
+    // 按钮
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *exportBtn = new QPushButton("导出Excel", dlg);
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(exportBtn);
+    btnLayout->addWidget(closeBtn);
+    mainLayout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    connect(exportBtn, &QPushButton::clicked, this, [this, antennas, passCount, weakCount, overCount, avgPower, minPower, maxPower]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "导出天线功率统计", "天线功率统计.csv", "CSV文件(*.csv)");
+        if (fileName.isEmpty()) return;
+
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::warning(this, "导出失败", "无法创建文件");
+            return;
+        }
+
+        QTextStream out(&file);
+        out.setCodec("UTF-8");
+        out << "序号,天线编号,位置X,位置Y,输入功率(dBm),状态\n";
+        for (int i = 0; i < antennas.size(); i++) {
+            const auto &ant = antennas[i];
+            out << QString("%1,%2,%3,%4,%5,%6\n")
+                .arg(i + 1).arg(ant.id).arg(ant.pos.x(), 0, 'f', 0)
+                .arg(ant.pos.y(), 0, 'f', 0).arg(ant.power, 0, 'f', 1).arg(ant.status);
+        }
+        out << "\n统计摘要\n";
+        out << QString("天线总数,%1\n").arg(antennas.size());
+        out << QString("达标,%1\n").arg(passCount);
+        out << QString("弱覆盖,%1\n").arg(weakCount);
+        out << QString("过功率,%1\n").arg(overCount);
+        out << QString("最小功率,%1dBm\n").arg(minPower, 0, 'f', 1);
+        out << QString("最大功率,%1dBm\n").arg(maxPower, 0, 'f', 1);
+        out << QString("平均功率,%1dBm\n").arg(avgPower, 0, 'f', 1);
+        file.close();
+
+        QMessageBox::information(this, "导出成功", QString("天线功率统计已导出到:\n%1").arg(fileName));
+    });
+
+    dlg->setLayout(mainLayout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("天线功率统计: %1根天线, 达标%2, 弱覆盖%3, 过功率%4")
+        .arg(antennas.size()).arg(passCount).arg(weakCount).arg(overCount));
 }
