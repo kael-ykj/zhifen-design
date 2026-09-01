@@ -96,6 +96,9 @@ private slots:
     void onDrawingCompare();
     void onAutoTrunk();
     void onGenerateDemo();
+    void placeDevice(Zhifen::DeviceItem::DeviceType type, const QString &name);
+    void onErase();
+    void onLayerManager();
     void onSaveBaseline();
     void onToggleCopyMode();
     void onZoomIn();

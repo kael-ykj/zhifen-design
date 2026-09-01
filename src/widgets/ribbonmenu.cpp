@@ -405,7 +405,41 @@ QWidget *RibbonMenu::createOutputTab()
 void RibbonMenu::setupActions(MainWindow *mainWindow)
 {
     m_mainWindow = mainWindow;
-    // 这里可以连接具体的动作到主窗口的槽函数
+    if (!mainWindow) return;
+
+    // 绘图工具
+    connect(m_actionLine, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("line"); });
+    connect(m_actionCircle, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("circle"); });
+    connect(m_actionRect, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("rectangle"); });
+    connect(m_actionArc, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("arc"); });
+    connect(m_actionText, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("text"); });
+    connect(m_actionFeeder, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("feeder"); });
+
+    // 编辑工具
+    connect(m_actionMove, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("move"); });
+    connect(m_actionCopy, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("copy"); });
+    connect(m_actionRotate, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("rotate"); });
+    connect(m_actionScale, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("scale"); });
+    connect(m_actionMirror, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("mirror"); });
+    connect(m_actionDelete, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->onErase(); });
+    connect(m_actionUndo, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->onUndo(); });
+    connect(m_actionRedo, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->onRedo(); });
+
+    // 室分器件
+    connect(m_actionAntenna, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->placeDevice(Zhifen::DeviceItem::OmniAntenna, "全向吸顶天线"); });
+    connect(m_actionCoupler, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->placeDevice(Zhifen::DeviceItem::Coupler, "耦合器"); });
+    connect(m_actionSplitter, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->placeDevice(Zhifen::DeviceItem::Splitter, "功分器"); });
+    connect(m_actionSource, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->placeDevice(Zhifen::DeviceItem::MacroBS, "宏基站"); });
+
+    // 标注
+    connect(m_actionDimLinear, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("dim_linear"); });
+    connect(m_actionDimAligned, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("dim_aligned"); });
+    connect(m_actionDimRadius, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->setCurrentTool("dim_radius"); });
+
+    // 其他
+    connect(m_actionLayer, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->onLayerManager(); });
+    connect(m_actionPrint, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->onPrint(); });
+    connect(m_actionExport, &QAction::triggered, mainWindow, [mainWindow](){ mainWindow->onExportDxf(); });
 }
 
 } // namespace Zhifen

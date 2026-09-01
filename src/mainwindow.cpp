@@ -130,6 +130,7 @@ MainWindow::MainWindow(QWidget *parent)
     menuBar()->hide();
     // 创建Ribbon菜单
     Zhifen::RibbonMenu *ribbon = new Zhifen::RibbonMenu(this);
+    ribbon->setupActions(this);
     setMenuWidget(ribbon);
 
     // 创建左侧工具箱
@@ -5668,4 +5669,43 @@ void MainWindow::onGenerateDemo()
         "4. 工具→天线功率统计\n"
         "5. 工具→覆盖率仿真\n"
         "6. 文件→打印预览");
+}
+
+void MainWindow::placeDevice(Zhifen::DeviceItem::DeviceType type, const QString &name)
+{
+    m_pendingDeviceType = type;
+    m_pendingDeviceName = name;
+    statusBar()->showMessage(QString("放置器件: %1，点击画布放置，右键取消").arg(name), 5000);
+    if (!m_devicePlaceConnection) {
+        m_devicePlaceConnection = connect(m_view, &CadView::sceneClicked, this, [this](QPointF pos){
+            if (m_pendingDeviceName.isEmpty()) return;
+            Zhifen::DeviceItem *dev = new Zhifen::DeviceItem(m_pendingDeviceType);
+            dev->setPos(pos);
+            dev->setToolTip(m_pendingDeviceName);
+            dev->setData(1, m_pendingDeviceName);
+            m_scene->addItem(dev);
+            m_scene->clearSelection();
+            dev->setSelected(true);
+            statusBar()->showMessage(QString("已放置: %1").arg(m_pendingDeviceName), 3000);
+        });
+    }
+}
+
+void MainWindow::onErase()
+{
+    QList<QGraphicsItem*> selected = m_scene->selectedItems();
+    if (selected.isEmpty()) {
+        statusBar()->showMessage("请先选择要删除的对象", 3000);
+        return;
+    }
+    for (QGraphicsItem *item : selected) {
+        m_scene->removeItem(item);
+        delete item;
+    }
+    statusBar()->showMessage(QString("已删除 %1 个对象").arg(selected.size()), 3000);
+}
+
+void MainWindow::onLayerManager()
+{
+    onFloorManager();
 }
