@@ -342,6 +342,10 @@ void MainWindow::createMenus()
     toolsMenu->addAction(m_auditLogAct);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
+    helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
+    helpMenu->addAction("操作手册", this, &MainWindow::onHelpManual);
+    helpMenu->addAction("功能亮点", this, &MainWindow::onHelpFeature);
+    helpMenu->addSeparator();
     helpMenu->addAction("关于智分Design", this, [this](){
         QMessageBox::about(this, "关于智分Design",
             "智分Design V3.1\n\nAI驱动的专业室分设计CAD软件\n\n"
@@ -3651,4 +3655,121 @@ void MainWindow::updateTitle()
     QString title = "智分Design V3.1 - " + m_document->name();
     if (m_document->isModified()) title += " *";
     setWindowTitle(title);
+}
+
+
+void MainWindow::onHelpTutorial()
+{
+    // 统一帮助对话框 - 新手教程
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("新手教程 - 智分Design");
+    dlg->resize(900, 650);
+    QHBoxLayout *mainLayout = new QHBoxLayout(dlg);
+
+    // 左侧目录
+    QListWidget *toc = new QListWidget(dlg);
+    toc->setFixedWidth(220);
+    toc->addItems({"1. 新建项目", "2. 导入建筑底图", "3. 放置信源和天线", "4. 放置功分器和耦合器", "5. 绘制馈线连接", "6. 生成系统图", "7. 链路预算计算", "8. 材料统计", "9. 打印输出"});
+    toc->setCurrentRow(0);
+    mainLayout->addWidget(toc);
+
+    // 右侧内容
+    QTextBrowser *content = new QTextBrowser(dlg);
+    content->setOpenExternalLinks(true);
+    mainLayout->addWidget(content, 1);
+
+    QStringList pages;
+    pages << "<h2>1. 新建项目</h2><p>点击菜单 <b>文件 → 新建</b>，创建一个新的室分设计项目。</p><p>在弹出的对话框中设置项目名称、设计单位、设计日期等基础信息。</p><p><b>提示：</b>建议每个项目单独保存，避免不同项目的图纸混淆。</p>";
+    pages << "<h2>2. 导入建筑底图</h2><p>点击菜单 <b>文件 → 导入建筑底图</b>，选择建筑方提供的DXF图纸。</p><p>在图层选择对话框中，勾选需要保留的图层（建议保留墙体、门窗、弱电管线），取消勾选家具、标注等多余图层。</p><p>也可以选择AI精简模式：<ul><li>基础精简：保留墙体/门窗/管线</li><li>深度精简：仅保留墙体</li></ul></p><p><b>提示：</b>导入后底图自动锁定，避免误操作。可在图层面板中解锁。</p>";
+    pages << "<h2>3. 放置信源和天线</h2><p>在左侧器件库面板中，选择需要的器件类型（信源/天线/功分器/耦合器等）。</p><p>点击器件图标后，在画布上点击即可放置。</p><p>支持的天线类型：<ul><li>全向吸顶天线</li><li>定向板状天线</li><li>射灯天线（楼间对打）</li><li>八木天线</li></ul></p><p><b>提示：</b>使用捕捉功能（F3）可以精确定位到墙体交点或器件端口。</p>";
+    pages << "<h2>4. 放置功分器和耦合器</h2><p>在器件库中选择功分器（二功分/三功分/四功分）或耦合器（5/6/7/10/12/15/20/30/40dB）。</p><p>放置在馈线路径上，系统会自动计算功率分配。</p><p><b>提示：</b>耦合器的耦合度决定了分支输出的功率，直通端功率 = 输入功率 - 耦合度 - 插入损耗。</p>";
+    pages << "<h2>5. 绘制馈线连接</h2><p>点击工具栏中的 <b>馈线</b> 工具，从信源端口开始，依次连接到功分器、耦合器、天线。</p><p>馈线绘制时自动标注线长，支持正交模式（F8）保证水平垂直走线。</p><p>系统自动检测端口连接，未连接的端口会在链路预算时提示告警。</p><p><b>提示：</b>馈线交叉点会自动检测，建议避免交叉，必要时使用跳线绕行。</p>";
+    pages << "<h2>6. 生成系统图</h2><p>点击菜单 <b>计算 → 生成系统图</b>，系统自动根据平面图的连接关系生成系统图。</p><p>系统图包含：<ul><li>信源输出功率</li><li>各级功分器/耦合器的功率分配</li><li>每个天线的输入功率</li><li>器件编号和型号</li><li>功率越限告警（红色标注）</li></ul></p><p><b>提示：</b>系统图生成后可在新视图中查看，支持导出为图片。</p>";
+    pages << "<h2>7. 链路预算计算</h2><p>点击菜单 <b>计算 → 链路预算</b>，选择需要计算的频段（2G/3G/4G/5G共9种频段）。</p><p>系统自动遍历拓扑，计算每条链路的：<ul><li>馈线损耗（按长度和频段）</li><li>器件损耗（功分器/耦合器/合路器）</li><li>天线输入功率</li><li>自由空间损耗和覆盖半径</li></ul></p><p>结果以表格展示，支持导出CSV。</p>";
+    pages << "<h2>8. 材料统计</h2><p>点击菜单 <b>工具 → 材料统计</b>，系统自动统计所有器件和馈线。</p><p>材料表分为：<ul><li>主材表：信源、天线、功分器、耦合器、合路器、馈线</li><li>辅材表：接头、跳线、吊牌、扎带等</li></ul></p><p>支持导出Excel(CSV)格式，预算表可手动填写设计/监理/施工折扣。</p>";
+    pages << "<h2>9. 打印输出</h2><p>点击菜单 <b>文件 → 打印</b>，选择打印范围（当前视图/框选区域/全部图纸）。</p><p>打印引擎自动生成：<ul><li>图签（项目名称/设计单位/日期/图号）</li><li>图例（器件符号说明）</li><li>材料表（主材/辅材）</li><li>安全风险提示</li><li>施工要求规范</li></ul></p><p>支持批量打印和打印预览。</p><p><b>恭喜！</b>您已完成第一个室分设计项目的完整流程。</p>";
+
+    connect(toc, &QListWidget::currentRowChanged, content, [content, pages](int row) {
+        if (row >= 0 && row < pages.size()) content->setHtml(pages[row]);
+    });
+    content->setHtml(pages[0]);
+
+    dlg->setLayout(mainLayout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onHelpManual()
+{
+    // 统一帮助对话框 - 操作手册
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("操作手册 - 智分Design");
+    dlg->resize(900, 650);
+    QHBoxLayout *mainLayout = new QHBoxLayout(dlg);
+
+    QListWidget *toc = new QListWidget(dlg);
+    toc->setFixedWidth(220);
+    toc->addItems({"CAD基础操作", "器件库使用", "馈线绘制", "系统图生成", "材料统计", "打印出图", "特殊场景设计", "格式互导", "快捷键列表"});
+    toc->setCurrentRow(0);
+    mainLayout->addWidget(toc);
+
+    QTextBrowser *content = new QTextBrowser(dlg);
+    mainLayout->addWidget(content, 1);
+
+    QStringList pages;
+    pages << "<h2>CAD基础操作</h2><p><b>视图操作：</b><ul><li>鼠标滚轮：缩放视图</li><li>鼠标中键拖动：平移视图</li><li>双击中键：缩放适配全部</li></ul></p><p><b>选择操作：</b><ul><li>单击：选择单个图元</li><li>框选（左到右）：选择完全在框内的图元</li><li>框选（右到左）：选择接触到框的图元</li><li>Shift+点击：多选/取消选择</li></ul></p><p><b>编辑操作：</b><ul><li>删除：Delete键</li><li>移动：选择后拖动</li><li>复制：Ctrl+C / Ctrl+V</li><li>撤销：Ctrl+Z</li><li>重做：Ctrl+Y</li></ul></p><p><b>模式切换：</b><ul><li>F3：捕捉开关</li><li>F8：正交模式</li><li>F7：网格显示</li></ul></p>";
+    pages << "<h2>器件库使用</h2><p>左侧器件库面板包含11大类、60+种室分器件：</p><p><b>器件分类：</b><ul><li>信源类：宏基站、微基站、直放站、光纤远端机</li><li>天线类：全向吸顶、定向板状、射灯、八木、对数周期</li><li>功分器：二功分、三功分、四功分</li><li>耦合器：5/6/7/10/12/15/20/30/40dB</li><li>合路器：二合一、三合一、四合一</li><li>馈线类：1/2"馈线、7/8"馈线、漏缆</li><li>接头类：N型接头、DIN型接头</li><li>数字室分：pRRU、BBU、RHUB</li></ul></p><p><b>使用方法：</b>点击分类展开，点击器件图标，在画布上点击放置。</p><p><b>搜索功能：</b>在搜索框输入型号关键词快速定位。</p>";
+    pages << "<h2>馈线绘制</h2><p><b>绘制方法：</b><ol><li>点击工具栏"馈线"工具</li><li>在起点（信源/器件端口）点击</li><li>移动鼠标到下一个连接点点击</li><li>双击或按ESC结束绘制</li></ol></p><p><b>自动功能：</b><ul><li>线长自动标注（按实际比例）</li><li>端口自动吸附（靠近端口时自动连接）</li><li>正交模式（F8）保证水平垂直走线</li><li>交叉点自动检测和提示</li></ul></p><p><b>馈线类型：</b>可在属性面板中修改馈线类型（1/2" / 7/8" / 漏缆），不同类型损耗系数不同。</p>";
+    pages << "<h2>系统图生成</h2><p><b>生成方法：</b>菜单 → 计算 → 生成系统图</p><p><b>系统图内容：</b><ul><li>信源节点（输出功率、频段）</li><li>功分器节点（分配比例、插入损耗）</li><li>耦合器节点（耦合度、直通/分支功率）</li><li>天线节点（输入功率、型号）</li><li>连接线（标注馈线长度和损耗）</li></ul></p><p><b>功率计算：</b>从信源开始，沿拓扑递归计算每个节点的输入/输出功率。</p><p><b>告警机制：</b>天线输入功率超出设计范围（-15~+15dBm）时红色标注。</p>";
+    pages << "<h2>材料统计</h2><p><b>统计方法：</b>菜单 → 工具 → 材料统计</p><p><b>统计内容：</b><ul><li>主材：信源、天线、功分器、耦合器、合路器、馈线（按长度）</li><li>辅材：接头（按器件端口数）、跳线、吊牌、扎带</li></ul></p><p><b>导出功能：</b><ul><li>导出Excel(CSV)：主材表和辅材表</li><li>导出预算表：含单价、设计/监理/施工折扣填写栏</li></ul></p><p><b>注意：</b>馈线长度按实际绘制长度统计，建议绘制时尽量准确。</p>";
+    pages << "<h2>打印出图</h2><p><b>打印方法：</b>菜单 → 文件 → 打印 / 打印预览</p><p><b>打印内容：</b><ul><li>平面图（当前视图或框选区域）</li><li>图签：项目名称、设计单位、设计日期、图号、比例</li><li>图例：所有使用的器件符号说明</li><li>材料表：主材和辅材清单</li><li>安全风险提示：高空作业、用电安全等</li><li>施工要求规范：馈线布放、器件安装、标签标识</li></ul></p><p><b>批量打印：</b>支持选择多个图纸区域批量打印。</p><p><b>纸张设置：</b>支持A4/A3/A2/A1/A0，横向/纵向。</p>";
+    pages << "<h2>特殊场景设计</h2><p><b>电梯覆盖设计：</b>菜单 → 工具 → 电梯覆盖设计<br>输入楼层数、层高、发射功率等参数，自动计算天线数量、间距、覆盖功率。</p><p><b>漏缆分段设计：</b>菜单 → 工具 → 漏缆分段设计<br>输入漏缆总长度、耦合损耗、传输损耗，自动分段计算每段功率。</p><p><b>楼间对打设计：</b>菜单 → 工具 → 楼间对打设计<br>输入楼间距、发射/接收高度、天线增益，计算链路预算和覆盖角度。</p><p><b>适用场景：</b>电梯井道、隧道、地下车库、楼间覆盖等传统室分难以覆盖的区域。</p>";
+    pages << "<h2>格式互导</h2><p><b>导入功能：</b><ul><li>天越格式（.tyd/.dxf）</li><li>AIDP格式（.aidp/.dxf）</li><li>迪弗格式（.dfd/.dxf）</li><li>通用DXF格式</li></ul></p><p><b>导入流程：</b>选择文件 → 自动识别格式 → 图元转换 → 显示转换报告（成功/失败/警告统计）</p><p><b>导出功能：</b><ul><li>导出天越格式</li><li>导出AIDP格式</li><li>导出通用DXF</li></ul></p><p><b>图元映射：</b>自动映射信源、天线、功分器、耦合器、馈线等图元，未识别图元在报告中列出。</p>";
+    pages << "<h2>快捷键列表</h2><table border='1' cellpadding='5'><tr><th>快捷键</th><th>功能</th></tr><tr><td>Ctrl+N</td><td>新建项目</td></tr><tr><td>Ctrl+O</td><td>打开项目</td></tr><tr><td>Ctrl+S</td><td>保存项目</td></tr><tr><td>Ctrl+Z</td><td>撤销</td></tr><tr><td>Ctrl+Y</td><td>重做</td></tr><tr><td>Ctrl+C / Ctrl+V</td><td>复制/粘贴</td></tr><tr><td>Delete</td><td>删除</td></tr><tr><td>F3</td><td>捕捉开关</td></tr><tr><td>F7</td><td>网格显示</td></tr><tr><td>F8</td><td>正交模式</td></tr><tr><td>Esc</td><td>取消当前操作</td></tr><tr><td>空格</td><td>重复上一命令</td></tr><tr><td>鼠标滚轮</td><td>缩放</td></tr><tr><td>中键拖动</td><td>平移</td></tr></table>";
+
+    connect(toc, &QListWidget::currentRowChanged, content, [content, pages](int row) {
+        if (row >= 0 && row < pages.size()) content->setHtml(pages[row]);
+    });
+    content->setHtml(pages[0]);
+
+    dlg->setLayout(mainLayout);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+void MainWindow::onHelpFeature()
+{
+    // 统一帮助对话框 - 功能亮点
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("功能亮点 - 智分Design");
+    dlg->resize(900, 650);
+    QHBoxLayout *mainLayout = new QHBoxLayout(dlg);
+
+    QListWidget *toc = new QListWidget(dlg);
+    toc->setFixedWidth(220);
+    toc->addItems({"AI自动化设计", "多格式互导", "多频段链路预算", "专业打印引擎", "特殊场景设计", "实时覆盖率仿真", "智能材料统计", "原生桌面高性能"});
+    toc->setCurrentRow(0);
+    mainLayout->addWidget(toc);
+
+    QTextBrowser *content = new QTextBrowser(dlg);
+    mainLayout->addWidget(content, 1);
+
+    QStringList pages;
+    pages << "<h2>AI自动化设计</h2><p>智分Design引入AI技术，大幅提升设计效率：</p><p><b>建筑底图AI精简：</b>导入建筑图纸后，AI自动识别并保留墙体、门窗、弱电管线等必要图层，删除家具、标注等多余内容，让底图更干净，便于室分设计。</p><p><b>自动布放建议：</b>根据楼层面积和覆盖要求，AI自动计算天线数量和推荐位置，设计人员可在此基础上调整。</p><p><b>设备材料估算：</b>设计初期，仅需导入建筑图纸，AI即可根据面积、行业标准和历史案例，输出初步的设备材料估算表，方便甲方快速报价。</p><p><b>自动检验优化：</b>设计完成后，AI自动检验功率越限、弱覆盖区域、馈线交叉等问题，并给出优化建议。</p>";
+    pages << "<h2>多格式互导</h2><p>解决行业痛点：不同室分设计软件之间的图纸无法互通。</p><p><b>支持导入：</b>天越（.tyd）、AIDP（.aidp）、迪弗（.dfd）、通用DXF格式。自动识别信源、天线、器件、馈线等图元，转换为智分Design的标准图元，可直接编辑修改。</p><p><b>支持导出：</b>天越格式、AIDP格式、通用DXF。其他软件的用户也可以打开和编辑智分Design的设计图纸。</p><p><b>详细转换报告：</b>每次导入导出都生成详细报告，包含总图元数、成功数、失败数、按类型统计、详细转换结果，未识别图元明确列出，方便人工核对。</p>";
+    pages << "<h2>多频段链路预算</h2><p>支持2G/3G/4G/5G共9种频段的链路预算计算：</p><p><b>频段支持：</b><ul><li>2G：GSM 900MHz</li><li>3G：WCDMA 2100MHz</li><li>4G：LTE 1800MHz / 2600MHz</li><li>5G：NR 3500MHz / 4900MHz</li></ul></p><p><b>计算内容：</b>从信源开始沿拓扑递归计算，包含馈线损耗（按长度和频段）、器件插入损耗、功分/耦合损耗、天线输入功率、自由空间损耗、覆盖半径。</p><p><b>结果展示：</b>详细表格展示每条链路，统计汇总（平均/最大/最小功率），功率越限自动告警，支持导出CSV。</p>";
+    pages << "<h2>专业打印引擎</h2><p>符合室分设计出图规范的专业打印引擎：</p><p><b>自动生成内容：</b><ul><li>标准图签：项目名称、设计单位、设计日期、图号、比例</li><li>图例：所有使用器件的符号和名称说明</li><li>材料表：主材和辅材自动统计</li><li>安全风险提示：高空作业、用电安全、防火要求</li><li>施工要求规范：馈线布放、器件安装、标签标识、防水处理</li></ul></p><p><b>打印方式：</b>当前视图打印、框选区域打印、批量打印、打印预览。</p><p><b>纸张支持：</b>A4/A3/A2/A1/A0，横向/纵向，自定义页边距。</p>";
+    pages << "<h2>特殊场景设计</h2><p>针对传统室分难以覆盖的特殊场景，提供专用设计工具：</p><p><b>电梯覆盖设计：</b>输入楼层数、层高、发射功率，自动计算天线数量、间距、每层覆盖功率，推荐天线类型（定向天线/漏缆）。</p><p><b>漏缆分段设计：</b>输入漏缆总长度、耦合损耗、传输损耗，自动分段计算每段的输入/输出功率、平均耦合功率，判断是否达标。</p><p><b>楼间对打设计：</b>输入楼间距、发射/接收高度、天线增益、建筑穿透损耗，计算链路预算、接收功率、链路余量、覆盖角度、下倾角。</p><p>每个工具都提供统一参数设置对话框、表格化结果、达标判断和优化建议。</p>";
+    pages << "<h2>实时覆盖率仿真</h2><p>基于天线位置和功率的实时覆盖场强仿真：</p><p><b>多频段仿真：</b>支持2G/3G/4G/5G，不同频段传播模型不同。</p><p><b>传播模型：</b>自由空间损耗 + 墙体穿透损耗（混凝土/砖墙/玻璃/电梯井/石膏板，各材质衰减系数可配置）。</p><p><b>热力图可视化：</b>红色（弱覆盖<-95dBm）/ 橙色（中等-95~-75dBm）/ 黄色（良好-75~-60dBm）/ 绿色（优秀>-60dBm）。</p><p><b>统计分析：</b>最强/最弱/平均信号、弱覆盖比例、网格数量，弱覆盖超过20%自动告警并给出建议。</p><p><b>导出功能：</b>热力图支持导出PNG/JPG图片。</p>";
+    pages << "<h2>智能材料统计</h2><p>自动化的材料统计和预算管理：</p><p><b>主材统计：</b>信源、天线、功分器、耦合器、合路器、馈线（按实际长度），分类表格展示。</p><p><b>辅材统计：</b>接头（按器件端口数自动计算）、跳线、吊牌、扎带、防水胶带等。</p><p><b>Excel导出：</b>主材表和辅材表导出为CSV格式，可直接用Excel打开。</p><p><b>预算表功能：</b>导出预算表，包含单价填写栏、设计折扣、监理折扣、施工折扣手动填写入口，自动计算总价。</p><p><b>图纸内材料表：</b>打印时自动在图纸中生成主材和辅材表格，无需手动制作。</p>";
+    pages << "<h2>原生桌面高性能</h2><p>基于C++17 + Qt5原生桌面架构，专为大型复杂工程设计：</p><p><b>高性能渲染：</b>QGraphicsView架构，支持数千个图元的流畅显示和操作，应对大型商业体、机场、高铁站等超大型项目。</p><p><b>低内存占用：</b>原生编译，相比浏览器内核方案内存占用降低60%以上，运行更流畅。</p><p><b>快速启动：</b>冷启动时间<3秒，无需等待浏览器内核加载。</p><p><b>离线可用：</b>完全本地运行，不依赖网络，工地现场也能正常使用。</p><p><b>Windows安装包：</b>一键安装，包含所有运行时依赖，无需额外配置。</p>";
+
+    connect(toc, &QListWidget::currentRowChanged, content, [content, pages](int row) {
+        if (row >= 0 && row < pages.size()) content->setHtml(pages[row]);
+    });
+    content->setHtml(pages[0]);
+
+    dlg->setLayout(mainLayout);
+    dlg->exec();
+    dlg->deleteLater();
 }

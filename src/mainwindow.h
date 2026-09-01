@@ -80,6 +80,9 @@ private slots:
     void onExportTianyue();
     void onExportAIDP();
     void onAuditLog();
+    void onHelpTutorial();
+    void onHelpManual();
+    void onHelpFeature();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();
