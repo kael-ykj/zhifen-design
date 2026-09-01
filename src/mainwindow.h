@@ -87,6 +87,7 @@ private slots:
     void onAISimplify();
     void onAutoPlace();
     void onMaterialEstimate();
+    void onCopyStandardFloor();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();

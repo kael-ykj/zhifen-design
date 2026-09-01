@@ -345,6 +345,8 @@ void MainWindow::createMenus()
     toolsMenu->addAction("AI底图精简", this, &MainWindow::onAISimplify);
     toolsMenu->addAction("AI自动布放", this, &MainWindow::onAutoPlace);
     toolsMenu->addAction("AI材料估算", this, &MainWindow::onMaterialEstimate);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction("标准层批量复制", this, &MainWindow::onCopyStandardFloor);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
@@ -4082,4 +4084,161 @@ void MainWindow::onMaterialEstimate()
 
     Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
         QString("AI材料估算: 总面积%1㎡, 总费用¥%2").arg(result.totalArea, 0, 'f', 0).arg(result.totalCost, 0, 'f', 0));
+}
+
+void MainWindow::onCopyStandardFloor()
+{
+    // 参数设置对话框
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("标准层批量复制");
+    paramDlg->resize(400, 300);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QSpinBox *copyCountSpin = new QSpinBox(paramDlg);
+    copyCountSpin->setRange(1, 50); copyCountSpin->setValue(5);
+    formLayout->addRow("复制楼层数:", copyCountSpin);
+
+    QSpinBox *startFloorSpin = new QSpinBox(paramDlg);
+    startFloorSpin->setRange(1, 100); startFloorSpin->setValue(2);
+    formLayout->addRow("起始楼层号:", startFloorSpin);
+
+    QDoubleSpinBox *spacingSpin = new QDoubleSpinBox(paramDlg);
+    spacingSpin->setRange(100, 10000); spacingSpin->setValue(500); spacingSpin->setSuffix(" 像素");
+    formLayout->addRow("楼层间距:", spacingSpin);
+
+    QCheckBox *autoNumberCheck = new QCheckBox("自动编号器件（含楼层号）", paramDlg);
+    autoNumberCheck->setChecked(true);
+    formLayout->addRow(autoNumberCheck);
+
+    QLabel *tipLabel = new QLabel("将当前楼层的所有器件和馈线复制到多个楼层，每层垂直偏移排列", paramDlg);
+    tipLabel->setWordWrap(true);
+    tipLabel->setStyleSheet("color: gray; font-size: 9pt;");
+    formLayout->addRow(tipLabel);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *okBtn = new QPushButton("开始复制", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(okBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
+    paramDlg->deleteLater();
+
+    int copyCount = copyCountSpin->value();
+    int startFloor = startFloorSpin->value();
+    qreal spacing = spacingSpin->value();
+    bool autoNumber = autoNumberCheck->isChecked();
+
+    // 收集当前场景中的所有器件和馈线
+    QList<QGraphicsItem*> itemsToCopy;
+    int deviceCount = 0;
+    int feederCount = 0;
+    for (QGraphicsItem *item : m_scene->items()) {
+        // 跳过底图和标注
+        if (item->data(10).toString() == "bottom_layer") continue;
+        if (item->data(0).toString().contains("dimension", Qt::CaseInsensitive)) continue;
+
+        QString className = item->metaObject()->className();
+        if (className.contains("DeviceItem") || className.contains("FeederItem") ||
+            className.contains("LineItem") || className.contains("TextItem")) {
+            itemsToCopy.append(item);
+            if (className.contains("DeviceItem")) deviceCount++;
+            if (className.contains("FeederItem") || className.contains("LineItem")) feederCount++;
+        }
+    }
+
+    if (itemsToCopy.isEmpty()) {
+        QMessageBox::warning(this, "复制失败", "当前场景没有可复制的器件和馈线");
+        return;
+    }
+
+    // 批量复制
+    int totalCopied = 0;
+    for (int floor = 0; floor < copyCount; floor++) {
+        int floorNum = startFloor + floor;
+        qreal yOffset = (floor + 1) * spacing;
+        int deviceIndex = 1;
+
+        for (QGraphicsItem *item : itemsToCopy) {
+            QGraphicsItem *copy = item->clone();
+            if (!copy) continue;
+
+            // 偏移位置
+            copy->setPos(item->pos() + QPointF(0, yOffset));
+
+            // 自动编号
+            if (autoNumber) {
+                QString className = copy->metaObject()->className();
+                if (className.contains("DeviceItem")) {
+                    QString prefix = "ANT";
+                    if (className.contains("Coupler")) prefix = "CPL";
+                    else if (className.contains("Splitter")) prefix = "SPL";
+                    else if (className.contains("Combiner")) prefix = "CMB";
+                    else if (className.contains("Source") || className.contains("BS")) prefix = "SRC";
+
+                    QString newId = QString("%1-%2-%3")
+                        .arg(prefix)
+                        .arg(floorNum, 2, 10, QChar('0'))
+                        .arg(deviceIndex, 2, 10, QChar('0'));
+                    copy->setData(1, newId);
+                    deviceIndex++;
+                }
+            }
+
+            m_scene->addItem(copy);
+            totalCopied++;
+        }
+    }
+
+    m_view->zoomExtents();
+
+    // 显示复制结果
+    QDialog *resultDlg = new QDialog(this);
+    resultDlg->setWindowTitle("标准层批量复制完成");
+    resultDlg->resize(450, 300);
+    QVBoxLayout *resultLayout = new QVBoxLayout(resultDlg);
+
+    QGroupBox *statGroup = new QGroupBox("复制统计", resultDlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("源楼层器件数:"), 0, 0);
+    statLayout->addWidget(new QLabel(QString::number(deviceCount)), 0, 1);
+    statLayout->addWidget(new QLabel("源楼层馈线数:"), 0, 2);
+    statLayout->addWidget(new QLabel(QString::number(feederCount)), 0, 3);
+    statLayout->addWidget(new QLabel("复制楼层数:"), 1, 0);
+    statLayout->addWidget(new QLabel(QString::number(copyCount)), 1, 1);
+    statLayout->addWidget(new QLabel("起始楼层:"), 1, 2);
+    statLayout->addWidget(new QLabel(QString("%1F").arg(startFloor)), 1, 3);
+    statLayout->addWidget(new QLabel("总复制图元数:"), 2, 0);
+    QLabel *totalLabel = new QLabel(QString::number(totalCopied));
+    totalLabel->setStyleSheet("color: #1976d2; font-weight: bold; font-size: 14pt;");
+    statLayout->addWidget(totalLabel, 2, 1);
+    statLayout->addWidget(new QLabel("自动编号:"), 2, 2);
+    statLayout->addWidget(new QLabel(autoNumber ? "已启用" : "未启用"), 2, 3);
+    resultLayout->addWidget(statGroup);
+
+    QLabel *infoLabel = new QLabel(QString("已将当前楼层的设计复制到 %1-%2F 共 %3 个楼层，每层垂直偏移 %4 像素排列。%5")
+        .arg(startFloor).arg(startFloor + copyCount - 1).arg(copyCount).arg(spacing)
+        .arg(autoNumber ? "器件已按 类型-楼层-序号 格式自动编号。" : ""), resultDlg);
+    infoLabel->setWordWrap(true);
+    infoLabel->setStyleSheet("padding: 10px; background: #e8f5e9; color: #2e7d32; border-radius: 4px;");
+    resultLayout->addWidget(infoLabel);
+
+    QPushButton *closeBtn = new QPushButton("关闭", resultDlg);
+    connect(closeBtn, &QPushButton::clicked, resultDlg, &QDialog::accept);
+    resultLayout->addWidget(closeBtn);
+
+    resultDlg->setLayout(resultLayout);
+    resultDlg->exec();
+    resultDlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("标准层批量复制: %1层, 共%2个图元").arg(copyCount).arg(totalCopied));
 }
