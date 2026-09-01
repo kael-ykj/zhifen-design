@@ -140,6 +140,21 @@ void DeviceLibraryPanel::buildTree()
     });
 
     // 7. 数字化室分类
+    addDeviceCategory("衰减/放大/匹配", {
+        {"2dB衰减器", DeviceItem::FixedAttenuator},
+        {"3dB衰减器", DeviceItem::FixedAttenuator},
+        {"6dB衰减器", DeviceItem::FixedAttenuator},
+        {"10dB衰减器", DeviceItem::FixedAttenuator},
+        {"20dB衰减器", DeviceItem::FixedAttenuator},
+        {"可调衰减器", DeviceItem::VariableAttenuator},
+        {"干线放大器", DeviceItem::TrunkAmplifier},
+        {"2W负载", DeviceItem::Load},
+        {"50W负载", DeviceItem::Load},
+        {"3dB电桥", DeviceItem::Hybrid},
+        {"主接点", DeviceItem::MainJunction},
+        {"副接点", DeviceItem::SubJunction},
+    });
+
     addDeviceCategory("数字化室分", {
         {"MAU主控单元", DeviceItem::MAU},
         {"EU扩展单元", DeviceItem::EU},
