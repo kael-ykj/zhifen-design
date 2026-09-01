@@ -31,6 +31,8 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void setCurrentTool(const QString &toolName);
+    void placeDevice(Zhifen::DeviceItem::DeviceType type, const QString &name);
 
 private slots:
     void onNew();
