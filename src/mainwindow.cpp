@@ -4146,12 +4146,16 @@ void MainWindow::onCopyStandardFloor()
         if (item->data(10).toString() == "bottom_layer") continue;
         if (item->data(0).toString().contains("dimension", Qt::CaseInsensitive)) continue;
 
-        QString className = item->metaObject()->className();
-        if (className.contains("DeviceItem") || className.contains("FeederItem") ||
-            className.contains("LineItem") || className.contains("TextItem")) {
+        // 通过类型判断
+        Zhifen::DeviceItem *devItem = dynamic_cast<Zhifen::DeviceItem*>(item);
+        Zhifen::FeederItem *feederItem = dynamic_cast<Zhifen::FeederItem*>(item);
+        QGraphicsLineItem *lineItem = dynamic_cast<QGraphicsLineItem*>(item);
+        QGraphicsTextItem *textItem = dynamic_cast<QGraphicsTextItem*>(item);
+
+        if (devItem || feederItem || lineItem || textItem) {
             itemsToCopy.append(item);
-            if (className.contains("DeviceItem")) deviceCount++;
-            if (className.contains("FeederItem") || className.contains("LineItem")) feederCount++;
+            if (devItem) deviceCount++;
+            if (feederItem || lineItem) feederCount++;
         }
     }
 
@@ -4168,33 +4172,64 @@ void MainWindow::onCopyStandardFloor()
         int deviceIndex = 1;
 
         for (QGraphicsItem *item : itemsToCopy) {
-            QGraphicsItem *copy = item->clone();
-            if (!copy) continue;
+            QGraphicsItem *copy = nullptr;
 
-            // 偏移位置
-            copy->setPos(item->pos() + QPointF(0, yOffset));
+            // 根据类型手动复制
+            Zhifen::DeviceItem *devItem = dynamic_cast<Zhifen::DeviceItem*>(item);
+            Zhifen::FeederItem *feederItem = dynamic_cast<Zhifen::FeederItem*>(item);
+            QGraphicsLineItem *lineItem = dynamic_cast<QGraphicsLineItem*>(item);
+            QGraphicsTextItem *textItem = dynamic_cast<QGraphicsTextItem*>(item);
 
-            // 自动编号
-            if (autoNumber) {
-                QString className = copy->metaObject()->className();
-                if (className.contains("DeviceItem")) {
+            if (devItem) {
+                Zhifen::DeviceItem *newDev = new Zhifen::DeviceItem(devItem->deviceType(), devItem->deviceName());
+                newDev->setPos(devItem->pos() + QPointF(0, yOffset));
+                newDev->setRotation(devItem->rotation());
+                newDev->setScale(devItem->scale());
+                // 复制数据
+                for (int i = 0; i < 20; i++) {
+                    QVariant d = devItem->data(i);
+                    if (d.isValid()) newDev->setData(i, d);
+                }
+                copy = newDev;
+
+                // 自动编号
+                if (autoNumber) {
                     QString prefix = "ANT";
-                    if (className.contains("Coupler")) prefix = "CPL";
-                    else if (className.contains("Splitter")) prefix = "SPL";
-                    else if (className.contains("Combiner")) prefix = "CMB";
-                    else if (className.contains("Source") || className.contains("BS")) prefix = "SRC";
+                    Zhifen::DeviceItem::DeviceType dt = devItem->deviceType();
+                    if (dt == Zhifen::DeviceItem::Coupler) prefix = "CPL";
+                    else if (dt == Zhifen::DeviceItem::Splitter) prefix = "SPL";
+                    else if (dt == Zhifen::DeviceItem::Combiner) prefix = "CMB";
+                    else if (dt == Zhifen::DeviceItem::MacroBS || dt == Zhifen::DeviceItem::MicroBS) prefix = "SRC";
 
                     QString newId = QString("%1-%2-%3")
                         .arg(prefix)
                         .arg(floorNum, 2, 10, QChar('0'))
                         .arg(deviceIndex, 2, 10, QChar('0'));
-                    copy->setData(1, newId);
+                    newDev->setData(1, newId);
                     deviceIndex++;
                 }
+            } else if (feederItem) {
+                Zhifen::FeederItem *newFeeder = new Zhifen::FeederItem();
+                newFeeder->setLine(feederItem->line().translated(0, yOffset));
+                newFeeder->setPen(feederItem->pen());
+                copy = newFeeder;
+            } else if (lineItem) {
+                QGraphicsLineItem *newLine = new QGraphicsLineItem();
+                newLine->setLine(lineItem->line().translated(0, yOffset));
+                newLine->setPen(lineItem->pen());
+                copy = newLine;
+            } else if (textItem) {
+                QGraphicsTextItem *newText = new QGraphicsTextItem(textItem->toPlainText());
+                newText->setPos(textItem->pos() + QPointF(0, yOffset));
+                newText->setFont(textItem->font());
+                newText->setDefaultTextColor(textItem->defaultTextColor());
+                copy = newText;
             }
 
-            m_scene->addItem(copy);
-            totalCopied++;
+            if (copy) {
+                m_scene->addItem(copy);
+                totalCopied++;
+            }
         }
     }
 
