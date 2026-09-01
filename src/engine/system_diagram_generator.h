@@ -26,6 +26,8 @@ struct TopoNode {
     qreal outputPower = 0.0;
     qreal loss = 0.0;
     QString deviceId;    // 器件编号
+    void *sourceItem = nullptr;  // 关联的平面图器件指针
+    int sourceIndex = -1;        // 关联的平面图器件索引
     QList<TopoNode*> children;
     TopoNode *parent = nullptr;
 };

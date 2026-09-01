@@ -70,23 +70,33 @@ void SystemDiagramGenerator::parseTopology(QGraphicsScene *scene, SystemDiagramR
         if (cls == "信源") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
             QString name = dev ? dev->deviceTypeName() : etype;
-            sources.append(createNode("信源", name, 0));
+            TopoNode *node = createNode("信源", name, 0);
+            node->sourceItem = dev;
+            sources.append(node);
         } else if (cls == "功分器") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
             QString name = dev ? dev->deviceTypeName() : etype;
-            splitters.append(createNode("功分器", name, 1));
+            TopoNode *node = createNode("功分器", name, 1);
+            node->sourceItem = dev;
+            splitters.append(node);
         } else if (cls == "耦合器") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
             QString name = dev ? dev->deviceTypeName() : etype;
-            couplers.append(createNode("耦合器", name, 1));
+            TopoNode *node = createNode("耦合器", name, 1);
+            node->sourceItem = dev;
+            couplers.append(node);
         } else if (cls == "合路器") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
             QString name = dev ? dev->deviceTypeName() : etype;
-            combiners.append(createNode("合路器", name, 1));
+            TopoNode *node = createNode("合路器", name, 1);
+            node->sourceItem = dev;
+            combiners.append(node);
         } else if (cls == "天线") {
             auto *dev = dynamic_cast<DeviceItem*>(item);
             QString name = dev ? dev->deviceTypeName() : etype;
-            antennas.append(createNode("天线", name, 2));
+            TopoNode *node = createNode("天线", name, 2);
+            node->sourceItem = dev;
+            antennas.append(node);
         }
     }
 
@@ -327,6 +337,8 @@ void SystemDiagramGenerator::renderToScene(const SystemDiagramResult &result, QG
         else fillColor = QColor(200, 200, 200);
 
         QGraphicsRectItem *rect = targetScene->addRect(nodeRect, QPen(QColor(60, 60, 60), 1.5), QBrush(fillColor));
+        rect->setData(100, node->sourceIndex);  // 关联索引
+        rect->setData(101, (qulonglong)node->sourceItem);  // 关联指针
 
         // 器件名称
         QGraphicsSimpleTextItem *nameText = targetScene->addSimpleText(node->name, labelFont);

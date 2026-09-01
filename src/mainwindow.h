@@ -92,6 +92,7 @@ private slots:
     void onAntennaPowerStats();
     void onSystemDiagramSplit();
     void onSmartLabel();
+    void onDualLink();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();
