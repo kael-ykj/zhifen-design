@@ -33,7 +33,13 @@ public:
     ~MainWindow();
     void setCurrentTool(const QString &toolName);
     void placeDevice(Zhifen::DeviceItem::DeviceType type, const QString &name);
-                        
+    void onErase();
+    void onUndo();
+    void onRedo();
+    void onLayerManager();
+    void onPrint();
+    void onExportDxf();
+
 private slots:
     void onNew();
     void onOpen();
