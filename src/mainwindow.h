@@ -116,6 +116,7 @@ private:
     void updateTitle();
 
     CadView *m_view;
+    QList<QVariantMap> m_baselineSnapshot;
     CadScene *m_scene;
     Document *m_document;
     Tool *m_currentTool;
