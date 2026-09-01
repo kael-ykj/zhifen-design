@@ -83,6 +83,9 @@ private slots:
     void onHelpTutorial();
     void onHelpManual();
     void onHelpFeature();
+    void onAISimplify();
+    void onAutoPlace();
+    void onMaterialEstimate();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();

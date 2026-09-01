@@ -56,6 +56,7 @@ set(SOURCES
     src/engine/report_engine.cpp
     src/engine/print_engine.cpp
     src/import/dxf_importer.cpp
+    src/ai/ai_tool.cpp
     src/engine/coverage_simulator.cpp
     src/tools/batch_importer.cpp
     src/core/floor_manager.cpp

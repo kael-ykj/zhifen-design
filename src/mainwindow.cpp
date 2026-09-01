@@ -341,6 +341,10 @@ void MainWindow::createMenus()
     QMenu *toolsMenu = menuBar()->addMenu("工具");
     toolsMenu->addAction(m_layerManagerAct);
     toolsMenu->addAction(m_auditLogAct);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction("AI底图精简", this, &MainWindow::onAISimplify);
+    toolsMenu->addAction("AI自动布放", this, &MainWindow::onAutoPlace);
+    toolsMenu->addAction("AI材料估算", this, &MainWindow::onMaterialEstimate);
 
     QMenu *helpMenu = menuBar()->addMenu("帮助");
     helpMenu->addAction("新手教程", this, &MainWindow::onHelpTutorial);
@@ -3773,4 +3777,309 @@ void MainWindow::onHelpFeature()
     dlg->setLayout(mainLayout);
     dlg->exec();
     dlg->deleteLater();
+}
+
+void MainWindow::onAISimplify()
+{
+    // AI底图精简参数设置
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("AI底图精简 - 参数设置");
+    paramDlg->resize(350, 250);
+    QVBoxLayout *layout = new QVBoxLayout(paramDlg);
+
+    QLabel *tipLabel = new QLabel("选择需要保留的图层类型：", paramDlg);
+    layout->addWidget(tipLabel);
+
+    QCheckBox *wallCheck = new QCheckBox("保留墙体/结构图层", paramDlg);
+    wallCheck->setChecked(true);
+    layout->addWidget(wallCheck);
+
+    QCheckBox *doorCheck = new QCheckBox("保留门窗/洞口图层", paramDlg);
+    doorCheck->setChecked(true);
+    layout->addWidget(doorCheck);
+
+    QCheckBox *pipeCheck = new QCheckBox("保留弱电/管线图层", paramDlg);
+    pipeCheck->setChecked(true);
+    layout->addWidget(pipeCheck);
+
+    QCheckBox *dimCheck = new QCheckBox("保留标注/轴网图层", paramDlg);
+    dimCheck->setChecked(false);
+    layout->addWidget(dimCheck);
+
+    QLabel *infoLabel = new QLabel("家具、填充、其他图层将自动删除", paramDlg);
+    infoLabel->setStyleSheet("color: gray; font-size: 9pt;");
+    layout->addWidget(infoLabel);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *okBtn = new QPushButton("开始精简", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    layout->addLayout(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(okBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
+    paramDlg->deleteLater();
+
+    // 执行AI精简
+    Zhifen::SimplifyResult result = Zhifen::AISimplifyTool::analyzeAndSimplify(
+        m_scene, wallCheck->isChecked(), doorCheck->isChecked(),
+        pipeCheck->isChecked(), dimCheck->isChecked());
+
+    // 显示精简报告
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("AI底图精简报告");
+    dlg->resize(500, 400);
+    QVBoxLayout *dlgLayout = new QVBoxLayout(dlg);
+
+    QGroupBox *statGroup = new QGroupBox("精简统计", dlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("总图层数:"), 0, 0);
+    statLayout->addWidget(new QLabel(QString::number(result.totalLayers)), 0, 1);
+    statLayout->addWidget(new QLabel("保留图层:"), 0, 2);
+    QLabel *keptLabel = new QLabel(QString::number(result.keptLayers));
+    keptLabel->setStyleSheet("color: #2e7d32; font-weight: bold;");
+    statLayout->addWidget(keptLabel, 0, 3);
+    statLayout->addWidget(new QLabel("删除图层:"), 1, 0);
+    QLabel *removedLabel = new QLabel(QString::number(result.removedLayers));
+    removedLabel->setStyleSheet("color: #c62828; font-weight: bold;");
+    statLayout->addWidget(removedLabel, 1, 1);
+    statLayout->addWidget(new QLabel("总图元数:"), 1, 2);
+    statLayout->addWidget(new QLabel(QString::number(result.totalEntities)), 1, 3);
+    statLayout->addWidget(new QLabel("保留图元:"), 2, 0);
+    statLayout->addWidget(new QLabel(QString::number(result.keptEntities)), 2, 1);
+    statLayout->addWidget(new QLabel("删除图元:"), 2, 2);
+    statLayout->addWidget(new QLabel(QString::number(result.removedEntities)), 2, 3);
+    dlgLayout->addWidget(statGroup);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    dlgLayout->addWidget(textEdit, 1);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlgLayout->addWidget(closeBtn);
+
+    dlg->setLayout(dlgLayout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    m_view->zoomExtents();
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("AI底图精简: 删除%1个图元").arg(result.removedEntities));
+}
+
+void MainWindow::onAutoPlace()
+{
+    // AI自动布放参数设置
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("AI自动布放 - 参数设置");
+    paramDlg->resize(350, 300);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QDoubleSpinBox *targetSpin = new QDoubleSpinBox(paramDlg);
+    targetSpin->setRange(-110, -60); targetSpin->setValue(-85); targetSpin->setSuffix(" dBm");
+    formLayout->addRow("目标覆盖功率:", targetSpin);
+
+    QDoubleSpinBox *gainSpin = new QDoubleSpinBox(paramDlg);
+    gainSpin->setRange(2, 15); gainSpin->setValue(2.0); gainSpin->setSuffix(" dBi");
+    formLayout->addRow("天线增益:", gainSpin);
+
+    QDoubleSpinBox *txSpin = new QDoubleSpinBox(paramDlg);
+    txSpin->setRange(10, 40); txSpin->setValue(15.0); txSpin->setSuffix(" dBm");
+    formLayout->addRow("发射功率:", txSpin);
+
+    QDoubleSpinBox *radiusSpin = new QDoubleSpinBox(paramDlg);
+    radiusSpin->setRange(5, 30); radiusSpin->setValue(15.0); radiusSpin->setSuffix(" 米");
+    formLayout->addRow("覆盖半径:", radiusSpin);
+
+    QComboBox *bandCombo = new QComboBox(paramDlg);
+    bandCombo->addItems({"2G", "3G", "4G", "5G"});
+    bandCombo->setCurrentIndex(2);
+    formLayout->addRow("频段:", bandCombo);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *okBtn = new QPushButton("计算建议", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(okBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
+    paramDlg->deleteLater();
+
+    // 计算布放建议
+    Zhifen::AutoPlaceResult result = Zhifen::AutoPlaceTool::calculate(
+        m_scene, targetSpin->value(), gainSpin->value(),
+        txSpin->value(), radiusSpin->value(), bandCombo->currentText());
+
+    // 显示布放建议报告
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("AI自动布放建议");
+    dlg->resize(600, 500);
+    QVBoxLayout *dlgLayout = new QVBoxLayout(dlg);
+
+    QGroupBox *statGroup = new QGroupBox("布放建议统计", dlg);
+    QGridLayout *statLayout = new QGridLayout(statGroup);
+    statLayout->addWidget(new QLabel("总面积:"), 0, 0);
+    statLayout->addWidget(new QLabel(QString("%1 ㎡").arg(result.totalArea, 0, 'f', 1)), 0, 1);
+    statLayout->addWidget(new QLabel("建议天线数:"), 0, 2);
+    QLabel *countLabel = new QLabel(QString::number(result.suggestedAntennaCount));
+    countLabel->setStyleSheet("color: #1976d2; font-weight: bold; font-size: 14pt;");
+    statLayout->addWidget(countLabel, 0, 3);
+    statLayout->addWidget(new QLabel("平均间距:"), 1, 0);
+    statLayout->addWidget(new QLabel(QString("%1 米").arg(result.avgSpacing, 0, 'f', 1)), 1, 1);
+    statLayout->addWidget(new QLabel("估算覆盖率:"), 1, 2);
+    QLabel *covLabel = new QLabel(QString("%1%").arg(result.estimatedCoverageRate, 0, 'f', 1));
+    covLabel->setStyleSheet(result.estimatedCoverageRate >= 90 ? "color: #2e7d32;" : "color: #f57c00;");
+    statLayout->addWidget(covLabel, 1, 3);
+    dlgLayout->addWidget(statGroup);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    dlgLayout->addWidget(textEdit, 1);
+
+    QLabel *tipLabel = new QLabel("提示: 建议位置为网格布放点，实际布放时请根据墙体位置微调", dlg);
+    tipLabel->setStyleSheet("color: #f57c00; padding: 5px;");
+    dlgLayout->addWidget(tipLabel);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlgLayout->addWidget(closeBtn);
+
+    dlg->setLayout(dlgLayout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("AI自动布放: 建议%1个天线").arg(result.suggestedAntennaCount));
+}
+
+void MainWindow::onMaterialEstimate()
+{
+    // AI材料估算参数设置
+    QDialog *paramDlg = new QDialog(this);
+    paramDlg->setWindowTitle("AI材料估算 - 参数设置");
+    paramDlg->resize(350, 280);
+    QFormLayout *formLayout = new QFormLayout(paramDlg);
+
+    QDoubleSpinBox *areaSpin = new QDoubleSpinBox(paramDlg);
+    areaSpin->setRange(100, 100000); areaSpin->setValue(5000); areaSpin->setSuffix(" ㎡");
+    formLayout->addRow("项目总面积:", areaSpin);
+
+    QSpinBox *floorSpin = new QSpinBox(paramDlg);
+    floorSpin->setRange(1, 100); floorSpin->setValue(5);
+    formLayout->addRow("楼层数:", floorSpin);
+
+    QComboBox *sceneCombo = new QComboBox(paramDlg);
+    sceneCombo->addItems({"商业综合体", "写字楼", "酒店", "医院", "学校", "住宅", "地下车库", "交通枢纽"});
+    formLayout->addRow("项目类型:", sceneCombo);
+
+    QComboBox *bandCombo = new QComboBox(paramDlg);
+    bandCombo->addItems({"2G", "3G", "4G", "5G"});
+    bandCombo->setCurrentIndex(2);
+    formLayout->addRow("主频段:", bandCombo);
+
+    QCheckBox *fiveGCheck = new QCheckBox("包含5G数字化设备", paramDlg);
+    formLayout->addRow(fiveGCheck);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *okBtn = new QPushButton("开始估算", paramDlg);
+    QPushButton *cancelBtn = new QPushButton("取消", paramDlg);
+    btnLayout->addStretch();
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    formLayout->addRow(btnLayout);
+
+    connect(cancelBtn, &QPushButton::clicked, paramDlg, &QDialog::reject);
+    connect(okBtn, &QPushButton::clicked, paramDlg, &QDialog::accept);
+
+    if (paramDlg->exec() != QDialog::Accepted) {
+        paramDlg->deleteLater();
+        return;
+    }
+    paramDlg->deleteLater();
+
+    // 执行材料估算
+    Zhifen::MaterialEstimateResult result = Zhifen::MaterialEstimateTool::estimate(
+        areaSpin->value(), floorSpin->value(), sceneCombo->currentText(),
+        bandCombo->currentText(), fiveGCheck->isChecked());
+
+    // 显示估算报告
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("AI设备材料估算报告");
+    dlg->resize(700, 600);
+    QVBoxLayout *dlgLayout = new QVBoxLayout(dlg);
+
+    QGroupBox *costGroup = new QGroupBox("费用汇总", dlg);
+    QGridLayout *costLayout = new QGridLayout(costGroup);
+    costLayout->addWidget(new QLabel("总面积:"), 0, 0);
+    costLayout->addWidget(new QLabel(QString("%1 ㎡").arg(result.totalArea, 0, 'f', 1)), 0, 1);
+    costLayout->addWidget(new QLabel("楼层数:"), 0, 2);
+    costLayout->addWidget(new QLabel(QString::number(result.floorCount)), 0, 3);
+    costLayout->addWidget(new QLabel("主材费用:"), 1, 0);
+    costLayout->addWidget(new QLabel(QString("¥%1").arg(result.mainMaterialCost, 0, 'f', 2)), 1, 1);
+    costLayout->addWidget(new QLabel("辅材费用:"), 1, 2);
+    costLayout->addWidget(new QLabel(QString("¥%1").arg(result.auxMaterialCost, 0, 'f', 2)), 1, 3);
+    costLayout->addWidget(new QLabel("总费用:"), 2, 0);
+    QLabel *totalLabel = new QLabel(QString("¥%1").arg(result.totalCost, 0, 'f', 2));
+    totalLabel->setStyleSheet("color: #c62828; font-weight: bold; font-size: 14pt;");
+    costLayout->addWidget(totalLabel, 2, 1);
+    costLayout->addWidget(new QLabel("每平米造价:"), 2, 2);
+    costLayout->addWidget(new QLabel(QString("¥%1/㎡").arg(result.costPerSquareMeter, 0, 'f', 2)), 2, 3);
+    dlgLayout->addWidget(costGroup);
+
+    // 主材表格
+    QGroupBox *mainGroup = new QGroupBox("主材清单", dlg);
+    QVBoxLayout *mainLayout = new QVBoxLayout(mainGroup);
+    QTableWidget *mainTable = new QTableWidget(result.mainMaterials.size(), 6, dlg);
+    mainTable->setHorizontalHeaderLabels({"类别", "名称", "型号", "数量", "单位", "总价(元)"});
+    mainTable->horizontalHeader()->setStretchLastSection(true);
+    for (int i = 0; i < result.mainMaterials.size(); i++) {
+        const auto &item = result.mainMaterials[i];
+        mainTable->setItem(i, 0, new QTableWidgetItem(item.category));
+        mainTable->setItem(i, 1, new QTableWidgetItem(item.name));
+        mainTable->setItem(i, 2, new QTableWidgetItem(item.model));
+        mainTable->setItem(i, 3, new QTableWidgetItem(QString::number(item.quantity)));
+        mainTable->setItem(i, 4, new QTableWidgetItem(item.unit));
+        mainTable->setItem(i, 5, new QTableWidgetItem(QString::number(item.totalPrice, 'f', 2)));
+    }
+    mainTable->resizeColumnsToContents();
+    mainLayout->addWidget(mainTable);
+    dlgLayout->addWidget(mainGroup, 1);
+
+    QTextEdit *textEdit = new QTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setFont(QFont("Consolas", 9));
+    textEdit->setPlainText(result.report);
+    textEdit->setMaximumHeight(150);
+    dlgLayout->addWidget(textEdit);
+
+    QPushButton *closeBtn = new QPushButton("关闭", dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlgLayout->addWidget(closeBtn);
+
+    dlg->setLayout(dlgLayout);
+    dlg->exec();
+    dlg->deleteLater();
+
+    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
+        QString("AI材料估算: 总面积%1㎡, 总费用¥%2").arg(result.totalArea, 0, 'f', 0).arg(result.totalCost, 0, 'f', 0));
 }
