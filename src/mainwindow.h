@@ -90,6 +90,7 @@ private slots:
     void onCopyStandardFloor();
     void onProjectInfo();
     void onAntennaPowerStats();
+    void onSystemDiagramSplit();
     void onToggleCopyMode();
     void onZoomIn();
     void onZoomOut();
