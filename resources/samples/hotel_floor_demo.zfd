@@ -1,0 +1,33 @@
+{
+    "project": "XX酒店客房层室分设计",
+    "version": "3.1.0",
+    "description": "酒店客房层室内分布系统设计示例，含走廊+客房覆盖方案",
+    "building": {
+        "name": "XX大酒店",
+        "floor": "12F",
+        "area": 850,
+        "height": 3.2
+    },
+    "systems": ["4G", "5G"],
+    "devices": {
+        "sources": [
+            {"type": "RRU", "model": "中兴R8972", "count": 1, "position": [500, 500]}
+        ],
+        "antennas": [
+            {"type": "全向吸顶天线", "count": 8, "power": -11.2},
+            {"type": "定向壁挂天线", "count": 6, "power": -9.5}
+        ],
+        "couplers": [
+            {"type": "6dB耦合器", "count": 3},
+            {"type": "10dB耦合器", "count": 2}
+        ],
+        "splitters": [
+            {"type": "二功分", "count": 4},
+            {"type": "三功分", "count": 2}
+        ],
+        "feeders": [
+            {"type": "1/2馈线", "length": 85},
+            {"type": "7/8馈线", "length": 20}
+        ]
+    }
+}

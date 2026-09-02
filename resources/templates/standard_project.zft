@@ -1,0 +1,27 @@
+{
+    "template": "标准室分工程",
+    "version": "3.1.0",
+    "description": "标准室内分布系统设计模板",
+    "defaultLayers": [
+        {"name": "建筑底图", "color": "#808080", "lineWidth": 0.18},
+        {"name": "墙体", "color": "#FFFFFF", "lineWidth": 0.35},
+        {"name": "门窗", "color": "#00FFFF", "lineWidth": 0.18},
+        {"name": "天线", "color": "#FF0000", "lineWidth": 0.25},
+        {"name": "馈线", "color": "#00FF00", "lineWidth": 0.25},
+        {"name": "器件", "color": "#FFFF00", "lineWidth": 0.25},
+        {"name": "信源", "color": "#FF00FF", "lineWidth": 0.30},
+        {"name": "标注", "color": "#FFFFFF", "lineWidth": 0.18},
+        {"name": "文字", "color": "#FFFFFF", "lineWidth": 0.18},
+        {"name": "图框", "color": "#FFFFFF", "lineWidth": 0.50}
+    ],
+    "defaultTitleBlock": {
+        "projectName": "",
+        "drawingName": "",
+        "designer": "",
+        "reviewer": "",
+        "approver": "",
+        "date": "",
+        "scale": "1:100",
+        "drawingNumber": ""
+    }
+}

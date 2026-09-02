@@ -24,6 +24,8 @@ Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifs
 
 [Icons]
 Name: "{group}\智分Design V3.1"; Filename: "{app}\智分Design.exe"
+Name: "{group}\使用帮助"; Filename: "{app}\智分Design.exe"; Parameters: "--help"
+Name: "{group}\示例工程"; Filename: "{app}\resources\samples"
 Name: "{group}\卸载智分Design"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\智分Design V3.1"; Filename: "{app}\智分Design.exe"; Tasks: desktopicon
 

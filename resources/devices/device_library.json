@@ -1,0 +1,87 @@
+{
+    "version": "3.1.0",
+    "description": "智分Design室分器件库，包含传统室分、数字化室分、漏缆等全系列器件",
+    "categories": {
+        "antenna": {
+            "name": "天线",
+            "devices": [
+                {"id": "ANT_OMNI_CEILING", "name": "全向吸顶天线", "model": "标准型", "gain": 2, "frequency": "800-2700MHz", "power": 50, "price": 45},
+                {"id": "ANT_DIR_PANEL", "name": "定向板状天线", "model": "65度", "gain": 7, "frequency": "800-2700MHz", "power": 50, "price": 85},
+                {"id": "ANT_DIR_WALL", "name": "定向壁挂天线", "model": "90度", "gain": 5, "frequency": "800-2700MHz", "power": 50, "price": 65},
+                {"id": "ANT_SPOTLIGHT", "name": "射灯天线", "model": "高增益", "gain": 10, "frequency": "800-2700MHz", "power": 100, "price": 180},
+                {"id": "ANT_EXTERNAL", "name": "外引天线", "model": "对数周期", "gain": 12, "frequency": "800-2700MHz", "power": 100, "price": 220},
+                {"id": "ANT_DAS", "name": "美化天线", "model": "烟感型", "gain": 2, "frequency": "800-2700MHz", "power": 50, "price": 75},
+                {"id": "ANT_5G", "name": "5G全向天线", "model": "宽频", "gain": 3, "frequency": "698-4000MHz", "power": 50, "price": 95},
+                {"id": "ANT_DIGITAL", "name": "数字化室分天线", "model": "pRRU集成", "gain": 4, "frequency": "1800-4000MHz", "power": 100, "price": 450}
+            ]
+        },
+        "coupler": {
+            "name": "耦合器",
+            "devices": [
+                {"id": "CPL_5", "name": "5dB耦合器", "coupling": 5, "insertionLoss": 1.8, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "CPL_6", "name": "6dB耦合器", "coupling": 6, "insertionLoss": 1.5, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "CPL_7", "name": "7dB耦合器", "coupling": 7, "insertionLoss": 1.3, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "CPL_10", "name": "10dB耦合器", "coupling": 10, "insertionLoss": 0.8, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "CPL_12", "name": "12dB耦合器", "coupling": 12, "insertionLoss": 0.6, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "CPL_15", "name": "15dB耦合器", "coupling": 15, "insertionLoss": 0.4, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "CPL_20", "name": "20dB耦合器", "coupling": 20, "insertionLoss": 0.3, "frequency": "800-2700MHz", "power": 200, "price": 40},
+                {"id": "CPL_30", "name": "30dB耦合器", "coupling": 30, "insertionLoss": 0.2, "frequency": "800-2700MHz", "power": 200, "price": 45},
+                {"id": "CPL_40", "name": "40dB耦合器", "coupling": 40, "insertionLoss": 0.1, "frequency": "800-2700MHz", "power": 200, "price": 50}
+            ]
+        },
+        "splitter": {
+            "name": "功分器",
+            "devices": [
+                {"id": "SPL_2", "name": "二功分器", "ways": 2, "insertionLoss": 3.5, "frequency": "800-2700MHz", "power": 200, "price": 25},
+                {"id": "SPL_3", "name": "三功分器", "ways": 3, "insertionLoss": 5.5, "frequency": "800-2700MHz", "power": 200, "price": 30},
+                {"id": "SPL_4", "name": "四功分器", "ways": 4, "insertionLoss": 7.0, "frequency": "800-2700MHz", "power": 200, "price": 35},
+                {"id": "SPL_6", "name": "六功分器", "ways": 6, "insertionLoss": 9.0, "frequency": "800-2700MHz", "power": 200, "price": 50}
+            ]
+        },
+        "source": {
+            "name": "信源设备",
+            "devices": [
+                {"id": "SRC_BBU", "name": "BBU基带单元", "model": "华为5900", "power": 0, "price": 25000},
+                {"id": "SRC_RRU", "name": "RRU远端单元", "model": "华为3959", "power": 43, "price": 8000},
+                {"id": "SRC_RRU_5G", "name": "5G RRU", "model": "华为5359", "power": 46, "price": 12000},
+                {"id": "SRC_PICO", "name": "皮基站", "model": "华为LampSite", "power": 24, "price": 3500},
+                {"id": "SRC_FEMTO", "name": "家庭基站", "model": "标准型", "power": 20, "price": 1500},
+                {"id": "SRC_REPEATER", "name": "直放站", "model": "宽带型", "power": 37, "price": 5000}
+            ]
+        },
+        "feeder": {
+            "name": "馈线",
+            "devices": [
+                {"id": "FDR_12", "name": "1/2馈线", "diameter": "1/2英寸", "lossPer100m": 6.5, "price": 8},
+                {"id": "FDR_78", "name": "7/8馈线", "diameter": "7/8英寸", "lossPer100m": 3.5, "price": 18},
+                {"id": "FDR_54", "name": "5/4馈线", "diameter": "5/4英寸", "lossPer100m": 2.2, "price": 32},
+                {"id": "FDR_114", "name": "1-1/4馈线", "diameter": "1-1/4英寸", "lossPer100m": 1.8, "price": 45},
+                {"id": "FDR_LEAKY", "name": "漏缆", "diameter": "1-1/4英寸", "lossPer100m": 2.5, "price": 85}
+            ]
+        },
+        "accessory": {
+            "name": "辅材器件",
+            "devices": [
+                {"id": "ACC_LOAD", "name": "负载", "power": 50, "price": 25},
+                {"id": "ACC_ATT_5", "name": "5dB衰减器", "attenuation": 5, "price": 30},
+                {"id": "ACC_ATT_10", "name": "10dB衰减器", "attenuation": 10, "price": 30},
+                {"id": "ACC_ATT_20", "name": "20dB衰减器", "attenuation": 20, "price": 35},
+                {"id": "ACC_3DB", "name": "3dB电桥", "insertionLoss": 3.5, "price": 120},
+                {"id": "ACC_AMP", "name": "干线放大器", "gain": 25, "power": 33, "price": 1500},
+                {"id": "ACC_JOINT", "name": "馈线接头", "price": 5},
+                {"id": "ACC_TEE", "name": "主副接点", "price": 8}
+            ]
+        },
+        "digital": {
+            "name": "数字化室分",
+            "devices": [
+                {"id": "DIG_BBU", "name": "数字化BBU", "model": "华为5900", "price": 25000},
+                {"id": "DIG_RHUB", "name": "RHUB集线器", "model": "华为3910", "ports": 8, "price": 3500},
+                {"id": "DIG_PRRU", "name": "pRRU微射频", "model": "华为3702", "power": 24, "price": 2800},
+                {"id": "DIG_PRRU_5G", "name": "5G pRRU", "model": "华为5735", "power": 27, "price": 3800},
+                {"id": "DIG_SWITCH", "name": "POE交换机", "model": "24口", "price": 2500},
+                {"id": "DIG_FIBER", "name": "光纤", "type": "单模", "price": 3}
+            ]
+        }
+    }
+}

@@ -5747,13 +5747,79 @@ void MainWindow::onErase()
         return;
     }
     for (QGraphicsItem *item : selected) {
-        m_scene->removeItem(item);
-        delete item;
-    }
-    statusBar()->showMessage(QString("已删除 %1 个对象").arg(selected.size()), 3000);
+         m_commandLine->appendMessage("智分Design V3.1 - 专业室分设计CAD软件", "info");
+    m_commandLine->appendMessage("输入 HELP 查看可用命令，或使用上方工具栏开始设计", "info");
 }
 
-void MainWindow::onLayerManager()
+void MainWindow::onAbout()
 {
-    onFloorManager();
+    QMessageBox::about(this, "关于智分Design",
+        "<h2 style='color:#0078d4;'>智分Design V3.1.0</h2>"
+        "<p><b>专业室分设计CAD软件</b></p>"
+        "<p>集传统室分、数字化室分、漏缆、电梯覆盖、楼间对打于一体的专业设计工具</p>"
+        "<hr>"
+        "<p><b>核心功能：</b></p>"
+        "<ul>"
+        "<li>标准CAD绘图引擎（直线/圆/矩形/圆弧/文字/标注）</li>"
+        "<li>54种室分器件库（天线/耦合器/功分器/信源/漏缆等）</li>"
+        "<li>多频段链路预算（2G/3G/4G/5G/WLAN）</li>"
+        "<li>系统图自动生成与功率标注</li>"
+        "<li>材料表自动统计与Excel导出</li>"
+        "<li>AI自动布放与智能校验</li>"
+        "<li>DXF/DWG导入导出</li>"
+        "<li>批量打印与PDF导出</li>"
+        "</ul>"
+        "<hr>"
+        "<p><b>技术架构：</b>C++17 + Qt5 + CMake</p>"
+        "<p><b>版本：</b>3.1.0 (Build 20260902)</p>"
+        "<p><b>Copyright：</b>2026 智分Design Team</p>"
+    );
+}
+
+void MainWindow::onHelp()
+{
+    QDialog *helpDlg = new QDialog(this);
+    helpDlg->setWindowTitle("智分Design - 使用帮助");
+    helpDlg->resize(700, 500);
+    helpDlg->setStyleSheet("QDialog { background: #2b2b2b; } QLabel { color: #ccc; } QTextBrowser { background: #1e1e1e; color: #ccc; border: 1px solid #555; }");
+
+    QVBoxLayout *layout = new QVBoxLayout(helpDlg);
+    QTextBrowser *browser = new QTextBrowser(helpDlg);
+    browser->setHtml(R"(
+        <h2 style='color:#0078d4;'>智分Design V3.1 使用帮助</h2>
+        <h3 style='color:#4ec9b0;'>一、快速开始</h3>
+        <p>1. 点击「文件 → 新建」创建新工程</p>
+        <p>2. 点击「文件 → 生成Demo演示项目」查看完整示例</p>
+        <p>3. 使用左侧工具箱或顶部Ribbon菜单选择工具</p>
+        <p>4. 在画布上点击绘制图形或放置器件</p>
+        <h3 style='color:#4ec9b0;'>二、常用命令（命令行输入）</h3>
+        <table border='1' cellpadding='5' style='border-collapse:collapse;'>
+        <tr><td><b>命令</b></td><td><b>缩写</b></td><td><b>功能</b></td></tr>
+        <tr><td>LINE</td><td>L</td><td>绘制直线</td></tr>
+        <tr><td>CIRCLE</td><td>C</td><td>绘制圆</td></tr>
+        <tr><td>RECTANGLE</td><td>REC</td><td>绘制矩形</td></tr>
+        <tr><td>MOVE</td><td>M</td><td>移动对象</td></tr>
+        <tr><td>COPY</td><td>CO</td><td>复制对象</td></tr>
+        <tr><td>ERASE</td><td>E</td><td>删除对象</td></tr>
+        <tr><td>ZOOM</td><td>Z</td><td>缩放视图</td></tr>
+        <tr><td>LAYER</td><td>LA</td><td>图层管理</td></tr>
+        </table>
+        <h3 style='color:#4ec9b0;'>三、室分设计流程</h3>
+        <p>1. <b>建筑底图导入：</b>文件 → 导入DXF，导入建筑图纸</p>
+        <p>2. <b>天线布放：</b>点击「室分」标签页 → 天线，在平面图上点击放置</p>
+        <p>3. <b>馈线连接：</b>使用馈线工具连接信源→功分器→耦合器→天线</p>
+        <p>4. <b>链路计算：</b>工具 → 链路预算，自动计算各天线口功率</p>
+        <p>5. <b>系统图生成：</b>室分 → 生成系统图，自动生成系统图</p>
+        <p>6. <b>材料统计：</b>工具 → 材料表，自动统计主材辅材</p>
+        <p>7. <b>打印输出：</b>文件 → 打印/导出PDF</p>
+        <h3 style='color:#4ec9b0;'>四、快捷键</h3>
+        <p>Ctrl+N 新建 | Ctrl+O 打开 | Ctrl+S 保存 | Ctrl+P 打印</p>
+        <p>Ctrl+Z 撤销 | Ctrl+Y 重做 | Delete 删除 | Esc 取消当前命令</p>
+        <p>鼠标滚轮 缩放 | 鼠标中键拖动 平移 | 双击滚轮 全部显示</p>
+        <h3 style='color:#4ec9b0;'>五、技术支持</h3>
+        <p>如有问题，请查看日志文件：C:\Users\用户名\.zhifen-design\startup.log</p>
+    )");
+    layout->addWidget(browser);
+    helpDlg->setLayout(layout);
+    helpDlg->exec();
 }

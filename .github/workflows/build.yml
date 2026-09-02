@@ -55,6 +55,11 @@ jobs:
         } else {
           Write-Host "警告: 未找到vcredist_x64.exe"
         }
+        # 复制资源文件
+        if (Test-Path "resources") {
+          Copy-Item -Path "resources" -Destination "installer/Output/resources" -Recurse -Force
+          Write-Host "资源文件已复制"
+        }
         # 列出部署的DLL确认
         Write-Host "=== 部署的DLL文件 ==="
         Get-ChildItem -Path "installer/Output" -Filter "*.dll" | Select-Object Name, Length

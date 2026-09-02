@@ -39,6 +39,8 @@ public:
     void onLayerManager();
     void onPrint();
     void onExportDxf();
+    void onAbout();
+    void onHelp();
 
 private slots:
     void onNew();

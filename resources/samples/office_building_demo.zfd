@@ -1,0 +1,43 @@
+{
+    "project": "XX科技办公楼标准层室分设计",
+    "version": "3.1.0",
+    "description": "办公楼标准层室内分布系统设计示例，包含完整平面图、系统图、材料表",
+    "building": {
+        "name": "XX科技办公楼",
+        "floor": "5F",
+        "area": 1200,
+        "height": 3.6
+    },
+    "systems": ["4G", "5G", "WLAN"],
+    "devices": {
+        "sources": [
+            {"type": "BBU", "model": "华为5900", "count": 1, "position": [1000, 1000]},
+            {"type": "RRU", "model": "华为3959", "count": 2, "position": [[2000, 1500], [8000, 1500]]}
+        ],
+        "antennas": [
+            {"type": "全向吸顶天线", "count": 12, "power": -10.5},
+            {"type": "定向板状天线", "count": 4, "power": -8.2}
+        ],
+        "couplers": [
+            {"type": "5dB耦合器", "count": 4},
+            {"type": "10dB耦合器", "count": 3},
+            {"type": "15dB耦合器", "count": 2}
+        ],
+        "splitters": [
+            {"type": "二功分", "count": 6},
+            {"type": "三功分", "count": 3},
+            {"type": "四功分", "count": 1}
+        ],
+        "feeders": [
+            {"type": "1/2馈线", "length": 120},
+            {"type": "7/8馈线", "length": 45}
+        ]
+    },
+    "linkBudget": {
+        "totalPower": 43,
+        "antennaCount": 16,
+        "avgPower": -9.8,
+        "minPower": -12.5,
+        "maxPower": -7.2
+    }
+}
