@@ -97,7 +97,7 @@ public:
     static QPointF couplerCoupledPort(qreal scale = 1.0);
 
 private:
-    static void setupStandardPen(QPainter *painter, qreal width = 0.3);
+    static void setupStandardPen(QPainter *painter, qreal width = 0.3, const QColor &color = Qt::black);
     static void drawConnectionDot(QPainter *painter, const QPointF &pt);
 };
 
