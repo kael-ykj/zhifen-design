@@ -58,7 +58,7 @@ private slots:
             void onZoomExtents();
     void onLinkCalculation();
     void onBomReport();
-    void onGenerateSystemDiagram(Zhifen::SystemDiagramMode mode);
+    void onGenerateSystemDiagram(Zhifen::SystemLayoutMode mode);
     void onCoverageSimulation();
     void onSmartRoute();
     void onPowerBalance();

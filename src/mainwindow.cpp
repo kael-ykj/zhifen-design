@@ -25,7 +25,7 @@
 #include "entities/textitem.h"
 #include "entities/labelitem.h"
 #include "engine/link_calculator.h"
-#include "engine/system_diagram_generator.h"
+#include "core/system_diagram_generator.h"
 #include "engine/report_engine.h"
 #include "engine/print_engine.h"
 #include "import/dxf_importer.h"
@@ -1493,7 +1493,7 @@ void MainWindow::onBomReport()
     dlg->deleteLater();
 }
 
-void MainWindow::onGenerateSystemDiagram(Zhifen::SystemDiagramMode mode)
+void MainWindow::onGenerateSystemDiagram(Zhifen::SystemLayoutMode mode)
 {
     Zhifen::SystemDiagramGenerator generator;
     Zhifen::SystemDiagramResult result = generator.generate(m_scene, mode);
