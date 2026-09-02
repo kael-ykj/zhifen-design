@@ -47,6 +47,19 @@ jobs:
       run: |
         New-Item -ItemType Directory -Path "installer/Output" -Force
         Copy-Item -Path "build/Release/*" -Destination "installer/Output" -Recurse -Force
+        # 复制VC++运行库
+        $vcRedist = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter "vcredist_x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($vcRedist) {
+          Copy-Item -Path $vcRedist.FullName -Destination "installer/vc_redist.x64.exe" -Force
+          Write-Host "已复制VC++运行库: $($vcRedist.FullName)"
+        } else {
+          Write-Host "警告: 未找到vcredist_x64.exe"
+        }
+        # 列出部署的DLL确认
+        Write-Host "=== 部署的DLL文件 ==="
+        Get-ChildItem -Path "installer/Output" -Filter "*.dll" | Select-Object Name, Length
+        Write-Host "=== 插件目录 ==="
+        Get-ChildItem -Path "installer/Output" -Directory | Select-Object Name
 
     - name: 安装Inno Setup
       run: choco install innosetup -y --no-progress
