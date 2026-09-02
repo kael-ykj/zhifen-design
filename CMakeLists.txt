@@ -53,7 +53,6 @@ set(SOURCES
     src/tools/feedertool.cpp
     src/entities/feederitem.cpp
     src/entities/labelitem.cpp
-    src/engine/system_diagram_generator.cpp
     src/engine/report_engine.cpp
     src/engine/print_engine.cpp
     src/import/dxf_importer.cpp
@@ -146,7 +145,6 @@ set(HEADERS
     src/tools/offsettool.h
     src/tools/querytool.h
     src/tools/feedertool.h
-    src/engine/system_diagram_generator.h
     src/engine/report_engine.h
     src/import/dxf_importer.h
     src/engine/coverage_simulator.h

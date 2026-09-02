@@ -20,7 +20,7 @@ class PropertyPanel;
 class DevicePanel;
 
 #include "engine/report_engine.h"
-#include "engine/system_diagram_generator.h"
+#include "core/system_diagram_generator.h"
 #include "entities/dimension_item.h"
 #include "entities/deviceitem.h"
 #include "ai/ai_tool.h"
