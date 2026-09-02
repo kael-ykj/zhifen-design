@@ -401,6 +401,47 @@ void CadView::drawForeground(QPainter *painter, const QRectF &rect)
     painter->setPen(QColor(50, 200, 50));
     painter->drawText(ucsOrigin + QPointF(-12, -ucsSize - 5), "Y");
 
+    // 左上角：视口控件/视图控件/视觉样式控件（标准CAD）
+    painter->setPen(QColor(150, 150, 150));
+    painter->setFont(QFont("Microsoft YaHei", 9));
+    QPointF vpOrigin = rect.topLeft() + QPointF(10, 20);
+    painter->drawText(vpOrigin, "[-]");
+    painter->drawText(vpOrigin + QPointF(35, 0), "[俯视]");
+    painter->drawText(vpOrigin + QPointF(85, 0), "[二维线框]");
+
+    // 右上角：ViewCube（简化版立方体）
+    qreal cubeSize = 45;
+    QPointF cubeCenter = rect.topRight() + QPointF(-cubeSize - 15, cubeSize + 15);
+    painter->setPen(QPen(QColor(100, 100, 100), 1));
+    painter->setBrush(QColor(60, 60, 60, 180));
+    // 立方体顶面
+    QPolygonF topFace;
+    topFace << cubeCenter + QPointF(-cubeSize/2, -cubeSize/3)
+            << cubeCenter + QPointF(0, -cubeSize/2)
+            << cubeCenter + QPointF(cubeSize/2, -cubeSize/3)
+            << cubeCenter + QPointF(0, -cubeSize/6);
+    painter->drawPolygon(topFace);
+    // 立方体前面
+    QPolygonF frontFace;
+    frontFace << cubeCenter + QPointF(-cubeSize/2, -cubeSize/3)
+              << cubeCenter + QPointF(0, -cubeSize/6)
+              << cubeCenter + QPointF(0, cubeSize/2)
+              << cubeCenter + QPointF(-cubeSize/2, cubeSize/3);
+    painter->setBrush(QColor(50, 50, 50, 180));
+    painter->drawPolygon(frontFace);
+    // 立方体右面
+    QPolygonF rightFace;
+    rightFace << cubeCenter + QPointF(0, -cubeSize/6)
+              << cubeCenter + QPointF(cubeSize/2, -cubeSize/3)
+              << cubeCenter + QPointF(cubeSize/2, cubeSize/3)
+              << cubeCenter + QPointF(0, cubeSize/2);
+    painter->setBrush(QColor(40, 40, 40, 180));
+    painter->drawPolygon(rightFace);
+    // "上"字
+    painter->setPen(QColor(200, 200, 200));
+    painter->setFont(QFont("Microsoft YaHei", 8, QFont::Bold));
+    painter->drawText(cubeCenter + QPointF(-6, -cubeSize/4), "上");
+
     // 绘制捕捉标记
     if (m_snapManager && m_snapManager->hasSnap()) {
         m_snapManager->drawSnapMarker(painter);

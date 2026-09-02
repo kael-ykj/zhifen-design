@@ -9,12 +9,12 @@ CadStatusBar::CadStatusBar(QWidget *parent)
     : QStatusBar(parent)
 {
     setStyleSheet(R"(
-        QStatusBar { background: #007acc; color: #fff; }
+        QStatusBar { background: #3c3f41; color: #ccc; border-top: 1px solid #222; }
         QStatusBar::item { border: none; }
-        QLabel { color: #fff; padding: 0 8px; font-size: 11px; }
-        QPushButton { background: transparent; color: #fff; border: none; padding: 4px 12px; font-size: 11px; }
-        QPushButton:hover { background: #1a8ad9; }
-        QPushButton:checked { background: #fff; color: #007acc; font-weight: bold; }
+        QLabel { color: #ccc; padding: 0 8px; font-size: 11px; }
+        QPushButton { background: transparent; color: #999; border: none; padding: 4px 10px; font-size: 11px; }
+        QPushButton:hover { background: #505355; color: #fff; }
+        QPushButton:checked { background: #0e639c; color: #fff; font-weight: bold; }
     )");
 
     // 左侧：坐标
@@ -33,28 +33,38 @@ CadStatusBar::CadStatusBar(QWidget *parent)
 
     addPermanentWidget(new QLabel(" ", this));
 
-    // 右侧：模式切换按钮
+    // 右侧：标准CAD模式切换按钮（按AutoCAD顺序）
     m_snapBtn = createToggleButton("捕捉");
+    m_gridBtn = createToggleButton("栅格");
     m_orthoBtn = createToggleButton("正交");
     m_polarBtn = createToggleButton("极轴");
-    m_gridBtn = createToggleButton("栅格");
+    m_osnapBtn = createToggleButton("对象捕捉");
+    m_dynBtn = createToggleButton("动态输入");
     m_lwtBtn = createToggleButton("线宽");
-    m_modelBtn = createToggleButton("模型");
+    m_modelBtn = createToggleButton("模型空间");
+    m_workspaceBtn = createToggleButton("室分设计");
 
     m_snapBtn->setChecked(true);
+    m_osnapBtn->setChecked(true);
     m_modelBtn->setChecked(true);
+    m_workspaceBtn->setChecked(true);
 
     addPermanentWidget(m_snapBtn);
+    addPermanentWidget(m_gridBtn);
     addPermanentWidget(m_orthoBtn);
     addPermanentWidget(m_polarBtn);
-    addPermanentWidget(m_gridBtn);
+    addPermanentWidget(m_osnapBtn);
+    addPermanentWidget(m_dynBtn);
     addPermanentWidget(m_lwtBtn);
     addPermanentWidget(m_modelBtn);
+    addPermanentWidget(m_workspaceBtn);
 
     connect(m_snapBtn, &QPushButton::toggled, this, &CadStatusBar::snapToggled);
     connect(m_orthoBtn, &QPushButton::toggled, this, &CadStatusBar::orthoToggled);
     connect(m_gridBtn, &QPushButton::toggled, this, &CadStatusBar::gridToggled);
     connect(m_polarBtn, &QPushButton::toggled, this, &CadStatusBar::polarToggled);
+    connect(m_osnapBtn, &QPushButton::toggled, this, &CadStatusBar::osnapToggled);
+    connect(m_dynBtn, &QPushButton::toggled, this, &CadStatusBar::dynToggled);
 }
 
 QPushButton *CadStatusBar::createToggleButton(const QString &text)

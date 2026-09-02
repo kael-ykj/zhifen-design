@@ -164,6 +164,21 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 隐藏传统菜单栏和工具栏，使用Ribbon界面
     menuBar()->hide();
+
+    // 快速访问工具栏（标准CAD左上角）
+    QToolBar *quickAccess = addToolBar("快速访问");
+    quickAccess->setMovable(false);
+    quickAccess->setIconSize(QSize(16, 16));
+    quickAccess->addAction(m_newAct);
+    quickAccess->addAction(m_openAct);
+    quickAccess->addAction(m_saveAct);
+    quickAccess->addSeparator();
+    quickAccess->addAction(m_printAct);
+    quickAccess->addSeparator();
+    quickAccess->addAction(m_undoAct);
+    quickAccess->addAction(m_redoAct);
+    quickAccess->setStyleSheet("QToolBar { background: #2d2d30; border: none; border-bottom: 1px solid #222; padding: 2px; } QToolButton { color: #ccc; padding: 3px 6px; font-size: 11px; } QToolButton:hover { background: #505355; border-radius: 2px; }");
+
     // 创建Ribbon菜单
     Zhifen::RibbonMenu *ribbon = new Zhifen::RibbonMenu(this);
     ribbon->setupActions(this);
