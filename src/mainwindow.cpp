@@ -109,7 +109,43 @@ MainWindow::MainWindow(QWidget *parent)
 {
     setWindowTitle("智分Design V3.1 - 专业室分设计CAD软件");
     resize(1600, 900);
-    setStyleSheet("QMainWindow { background: #1e1e1e; } QToolBar { background: #333; border: none; spacing: 2px; padding: 2px; } QToolBar QToolButton { color: #ccc; padding: 4px; border-radius: 3px; } QToolBar QToolButton:hover { background: #3c3c3c; } QToolBar QToolButton:checked { background: #0e639c; color: white; } QMenuBar { background: #2d2d30; color: #ccc; } QMenuBar::item:selected { background: #0e639c; } QMenu { background: #252526; color: #ccc; border: 1px solid #3c3c3c; } QMenu::item:selected { background: #0e639c; } QStatusBar { background: #007acc; color: white; }");
+    setStyleSheet(R"(
+        QMainWindow { background: #2b2b2b; }
+        QToolBar { background: #3c3f41; border: none; border-bottom: 1px solid #222; spacing: 1px; padding: 2px; }
+        QToolBar QToolButton { color: #cccccc; padding: 4px 8px; border-radius: 2px; font-size: 11px; }
+        QToolBar QToolButton:hover { background: #505355; }
+        QToolBar QToolButton:checked { background: #0e639c; color: white; }
+        QToolBar QToolButton:pressed { background: #007acc; }
+        QMenuBar { background: #3c3f41; color: #cccccc; border-bottom: 1px solid #222; }
+        QMenuBar::item:selected { background: #505355; }
+        QMenu { background: #2d2d30; color: #cccccc; border: 1px solid #555; }
+        QMenu::item:selected { background: #0e639c; }
+        QMenu::item { padding: 4px 20px; }
+        QStatusBar { background: #3c3f41; color: #cccccc; border-top: 1px solid #222; }
+        QStatusBar QLabel { color: #cccccc; padding: 0 8px; }
+        QDockWidget { background: #3c3f41; color: #cccccc; border: 1px solid #222; titlebar-close-icon: none; }
+        QDockWidget::title { background: #3c3f41; color: #cccccc; padding: 4px; border-bottom: 1px solid #222; }
+        QTabWidget::pane { border: 1px solid #222; background: #2b2b2b; }
+        QTabBar::tab { background: #3c3f41; color: #999; padding: 6px 16px; border: 1px solid #222; border-bottom: none; margin-right: 1px; }
+        QTabBar::tab:selected { background: #2b2b2b; color: #fff; border-bottom: 2px solid #007acc; }
+        QTabBar::tab:hover { background: #505355; color: #fff; }
+        QListWidget, QTreeWidget, QTableWidget { background: #2b2b2b; color: #ccc; border: 1px solid #555; }
+        QListWidget::item:selected, QTreeWidget::item:selected, QTableWidget::item:selected { background: #0e639c; color: white; }
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { background: #1e1e1e; color: #ccc; border: 1px solid #555; padding: 3px; }
+        QLineEdit:focus, QComboBox:focus { border: 1px solid #007acc; }
+        QPushButton { background: #3c3f41; color: #ccc; border: 1px solid #555; padding: 5px 15px; border-radius: 2px; }
+        QPushButton:hover { background: #505355; }
+        QPushButton:pressed { background: #0e639c; color: white; }
+        QGroupBox { color: #999; border: 1px solid #555; margin-top: 8px; padding-top: 8px; }
+        QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; }
+        QScrollBar:vertical { background: #2b2b2b; width: 12px; }
+        QScrollBar::handle:vertical { background: #555; border-radius: 2px; min-height: 30px; }
+        QScrollBar::handle:vertical:hover { background: #777; }
+        QScrollBar:horizontal { background: #2b2b2b; height: 12px; }
+        QScrollBar::handle:horizontal { background: #555; border-radius: 2px; min-width: 30px; }
+        QGraphicsView { background: #1e1e1e; border: none; }
+        QTextEdit, QPlainTextEdit { background: #1e1e1e; color: #ccc; border: 1px solid #555; }
+    )");
 
     // 创建场景和视图
     m_scene = new CadScene(this);
@@ -138,14 +174,11 @@ MainWindow::MainWindow(QWidget *parent)
     addDockWidget(Qt::LeftDockWidgetArea, toolBox);
 
     // 创建专业状态栏
-    Zhifen::CadStatusBar *statusBar = new Zhifen::CadStatusBar(this);
-    setStatusBar(statusBar);
-    statusBar->showMessage("就绪");
-
-    // 连接坐标更新
-    connect(m_view, &CadView::coordinateChanged, statusBar, &Zhifen::CadStatusBar::setCoordinate);
+    Zhifen::CadStatusBar *cadStatusBar = new Zhifen::CadStatusBar(this);
+    setStatusBar(cadStatusBar);
+    cadStatusBar->showMessage("就绪");
+    connect(m_view, &CadView::coordinateChanged, cadStatusBar, &Zhifen::CadStatusBar::setCoordinate);
     createDockWidgets();
-    createStatusBar();
 
     // 撤销/重做栈
     m_undoStack = new QUndoStack(this);

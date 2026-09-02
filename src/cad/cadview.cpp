@@ -24,7 +24,7 @@ CadView::CadView(QWidget *parent)
     setResizeAnchor(QGraphicsView::AnchorViewCenter);
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
-    setBackgroundBrush(QColor(30, 30, 30));
+    setBackgroundBrush(QColor(0, 0, 0));
 }
 
 void CadView::setCadScene(CadScene *scene)
@@ -367,6 +367,40 @@ void CadView::contextMenuEvent(QContextMenuEvent *event)
 void CadView::drawForeground(QPainter *painter, const QRectF &rect)
 {
     Q_UNUSED(rect);
+    // 绘制大十字光标（标准CAD风格）
+    if (m_lastWorldPos.x() >= 0 && m_lastWorldPos.y() >= 0) {
+        QPen crossPen(QColor(150, 150, 150), 1, Qt::DashLine);
+        painter->setPen(crossPen);
+        // 水平线
+        painter->drawLine(QPointF(rect.left(), m_lastWorldPos.y()), QPointF(rect.right(), m_lastWorldPos.y()));
+        // 垂直线
+        painter->drawLine(QPointF(m_lastWorldPos.x(), rect.top()), QPointF(m_lastWorldPos.x(), rect.bottom()));
+        // 中心点小方块
+        painter->setPen(QPen(QColor(200, 200, 200), 1));
+        painter->drawRect(QRectF(m_lastWorldPos.x() - 4, m_lastWorldPos.y() - 4, 8, 8));
+    }
+
+    // 绘制UCS图标（左下角）
+    qreal ucsSize = 50;
+    QPointF ucsOrigin = rect.bottomLeft() + QPointF(ucsSize + 10, -ucsSize - 10);
+    painter->setPen(QPen(QColor(200, 50, 50), 2));  // X轴红色
+    painter->drawLine(ucsOrigin, ucsOrigin + QPointF(ucsSize, 0));
+    painter->setPen(QPen(QColor(50, 200, 50), 2));  // Y轴绿色
+    painter->drawLine(ucsOrigin, ucsOrigin + QPointF(0, -ucsSize));
+    // 箭头
+    painter->setPen(QPen(QColor(200, 50, 50), 2));
+    painter->drawLine(ucsOrigin + QPointF(ucsSize, 0), ucsOrigin + QPointF(ucsSize - 8, -4));
+    painter->drawLine(ucsOrigin + QPointF(ucsSize, 0), ucsOrigin + QPointF(ucsSize - 8, 4));
+    painter->setPen(QPen(QColor(50, 200, 50), 2));
+    painter->drawLine(ucsOrigin + QPointF(0, -ucsSize), ucsOrigin + QPointF(-4, -ucsSize + 8));
+    painter->drawLine(ucsOrigin + QPointF(0, -ucsSize), ucsOrigin + QPointF(4, -ucsSize + 8));
+    // 标签
+    painter->setPen(QColor(200, 50, 50));
+    painter->setFont(QFont("Arial", 10, QFont::Bold));
+    painter->drawText(ucsOrigin + QPointF(ucsSize + 5, 5), "X");
+    painter->setPen(QColor(50, 200, 50));
+    painter->drawText(ucsOrigin + QPointF(-12, -ucsSize - 5), "Y");
+
     // 绘制捕捉标记
     if (m_snapManager && m_snapManager->hasSnap()) {
         m_snapManager->drawSnapMarker(painter);
