@@ -78,6 +78,7 @@ set(SOURCES
     src/core/performance_manager.cpp
     src/tools/zoomtool.cpp
     src/core/format_converter.cpp
+    src/utils/iconfactory.cpp
     src/snap/snapmanager.cpp
     src/core/professional_symbols.cpp
     src/io/dxfreader.cpp

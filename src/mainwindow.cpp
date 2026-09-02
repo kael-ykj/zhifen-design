@@ -49,6 +49,7 @@
 #include "widgets/blockmanagerpanel.h"
 #include "widgets/blockeditor.h"
 #include "widgets/ribbonmenu.h"
+#include "utils/iconfactory.h"
 #include "widgets/cadstatusbar.h"
 #include "widgets/toolbox.h"
 #include "core/layout_manager.h"
@@ -236,9 +237,18 @@ MainWindow::~MainWindow()
 
 void MainWindow::createActions()
 {
-    m_newAct = new QAction("新建", this); m_newAct->setShortcut(QKeySequence::New); connect(m_newAct, &QAction::triggered, this, &MainWindow::onNew);
-    m_openAct = new QAction("打开", this); m_openAct->setShortcut(QKeySequence::Open); connect(m_openAct, &QAction::triggered, this, &MainWindow::onOpen);
-    m_saveAct = new QAction("保存", this); m_saveAct->setShortcut(QKeySequence::Save); connect(m_saveAct, &QAction::triggered, this, &MainWindow::onSave);
+    m_newAct = new QAction(icons.icon("new"), "新建", this);
+    m_newAct->setShortcut(QKeySequence::New);
+    m_newAct->setStatusTip("创建新工程");
+    m_newAct->setToolTip("新建工程 (Ctrl+N)"); m_newAct->setShortcut(QKeySequence::New); connect(m_newAct, &QAction::triggered, this, &MainWindow::onNew);
+    m_openAct = new QAction(icons.icon("open"), "打开", this);
+    m_openAct->setShortcut(QKeySequence::Open);
+    m_openAct->setStatusTip("打开已有工程");
+    m_openAct->setToolTip("打开工程 (Ctrl+O)"); m_openAct->setShortcut(QKeySequence::Open); connect(m_openAct, &QAction::triggered, this, &MainWindow::onOpen);
+    m_saveAct = new QAction(icons.icon("save"), "保存", this);
+    m_saveAct->setShortcut(QKeySequence::Save);
+    m_saveAct->setStatusTip("保存当前工程");
+    m_saveAct->setToolTip("保存工程 (Ctrl+S)"); m_saveAct->setShortcut(QKeySequence::Save); connect(m_saveAct, &QAction::triggered, this, &MainWindow::onSave);
     m_saveAsAct = new QAction("另存为", this); m_saveAsAct->setShortcut(QKeySequence::SaveAs); connect(m_saveAsAct, &QAction::triggered, this, &MainWindow::onSaveAs);
     m_importDxfAct = new QAction("导入DXF", this); connect(m_importDxfAct, &QAction::triggered, this, &MainWindow::onImportDxf);
     m_importBottomMapAct = new QAction("导入建筑底图(AI精简)", this); connect(m_importBottomMapAct, &QAction::triggered, this, &MainWindow::onImportBottomMap);
@@ -248,13 +258,22 @@ void MainWindow::createActions()
     m_exportDxfAct = new QAction("导出DXF", this); connect(m_exportDxfAct, &QAction::triggered, this, &MainWindow::onExportDxf);
     m_exportDwgSketchAct = new QAction("草图导出DWG", this); connect(m_exportDwgSketchAct, &QAction::triggered, this, &MainWindow::onExportDwgSketch);
     m_exportDwgFinalAct = new QAction("正式归档导出DWG", this); connect(m_exportDwgFinalAct, &QAction::triggered, this, &MainWindow::onExportDwgFinal);
-    m_printAct = new QAction("打印", this); m_printAct->setShortcut(QKeySequence::Print); connect(m_printAct, &QAction::triggered, this, &MainWindow::onPrint);
+    m_printAct = new QAction(icons.icon("print"), "打印", this);
+    m_printAct->setShortcut(QKeySequence::Print);
+    m_printAct->setStatusTip("打印当前图纸");
+    m_printAct->setToolTip("打印 (Ctrl+P)"); m_printAct->setShortcut(QKeySequence::Print); connect(m_printAct, &QAction::triggered, this, &MainWindow::onPrint);
     m_exportPdfSketchAct = new QAction("导出PDF(草图)", this); connect(m_exportPdfSketchAct, &QAction::triggered, this, [this](){ onExportPdf(Zhifen::Paper_A4, false); });
     m_exportPdfFormalAct = new QAction("导出PDF(正式归档)", this); connect(m_exportPdfFormalAct, &QAction::triggered, this, [this](){ onExportPdf(Zhifen::Paper_A4, true); });
     m_exitAct = new QAction("退出", this); connect(m_exitAct, &QAction::triggered, this, &QWidget::close);
 
-    m_undoAct = new QAction("撤销", this); m_undoAct->setShortcut(QKeySequence::Undo); connect(m_undoAct, &QAction::triggered, this, &MainWindow::onUndo);
-    m_redoAct = new QAction("重做", this); m_redoAct->setShortcut(QKeySequence::Redo); connect(m_redoAct, &QAction::triggered, this, &MainWindow::onRedo);
+    m_undoAct = new QAction(icons.icon("undo"), "撤销", this);
+    m_undoAct->setShortcut(QKeySequence::Undo);
+    m_undoAct->setStatusTip("撤销上一步操作");
+    m_undoAct->setToolTip("撤销 (Ctrl+Z)"); m_undoAct->setShortcut(QKeySequence::Undo); connect(m_undoAct, &QAction::triggered, this, &MainWindow::onUndo);
+    m_redoAct = new QAction(icons.icon("redo"), "重做", this);
+    m_redoAct->setShortcut(QKeySequence::Redo);
+    m_redoAct->setStatusTip("重做已撤销的操作");
+    m_redoAct->setToolTip("重做 (Ctrl+Y)"); m_redoAct->setShortcut(QKeySequence::Redo); connect(m_redoAct, &QAction::triggered, this, &MainWindow::onRedo);
 
     m_toolGroup = new QActionGroup(this);
     m_toolGroup->setExclusive(true);
