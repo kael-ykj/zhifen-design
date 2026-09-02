@@ -1,5 +1,8 @@
 #include "ribbonmenu.h"
 #include "mainwindow.h"
+#include "utils/iconfactory.h"
+#include <QComboBox>
+#include <QColorDialog>
 #include "mainwindow.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -37,6 +40,33 @@ RibbonMenu::RibbonMenu(QWidget *parent)
     addTab(createToolsTab(), "工具");
     addTab(createViewTab(), "视图");
     addTab(createOutputTab(), "输出");
+    
+    // 为所有按钮设置图标
+    Zhifen::IconFactory &icons = Zhifen::IconFactory::instance();
+    if (m_actionLine) m_actionLine->setIcon(icons.icon("line"));
+    if (m_actionCircle) m_actionCircle->setIcon(icons.icon("circle"));
+    if (m_actionRect) m_actionRect->setIcon(icons.icon("rectangle"));
+    if (m_actionArc) m_actionArc->setIcon(icons.icon("arc"));
+    if (m_actionText) m_actionText->setIcon(icons.icon("text"));
+    if (m_actionMove) m_actionMove->setIcon(icons.icon("move"));
+    if (m_actionCopy) m_actionCopy->setIcon(icons.icon("copy"));
+    if (m_actionRotate) m_actionRotate->setIcon(icons.icon("rotate"));
+    if (m_actionScale) m_actionScale->setIcon(icons.icon("scale"));
+    if (m_actionMirror) m_actionMirror->setIcon(icons.icon("mirror"));
+    if (m_actionDelete) m_actionDelete->setIcon(icons.icon("delete"));
+    if (m_actionUndo) m_actionUndo->setIcon(icons.icon("undo"));
+    if (m_actionRedo) m_actionRedo->setIcon(icons.icon("redo"));
+    if (m_actionAntenna) m_actionAntenna->setIcon(icons.icon("antenna"));
+    if (m_actionCoupler) m_actionCoupler->setIcon(icons.icon("coupler"));
+    if (m_actionSplitter) m_actionSplitter->setIcon(icons.icon("splitter"));
+    if (m_actionSource) m_actionSource->setIcon(icons.icon("source"));
+    if (m_actionDimLinear) m_actionDimLinear->setIcon(icons.icon("dim_linear"));
+    if (m_actionDimAligned) m_actionDimAligned->setIcon(icons.icon("dim_aligned"));
+    if (m_actionDimRadius) m_actionDimRadius->setIcon(icons.icon("dim_radius"));
+    if (m_actionLayer) m_actionLayer->setIcon(icons.icon("layer"));
+    if (m_actionBlock) m_actionBlock->setIcon(icons.icon("block"));
+    if (m_actionPrint) m_actionPrint->setIcon(icons.icon("print"));
+    if (m_actionExport) m_actionExport->setIcon(icons.icon("export"));
 }
 
 QWidget *RibbonMenu::createGroup(const QString &title, QWidget *parent)
@@ -52,7 +82,7 @@ QWidget *RibbonMenu::createGroup(const QString &title, QWidget *parent)
 QToolBar *RibbonMenu::createToolBar(QWidget *parent)
 {
     QToolBar *bar = new QToolBar(parent);
-    bar->setIconSize(QSize(24, 24));
+    bar->setIconSize(QSize(32, 32));
     bar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     bar->setMovable(false);
     bar->setFloatable(false);
