@@ -1,4 +1,5 @@
 #include "device_symbols.h"
+#include "core/device_color_config.h"
 #include <QPen>
 #include <QBrush>
 #include <QFont>
@@ -27,26 +28,18 @@ void DeviceSymbols::drawConnectionDot(QPainter *painter, const QPointF &pt)
 
 void DeviceSymbols::drawOmniAntenna(QPainter *painter, qreal scale)
 {
-    // 全向天线：圆 + 内部辐射箭头（行业标准画法）
+    // 全向吸顶天线：迪弗风格（圆形+X交叉线）
     painter->save();
     painter->scale(scale, scale);
-    setupStandardPen(painter, 0.35, QColor(255, 50, 50));
+    QColor color = DeviceColorConfig::instance().antennaColor();
+    setupStandardPen(painter, 0.4, color);
 
     // 外圆
     painter->drawEllipse(QPointF(0, 0), 2.5, 2.5);
 
-    // 内部辐射图案：从中心向外的箭头
-    painter->drawLine(QPointF(0, 0), QPointF(0, -1.8));
-    painter->drawLine(QPointF(0, 0), QPointF(1.27, -1.27));
-    painter->drawLine(QPointF(0, 0), QPointF(1.8, 0));
-    painter->drawLine(QPointF(0, 0), QPointF(1.27, 1.27));
-    painter->drawLine(QPointF(0, 0), QPointF(0, 1.8));
-    painter->drawLine(QPointF(0, 0), QPointF(-1.27, 1.27));
-    painter->drawLine(QPointF(0, 0), QPointF(-1.8, 0));
-    painter->drawLine(QPointF(0, 0), QPointF(-1.27, -1.27));
-
-    // 中心点
-    drawConnectionDot(painter, QPointF(0, 0));
+    // 内部X交叉线（迪弗标准画法）
+    painter->drawLine(QPointF(-1.5, -1.5), QPointF(1.5, 1.5));
+    painter->drawLine(QPointF(1.5, -1.5), QPointF(-1.5, 1.5));
 
     painter->restore();
 }
@@ -147,10 +140,11 @@ void DeviceSymbols::drawWallMountAntenna(QPainter *painter, qreal scale)
 
 void DeviceSymbols::drawCoupler(QPainter *painter, qreal scale, int db)
 {
-    // 耦合器：矩形 + 直通端 + 耦合端（行业标准画法）
+    // 耦合器：迪弗风格（红色矩形框+内部直通线+耦合端箭头）
     painter->save();
     painter->scale(scale, scale);
-    setupStandardPen(painter, 0.35, QColor(255, 255, 0));
+    QColor color = DeviceColorConfig::instance().deviceColor();
+    setupStandardPen(painter, 0.4, color);
 
     // 主体矩形
     painter->drawRect(QRectF(-4, -1.5, 8, 3));
@@ -178,10 +172,11 @@ void DeviceSymbols::drawCoupler(QPainter *painter, qreal scale, int db)
 
 void DeviceSymbols::drawSplitter(QPainter *painter, qreal scale, int ways)
 {
-    // 功分器：Y形 / 树形（行业标准画法）
+    // 功分器：迪弗风格（红色一分二/三/四，左进右出）
     painter->save();
     painter->scale(scale, scale);
-    setupStandardPen(painter, 0.35, QColor(0, 255, 255));
+    QColor color = DeviceColorConfig::instance().deviceColor();
+    setupStandardPen(painter, 0.4, color);
 
     if (ways == 2) {
         // 二功分：Y形
