@@ -343,8 +343,8 @@ void MainWindow::createActions()
     // === 计算与仿真 ===
     m_linkCalcAct = new QAction("链路预算", this); connect(m_linkCalcAct, &QAction::triggered, this, &MainWindow::onLinkCalculation);
     m_bomAct = new QAction("材料统计", this); connect(m_bomAct, &QAction::triggered, this, &MainWindow::onBomReport);
-    m_sysDiagramSketchAct = new QAction("系统图(草图)", this); connect(m_sysDiagramSketchAct, &QAction::triggered, this, [this](){ onGenerateSystemDiagram(Zhifen::SDM_Sketch); });
-    m_sysDiagramFormalAct = new QAction("系统图(正式)", this); connect(m_sysDiagramFormalAct, &QAction::triggered, this, [this](){ onGenerateSystemDiagram(Zhifen::SDM_Formal); });
+    m_sysDiagramSketchAct = new QAction("系统图(草图)", this); connect(m_sysDiagramSketchAct, &QAction::triggered, this, [this](){ onGenerateSystemDiagram(Zhifen::SystemLayoutMode::ModeA); });
+    m_sysDiagramFormalAct = new QAction("系统图(正式)", this); connect(m_sysDiagramFormalAct, &QAction::triggered, this, [this](){ onGenerateSystemDiagram(Zhifen::SystemLayoutMode::ModeA); });
     m_coverageSimAct = new QAction("覆盖仿真", this); connect(m_coverageSimAct, &QAction::triggered, this, &MainWindow::onCoverageSimulation);
     m_smartRouteAct = new QAction("智能路由", this); connect(m_smartRouteAct, &QAction::triggered, this, &MainWindow::onSmartRoute);
     m_powerBalanceAct = new QAction("功率平衡", this); connect(m_powerBalanceAct, &QAction::triggered, this, &MainWindow::onPowerBalance);
@@ -1495,17 +1495,61 @@ void MainWindow::onBomReport()
 
 void MainWindow::onGenerateSystemDiagram(Zhifen::SystemLayoutMode mode)
 {
-    Zhifen::SystemDiagramGenerator generator;
-    Zhifen::SystemDiagramResult result = generator.generate(m_scene, mode);
+    // 使用新的拓扑模型生成系统图
+    Zhifen::DistributionNetwork network;
 
-    if (!result.success) {
-        QString err = result.errors.isEmpty() ? "生成失败" : result.errors.join("\n");
-        QMessageBox::warning(this, "系统图生成失败", err);
+    // 构建示例拓扑（后续从场景自动提取）
+    auto source = std::make_shared<Zhifen::DeviceNode>();
+    source->id = "SOURCE";
+    source->type = Zhifen::DeviceType::Source;
+    source->outputPower = 43.0;
+    network.addDevice(source);
+    network.sourceDeviceId = "SOURCE";
+
+    auto cpl1 = std::make_shared<Zhifen::DeviceNode>();
+    cpl1->id = "T1";
+    cpl1->type = Zhifen::DeviceType::Coupler;
+    cpl1->couplerDb = 10;
+    cpl1->insertionLoss = 0.5;
+    network.addDevice(cpl1);
+
+    auto ant1 = std::make_shared<Zhifen::DeviceNode>();
+    ant1->id = "ANT1";
+    ant1->type = Zhifen::DeviceType::Antenna;
+    network.addDevice(ant1);
+
+    // 连接
+    Zhifen::CableLink cable1;
+    cable1.id = "C1";
+    cable1.fromDeviceId = "SOURCE";
+    cable1.toDeviceId = "T1";
+    cable1.length = 10;
+    cable1.type = "1/2";
+    cable1.calculateLoss();
+    network.addCable(cable1);
+
+    Zhifen::CableLink cable2;
+    cable2.id = "C2";
+    cable2.fromDeviceId = "T1";
+    cable2.toDeviceId = "ANT1";
+    cable2.length = 5;
+    cable2.type = "1/2";
+    cable2.calculateLoss();
+    network.addCable(cable2);
+
+    // 生成系统图
+    Zhifen::SystemDiagramGenerator generator;
+    generator.setNetwork(network);
+    generator.setLayoutMode(mode);
+    bool ok = generator.generate();
+
+    if (!ok) {
+        QMessageBox::warning(this, "系统图生成失败", "生成失败");
         return;
     }
 
     QDialog *dlg = new QDialog(this);
-    dlg->setWindowTitle(mode == Zhifen::SDM_Formal ? "系统图（正式模式）" : "系统图（草图模式）");
+    dlg->setWindowTitle("系统图");
     dlg->resize(900, 600);
     QVBoxLayout *layout = new QVBoxLayout(dlg);
 
@@ -1513,25 +1557,38 @@ void MainWindow::onGenerateSystemDiagram(Zhifen::SystemLayoutMode mode)
     QGraphicsScene *scene = new QGraphicsScene(dlg);
     view->setScene(scene);
     view->setRenderHint(QPainter::Antialiasing);
+    view->setBackgroundBrush(QColor(43, 43, 43));
     view->setDragMode(QGraphicsView::ScrollHandDrag);
-    view->setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
 
-    generator.renderToScene(result, scene, mode);
+    // 绘制器件
+    for (auto &node : generator.nodes()) {
+        QGraphicsRectItem *item = new QGraphicsRectItem(node.position.x() - 25, node.position.y() - 10, 50, 20);
+        item->setPen(QPen(Qt::red, 2));
+        item->setBrush(QBrush(QColor(43, 43, 43)));
+        scene->addItem(item);
+        QGraphicsTextItem *text = scene->addText(node.label, QFont("Microsoft YaHei", 9));
+        text->setDefaultTextColor(Qt::white);
+        text->setPos(node.position.x() - 20, node.position.y() - 8);
+    }
+
+    // 绘制馈线
+    for (auto &cable : generator.cables()) {
+        if (cable.points.size() >= 2) {
+            for (int i = 0; i < cable.points.size() - 1; i++) {
+                scene->addLine(QLineF(cable.points[i], cable.points[i+1]), QPen(Qt::blue, 2));
+            }
+        }
+    }
+
     view->fitInView(scene->itemsBoundingRect(), Qt::KeepAspectRatio);
-
     layout->addWidget(view);
 
-    QLabel *info = new QLabel(QString("器件数: %1  连接数: %2").arg(result.nodes.size()).arg(result.connections.size()), dlg);
+    QLabel *info = new QLabel(QString("器件数: %1  馈线数: %2").arg(generator.nodes().size()).arg(generator.cables().size()), dlg);
     layout->addWidget(info);
 
     dlg->setLayout(layout);
     dlg->exec();
     dlg->deleteLater();
-
-    Zhifen::AuditLogger::instance().log(Zhifen::Audit_Other,
-        QString("生成系统图(%1): 器件%2个, 连接%3条")
-        .arg(mode == Zhifen::SDM_Formal ? "正式" : "草图")
-        .arg(result.nodes.size()).arg(result.connections.size()));
 }
 
 void MainWindow::onCoverageSimulation()
@@ -5171,7 +5228,7 @@ void MainWindow::onDualLink()
 
     // 打开系统图
     connect(openSysBtn, &QPushButton::clicked, this, [&]() {
-        onGenerateSystemDiagram(Zhifen::SDM_Formal);
+        onGenerateSystemDiagram(Zhifen::SystemLayoutMode::ModeA);
         dlg->accept();
     });
 
