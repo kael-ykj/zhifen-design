@@ -107,6 +107,7 @@ set(SOURCES
     src/widgets/propertypanel.cpp
     src/entities/device_symbols.cpp
     src/core/device_color_config.cpp
+    src/core/system_diagram_generator.cpp
     src/entities/deviceitem.cpp
     src/widgets/layerdialog.cpp
     src/widgets/devicepanel.cpp
@@ -192,6 +193,8 @@ set(HEADERS
     src/snap/gripmanager.h
     src/core/command_parser.h
     src/core/device_color_config.h
+    src/core/system_diagram_generator.h
+    src/core/device_topology.h
     src/tools/zoomtool.h
     src/snap/snapmanager.h
     src/io/dxfreader.h
