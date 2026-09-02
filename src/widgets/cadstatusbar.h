@@ -28,17 +28,22 @@ signals:
     void orthoToggled(bool enabled);
     void gridToggled(bool enabled);
     void polarToggled(bool enabled);
+    void osnapToggled(bool enabled);
+    void dynToggled(bool enabled);
 
 private:
     QLabel *m_coordLabel;
     QLabel *m_commandLabel;
     QLabel *m_selectionLabel;
     QPushButton *m_snapBtn;
-    QPushButton *m_orthoBtn;
     QPushButton *m_gridBtn;
+    QPushButton *m_orthoBtn;
     QPushButton *m_polarBtn;
+    QPushButton *m_osnapBtn;
+    QPushButton *m_dynBtn;
     QPushButton *m_lwtBtn;
     QPushButton *m_modelBtn;
+    QPushButton *m_workspaceBtn;
 
     QPushButton *createToggleButton(const QString &text);
 };
