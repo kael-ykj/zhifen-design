@@ -10,6 +10,7 @@
 #include <QPixmap>
 #include <QPainter>
 #include <QTimer>
+#include <QThread>
 #include <QDir>
 
 // 全局日志文件
@@ -102,10 +103,10 @@ int main(int argc, char *argv[])
         qInfo() << "主窗口创建成功";
         
         // 模拟加载进度
-        for (int i = 0; i <= 100; i += 20) {
+        for (int i = 0; i <= 100; i += 25) {
             splash.showMessage(QString("正在加载... %1%").arg(i), Qt::AlignBottom | Qt::AlignHCenter, QColor(200, 200, 200));
             app.processEvents();
-            QTimer::singleShot(50, &app, &QApplication::processEvents);
+            QThread::msleep(50);
         }
         
         w.show();

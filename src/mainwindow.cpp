@@ -5747,7 +5747,15 @@ void MainWindow::onErase()
         return;
     }
     for (QGraphicsItem *item : selected) {
-         m_commandLine->appendMessage("智分Design V3.1 - 专业室分设计CAD软件", "info");
+        m_scene->removeItem(item);
+        delete item;
+    }
+    statusBar()->showMessage(QString("已删除 %1 个对象").arg(selected.size()), 3000);
+}
+
+void MainWindow::showWelcomeMessage()
+{
+    m_commandLine->appendMessage("智分Design V3.1 - 专业室分设计CAD软件", "info");
     m_commandLine->appendMessage("输入 HELP 查看可用命令，或使用上方工具栏开始设计", "info");
 }
 
