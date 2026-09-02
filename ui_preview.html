@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>智分Design V3.1 - 界面预览</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background: #1e1e1e; color: #ccc; overflow: hidden; height: 100vh; }
+
+/* 标题栏 */
+.titlebar { height: 32px; background: #2d2d30; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid #1a1a1a; }
+.titlebar .app-icon { width: 20px; height: 20px; background: linear-gradient(135deg, #0078d4, #00bcf2); border-radius: 3px; margin-right: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white; }
+.titlebar .title { font-size: 13px; color: #ccc; flex: 1; }
+.titlebar .window-controls { display: flex; gap: 0; }
+.titlebar .win-btn { width: 46px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
+.titlebar .win-btn:hover { background: #3c3c3c; }
+.titlebar .win-btn.close:hover { background: #e81123; color: white; }
+
+/* 快速访问工具栏 */
+.quick-access { height: 30px; background: #2d2d30; display: flex; align-items: center; padding: 0 8px; gap: 2px; border-bottom: 1px solid #222; }
+.quick-access .qa-btn { padding: 3px 8px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ccc; }
+.quick-access .qa-btn:hover { background: #505355; }
+.quick-access .qa-sep { width: 1px; height: 16px; background: #555; margin: 0 4px; }
+.quick-access .qa-icon { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Ribbon标签页 */
+.ribbon-tabs { background: #3c3f41; display: flex; border-bottom: 1px solid #222; height: 30px; align-items: flex-end; }
+.ribbon-tab { padding: 6px 18px; font-size: 12px; color: #999; cursor: pointer; border: 1px solid transparent; border-bottom: none; }
+.ribbon-tab:hover { background: #505355; color: #fff; }
+.ribbon-tab.active { background: #2b2b2b; color: #fff; border-color: #222; border-bottom: 2px solid #0078d4; margin-bottom: -1px; }
+
+/* Ribbon内容区 */
+.ribbon-content { background: #2b2b2b; height: 100px; display: flex; align-items: stretch; padding: 4px 8px; gap: 0; border-bottom: 1px solid #222; overflow-x: auto; }
+.ribbon-panel { display: flex; flex-direction: column; border-right: 1px solid #3c3c3c; padding: 2px 8px; min-width: fit-content; }
+.ribbon-panel .panel-buttons { display: flex; gap: 2px; flex: 1; align-items: center; }
+.ribbon-panel .panel-title { font-size: 10px; color: #888; text-align: center; padding-top: 2px; border-top: 1px solid #3c3c3c; margin-top: 2px; }
+.ribbon-btn { display: flex; flex-direction: column; align-items: center; padding: 4px 6px; border-radius: 3px; cursor: pointer; min-width: 48px; }
+.ribbon-btn:hover { background: #505355; }
+.ribbon-btn:active { background: #0e639c; }
+.ribbon-btn .icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; }
+.ribbon-btn .label { font-size: 10px; color: #ccc; white-space: nowrap; }
+.ribbon-btn.small { flex-direction: row; min-width: auto; padding: 2px 6px; }
+.ribbon-btn.small .icon { width: 16px; height: 16px; margin-bottom: 0; margin-right: 4px; }
+.ribbon-btn.small .label { font-size: 10px; }
+
+/* 图层控件 */
+.layer-controls { display: flex; flex-direction: column; gap: 3px; padding: 4px; }
+.layer-controls .layer-row { display: flex; align-items: center; gap: 4px; }
+.layer-controls select { background: #1e1e1e; color: #ccc; border: 1px solid #555; padding: 2px 4px; font-size: 10px; border-radius: 2px; }
+.layer-controls .layer-combo { min-width: 120px; }
+.layer-controls .prop-combo { min-width: 55px; }
+
+/* 文件标签栏 */
+.file-tabs { background: #252526; display: flex; height: 28px; align-items: flex-end; border-bottom: 1px solid #222; padding: 0 4px; }
+.file-tab { padding: 5px 16px; font-size: 11px; color: #999; cursor: pointer; border: 1px solid transparent; border-bottom: none; display: flex; align-items: center; gap: 6px; }
+.file-tab.active { background: #1e1e1e; color: #fff; border-color: #3c3c3c; }
+.file-tab .close { font-size: 14px; opacity: 0.6; }
+.file-tab .close:hover { opacity: 1; }
+
+/* 视图控制栏 */
+.view-controls { background: #1e1e1e; height: 24px; display: flex; align-items: center; padding: 0 8px; gap: 8px; font-size: 11px; color: #888; border-bottom: 1px solid #222; }
+.view-controls .vc-item { cursor: pointer; padding: 2px 6px; border-radius: 2px; }
+.view-controls .vc-item:hover { background: #3c3c3c; color: #ccc; }
+
+/* 主内容区 */
+.main-area { display: flex; height: calc(100vh - 32px - 30px - 30px - 100px - 28px - 24px - 28px - 24px); }
+
+/* 左侧工具箱 */
+.toolbox { width: 60px; background: #2d2d30; border-right: 1px solid #222; display: flex; flex-direction: column; padding: 4px 0; gap: 2px; }
+.toolbox .tool-btn { width: 52px; height: 52px; margin: 0 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 3px; cursor: pointer; }
+.toolbox .tool-btn:hover { background: #505355; }
+.toolbox .tool-btn.active { background: #0e639c; }
+.toolbox .tool-btn .icon { width: 24px; height: 24px; margin-bottom: 2px; }
+.toolbox .tool-btn .label { font-size: 9px; color: #ccc; }
+
+/* 画布区域 */
+.canvas-area { flex: 1; background: #000; position: relative; overflow: hidden; }
+.canvas-area .viewport-controls { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; font-size: 11px; color: #888; z-index: 10; }
+.canvas-area .viewport-controls span { cursor: pointer; padding: 2px 4px; }
+.canvas-area .viewport-controls span:hover { color: #ccc; }
+.canvas-area .viewcube { position: absolute; top: 8px; right: 8px; width: 50px; height: 50px; z-index: 10; }
+.canvas-area .ucs-icon { position: absolute; bottom: 20px; left: 20px; z-index: 10; }
+.canvas-area .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 5; }
+.canvas-area .crosshair .h-line { position: absolute; width: 100vw; height: 1px; background: rgba(150,150,150,0.5); top: 50%; left: -50vw; }
+.canvas-area .crosshair .v-line { position: absolute; height: 100vh; width: 1px; background: rgba(150,150,150,0.5); left: 50%; top: -50vh; }
+.canvas-area .crosshair .center-box { position: absolute; width: 8px; height: 8px; border: 1px solid #ccc; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+/* 示例图纸内容 */
+.drawing-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.drawing-content .wall { stroke: #fff; stroke-width: 2; fill: none; }
+.drawing-content .door { stroke: #0ff; stroke-width: 1; fill: none; }
+.drawing-content .antenna { fill: #f00; }
+.drawing-content .feeder { stroke: #0f0; stroke-width: 1.5; fill: none; }
+.drawing-content .coupler { fill: #ff0; }
+.drawing-content .text-label { fill: #fff; font-size: 12px; }
+
+/* 右侧面板 */
+.right-panel { width: 220px; background: #2d2d30; border-left: 1px solid #222; display: flex; flex-direction: column; }
+.right-panel .panel-header { padding: 6px 10px; font-size: 12px; color: #ccc; background: #3c3f41; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+.right-panel .panel-content { flex: 1; overflow-y: auto; padding: 4px; }
+.device-category { margin-bottom: 6px; }
+.device-category .cat-title { font-size: 11px; color: #0078d4; padding: 4px 6px; cursor: pointer; background: #252526; border-radius: 2px; margin-bottom: 2px; }
+.device-category .cat-items { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; }
+.device-item { padding: 4px; font-size: 10px; color: #ccc; border-radius: 2px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.device-item:hover { background: #505355; }
+.device-item .dev-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* 命令行 */
+.command-line { height: 80px; background: #1e1e1e; border-top: 1px solid #3c3c3c; display: flex; flex-direction: column; }
+.command-line .cmd-history { flex: 1; padding: 4px 8px; font-family: Consolas, monospace; font-size: 11px; color: #ccc; overflow-y: auto; }
+.command-line .cmd-history .cmd-prompt { color: #0f0; }
+.command-line .cmd-history .cmd-input { color: #fff; }
+.command-line .cmd-input-line { display: flex; align-items: center; padding: 2px 8px; border-top: 1px solid #3c3c3c; }
+.command-line .cmd-input-line .prompt { color: #0f0; font-family: Consolas, monospace; font-size: 11px; margin-right: 6px; }
+.command-line .cmd-input-line input { flex: 1; background: transparent; border: none; color: #fff; font-family: Consolas, monospace; font-size: 11px; outline: none; }
+
+/* 状态栏 */
+.statusbar { height: 24px; background: #3c3f41; border-top: 1px solid #222; display: flex; align-items: center; padding: 0 8px; font-size: 11px; color: #ccc; }
+.statusbar .coord { padding: 0 12px; color: #ccc; min-width: 180px; }
+.statusbar .status-btn { padding: 0 10px; cursor: pointer; color: #888; height: 24px; display: flex; align-items: center; }
+.statusbar .status-btn:hover { background: #505355; color: #fff; }
+.statusbar .status-btn.active { background: #0e639c; color: #fff; }
+.statusbar .spacer { flex: 1; }
+
+/* SVG图标通用样式 */
+.svg-icon { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<!-- 标题栏 -->
+<div class="titlebar">
+  <div class="app-icon">智</div>
+  <div class="title">智分Design V3.1 - [Drawing1.dwg]</div>
+  <div class="window-controls">
+    <div class="win-btn">—</div>
+    <div class="win-btn">□</div>
+    <div class="win-btn close">✕</div>
+  </div>
+</div>
+
+<!-- 快速访问工具栏 -->
+<div class="quick-access">
+  <div class="qa-btn" title="新建"><span class="qa-icon">📄</span>新建</div>
+  <div class="qa-btn" title="打开"><span class="qa-icon">📂</span>打开</div>
+  <div class="qa-btn" title="保存"><span class="qa-icon">💾</span>保存</div>
+  <div class="qa-sep"></div>
+  <div class="qa-btn" title="打印"><span class="qa-icon">🖨️</span>打印</div>
+  <div class="qa-sep"></div>
+  <div class="qa-btn" title="撤销"><span class="qa-icon">↩️</span>撤销</div>
+  <div class="qa-btn" title="重做"><span class="qa-icon">↪️</span>重做</div>
+</div>
+
+<!-- Ribbon标签页 -->
+<div class="ribbon-tabs">
+  <div class="ribbon-tab active">常用</div>
+  <div class="ribbon-tab">绘图</div>
+  <div class="ribbon-tab">编辑</div>
+  <div class="ribbon-tab">室分</div>
+  <div class="ribbon-tab">标注</div>
+  <div class="ribbon-tab">工具</div>
+  <div class="ribbon-tab">视图</div>
+  <div class="ribbon-tab">输出</div>
+  <div class="ribbon-tab">帮助</div>
+</div>
+
+<!-- Ribbon内容区 - 常用 -->
+<div class="ribbon-content">
+  <!-- 绘图面板 -->
+  <div class="ribbon-panel">
+    <div class="panel-buttons">
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><line x1="4" y1="28" x2="28" y2="4" stroke="#ccc" stroke-width="2"/></svg></div><span class="label">直线</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">圆</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">矩形</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M4 24 A12 12 0 0 1 28 16" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">圆弧</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><text x="16" y="22" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">A</text></svg></div><span class="label">文字</span></div>
+    </div>
+    <div class="panel-title">绘图</div>
+  </div>
+
+  <!-- 修改面板 -->
+  <div class="ribbon-panel">
+    <div class="panel-buttons">
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M16 4 L16 28 M4 16 L28 16 M16 4 L11 10 M16 4 L21 10 M4 16 L10 11 M4 16 L10 21" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">移动</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="4" y="4" width="18" height="18" stroke="#ccc" stroke-width="2" fill="none"/><rect x="10" y="10" width="18" height="18" stroke="#4af" stroke-width="2" fill="none"/></svg></div><span class="label">复制</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M6 26 A14 14 0 0 1 26 10" stroke="#ccc" stroke-width="2" fill="none"/><path d="M22 6 L26 10 L22 14" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">旋转</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" stroke="#ccc" stroke-width="2" fill="none"/><rect x="10" y="10" width="12" height="12" stroke="#fa0" stroke-width="2" stroke-dasharray="3,2" fill="none"/></svg></div><span class="label">缩放</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M4 28 L14 4 M18 4 L28 28" stroke="#ccc" stroke-width="2" fill="none"/><line x1="16" y1="2" x2="16" y2="30" stroke="#888" stroke-width="1" stroke-dasharray="2,2"/></svg></div><span class="label">镜像</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><line x1="6" y1="6" x2="26" y2="26" stroke="#f44" stroke-width="2"/><line x1="26" y1="6" x2="6" y2="26" stroke="#f44" stroke-width="2"/></svg></div><span class="label">删除</span></div>
+    </div>
+    <div class="panel-title">修改</div>
+  </div>
+
+  <!-- 撤销面板 -->
+  <div class="ribbon-panel">
+    <div class="panel-buttons">
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M12 8 A12 12 0 1 0 24 16" stroke="#ccc" stroke-width="2" fill="none"/><path d="M6 12 L12 8 L12 16" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">撤销</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M20 8 A12 12 0 1 1 8 16" stroke="#ccc" stroke-width="2" fill="none"/><path d="M26 12 L20 8 L20 16" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">重做</span></div>
+    </div>
+    <div class="panel-title">撤销</div>
+  </div>
+
+  <!-- 图层面板 -->
+  <div class="ribbon-panel">
+    <div class="layer-controls">
+      <div class="layer-row">
+        <div class="ribbon-btn small" style="padding:2px 4px;"><div class="icon"><svg class="svg-icon" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="3" fill="#c33"/><rect x="1" y="6" width="14" height="3" fill="#3c3"/><rect x="1" y="10" width="14" height="3" fill="#36c"/></svg></div><span class="label">图层特性</span></div>
+        <select class="layer-combo"><option>随层</option><option>0</option><option>建筑底图</option><option>墙体</option><option>门窗</option><option selected>天线</option><option>馈线</option><option>器件</option><option>信源</option><option>标注</option><option>文字</option><option>图框</option></select>
+      </div>
+      <div class="layer-row">
+        <select class="prop-combo"><option>随层</option><option>红</option><option>黄</option><option>绿</option><option>青</option><option>蓝</option><option>白</option></select>
+        <select class="prop-combo"><option>随层</option><option>Continuous</option><option>DASHED</option><option>CENTER</option></select>
+        <select class="prop-combo"><option>随层</option><option>0.15</option><option>0.25</option><option>0.35</option><option>0.50</option></select>
+      </div>
+    </div>
+    <div class="panel-title">图层</div>
+  </div>
+
+  <!-- 块面板 -->
+  <div class="ribbon-panel">
+    <div class="panel-buttons">
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="2" y="2" width="13" height="13" stroke="#ccc" stroke-width="2" fill="none"/><rect x="17" y="2" width="13" height="13" stroke="#ccc" stroke-width="2" fill="none"/><rect x="2" y="17" width="13" height="13" stroke="#ccc" stroke-width="2" fill="none"/><rect x="17" y="17" width="13" height="13" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">创建</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="20" stroke="#ccc" stroke-width="2" fill="none"/><path d="M16 6 L16 26 M6 16 L26 16" stroke="#888" stroke-width="1"/></svg></div><span class="label">插入</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" stroke="#ccc" stroke-width="2" fill="none"/><path d="M10 16 L22 16 M16 10 L16 22" stroke="#fa0" stroke-width="2"/></svg></div><span class="label">编辑</span></div>
+    </div>
+    <div class="panel-title">块</div>
+  </div>
+
+  <!-- 剪贴板面板 -->
+  <div class="ribbon-panel">
+    <div class="panel-buttons">
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="8" y="4" width="16" height="24" stroke="#ccc" stroke-width="2" fill="none"/><path d="M12 4 L12 2 L20 2 L20 4" stroke="#ccc" stroke-width="2"/></svg></div><span class="label">粘贴</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="4" y="8" width="20" height="16" stroke="#ccc" stroke-width="2" fill="none"/><path d="M8 8 L8 4 L24 4 L24 8" stroke="#ccc" stroke-width="2"/></svg></div><span class="label">复制</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M6 8 L26 8 L26 26 L6 26 Z" stroke="#ccc" stroke-width="2" fill="none"/><path d="M10 12 L22 12 M10 16 L22 16 M10 20 L18 20" stroke="#888" stroke-width="1"/></svg></div><span class="label">特性匹配</span></div>
+    </div>
+    <div class="panel-title">剪贴板</div>
+  </div>
+
+  <!-- 实用工具面板 -->
+  <div class="ribbon-panel">
+    <div class="panel-buttons">
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><path d="M16 4 L28 28 L4 28 Z" stroke="#ccc" stroke-width="2" fill="none"/><text x="16" y="24" text-anchor="middle" fill="#fa0" font-size="10">!</text></svg></div><span class="label">测量</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" stroke="#ccc" stroke-width="2" fill="none"/><path d="M16 8 L16 16 L22 20" stroke="#0f0" stroke-width="2"/></svg></div><span class="label">面积</span></div>
+      <div class="ribbon-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" stroke="#ccc" stroke-width="2" fill="none"/><path d="M4 16 L28 16 M16 4 L16 28" stroke="#888" stroke-width="1"/></svg></div><span class="label">点坐标</span></div>
+    </div>
+    <div class="panel-title">查询</div>
+  </div>
+</div>
+
+<!-- 文件标签栏 -->
+<div class="file-tabs">
+  <div class="file-tab active">📄 Drawing1.dwg <span class="close">×</span></div>
+  <div class="file-tab">📄 平面图.dwg <span class="close">×</span></div>
+  <div class="file-tab">📄 系统图.dwg <span class="close">×</span></div>
+  <div class="file-tab" style="color:#666;">+</div>
+</div>
+
+<!-- 视图控制栏 -->
+<div class="view-controls">
+  <span class="vc-item">[-] 视口控制</span>
+  <span class="vc-item">俯视 ▾</span>
+  <span class="vc-item">二维线框 ▾</span>
+</div>
+
+<!-- 主内容区 -->
+<div class="main-area">
+  <!-- 左侧工具箱 -->
+  <div class="toolbox">
+    <div class="tool-btn active"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L11 19 L13 17 L11 13 L20 13 Z" fill="#0078d4"/></svg></div><span class="label">选择</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3" stroke="#ccc" stroke-width="2"/></svg></div><span class="label">直线</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">圆</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" stroke="#ccc" stroke-width="2" fill="none"/></svg></div><span class="label">矩形</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2 L20 8 L12 14 L4 8 Z" stroke="#f44" stroke-width="2" fill="none"/><line x1="12" y1="14" x2="12" y2="22" stroke="#f44" stroke-width="2"/></svg></div><span class="label">天线</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><line x1="2" y1="12" x2="22" y2="12" stroke="#0f0" stroke-width="2"/></svg></div><span class="label">馈线</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="8" stroke="#ff0" stroke-width="2" fill="none"/><line x1="4" y1="12" x2="20" y2="12" stroke="#ff0" stroke-width="1"/></svg></div><span class="label">耦合器</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M4 12 L12 12 L20 4 M12 12 L20 20" stroke="#0ff" stroke-width="2" fill="none"/></svg></div><span class="label">功分器</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="#f0f" stroke-width="2" fill="none"/><text x="12" y="16" text-anchor="middle" fill="#f0f" font-size="10">B</text></svg></div><span class="label">信源</span></div>
+    <div class="tool-btn"><div class="icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M4 20 L20 4 M20 20 L4 4" stroke="#f44" stroke-width="2"/></svg></div><span class="label">删除</span></div>
+  </div>
+
+  <!-- 画布区域 -->
+  <div class="canvas-area" id="canvas">
+    <!-- 视口控制 -->
+    <div class="viewport-controls">
+      <span>[-]</span>
+      <span>[俯视]</span>
+      <span>[二维线框]</span>
+    </div>
+
+    <!-- ViewCube -->
+    <div class="viewcube">
+      <svg viewBox="0 0 50 50">
+        <polygon points="25,5 45,15 25,25 5,15" fill="#444" stroke="#888" stroke-width="1"/>
+        <polygon points="5,15 25,25 25,45 5,35" fill="#333" stroke="#888" stroke-width="1"/>
+        <polygon points="45,15 25,25 25,45 45,35" fill="#2a2a2a" stroke="#888" stroke-width="1"/>
+        <text x="25" y="18" text-anchor="middle" fill="#ccc" font-size="8" font-weight="bold">上</text>
+      </svg>
+    </div>
+
+    <!-- 示例图纸 - 标准室分设计平面图 -->
+    <div class="drawing-content">
+      <svg width="700" height="450" viewBox="0 0 700 450">
+        <!-- 定义标准器件符号 -->
+        <defs>
+          <!-- 全向吸顶天线标准符号：三角形+底边 -->
+          <symbol id="antenna-omni" viewBox="0 0 40 40">
+            <polygon points="20,4 36,32 4,32" fill="none" stroke="#ff4444" stroke-width="2"/>
+            <line x1="4" y1="32" x2="36" y2="32" stroke="#ff4444" stroke-width="2"/>
+            <line x1="20" y1="4" x2="20" y2="32" stroke="#ff4444" stroke-width="1"/>
+          </symbol>
+          <!-- 定向天线标准符号：三角形指向右 -->
+          <symbol id="antenna-dir" viewBox="0 0 40 40">
+            <polygon points="4,8 36,20 4,32" fill="none" stroke="#ff4444" stroke-width="2"/>
+            <line x1="4" y1="8" x2="4" y2="32" stroke="#ff4444" stroke-width="2"/>
+          </symbol>
+          <!-- 耦合器标准符号：矩形+直通+耦合端箭头 -->
+          <symbol id="coupler" viewBox="0 0 50 30">
+            <rect x="2" y="8" width="46" height="14" fill="none" stroke="#ffff00" stroke-width="2"/>
+            <line x1="2" y1="15" x2="48" y2="15" stroke="#ffff00" stroke-width="1.5"/>
+            <line x1="25" y1="8" x2="35" y2="2" stroke="#ffff00" stroke-width="1.5"/>
+            <polygon points="35,2 32,5 38,5" fill="#ffff00"/>
+          </symbol>
+          <!-- 二功分器标准符号：一分二 -->
+          <symbol id="splitter-2" viewBox="0 0 40 40">
+            <line x1="2" y1="20" x2="18" y2="20" stroke="#00ffff" stroke-width="2"/>
+            <line x1="18" y1="20" x2="38" y2="6" stroke="#00ffff" stroke-width="2"/>
+            <line x1="18" y1="20" x2="38" y2="34" stroke="#00ffff" stroke-width="2"/>
+            <circle cx="18" cy="20" r="2" fill="#00ffff"/>
+          </symbol>
+          <!-- 三功分器标准符号：一分三 -->
+          <symbol id="splitter-3" viewBox="0 0 40 50">
+            <line x1="2" y1="25" x2="18" y2="25" stroke="#00ffff" stroke-width="2"/>
+            <line x1="18" y1="25" x2="38" y2="6" stroke="#00ffff" stroke-width="2"/>
+            <line x1="18" y1="25" x2="38" y2="25" stroke="#00ffff" stroke-width="2"/>
+            <line x1="18" y1="25" x2="38" y2="44" stroke="#00ffff" stroke-width="2"/>
+            <circle cx="18" cy="25" r="2" fill="#00ffff"/>
+          </symbol>
+          <!-- 信源标准符号：圆形+B -->
+          <symbol id="source" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#ff00ff" stroke-width="2"/>
+            <text x="20" y="26" text-anchor="middle" fill="#ff00ff" font-size="16" font-weight="bold">B</text>
+          </symbol>
+          <!-- 负载标准符号：矩形+斜线 -->
+          <symbol id="load" viewBox="0 0 30 30">
+            <rect x="4" y="8" width="18" height="14" fill="none" stroke="#aaa" stroke-width="2"/>
+            <line x1="8" y1="8" x2="12" y2="22" stroke="#aaa" stroke-width="1.5"/>
+            <line x1="13" y1="8" x2="17" y2="22" stroke="#aaa" stroke-width="1.5"/>
+            <line x1="18" y1="8" x2="22" y2="22" stroke="#aaa" stroke-width="1.5"/>
+          </symbol>
+        </defs>
+
+        <!-- 墙体（办公楼标准层） -->
+        <g stroke="#ffffff" stroke-width="3" fill="none">
+          <rect x="40" y="40" width="620" height="340"/>
+          <!-- 内部隔墙 -->
+          <line x1="250" y1="40" x2="250" y2="220"/>
+          <line x1="250" y1="220" x2="450" y2="220"/>
+          <line x1="450" y1="220" x2="450" y2="380"/>
+          <line x1="450" y1="40" x2="450" y2="130"/>
+          <!-- 房间门（弧线） -->
+          <path d="M180 40 A25 25 0 0 1 205 65" stroke="#00ffff" stroke-width="1.5" fill="none"/>
+          <path d="M350 220 A25 25 0 0 1 375 245" stroke="#00ffff" stroke-width="1.5" fill="none"/>
+          <path d="M520 40 A25 25 0 0 1 545 65" stroke="#00ffff" stroke-width="1.5" fill="none"/>
+        </g>
+
+        <!-- 房间标注 -->
+        <g fill="#888" font-size="11" font-family="Microsoft YaHei">
+          <text x="145" y="130" text-anchor="middle">办公室A</text>
+          <text x="350" y="130" text-anchor="middle">会议室</text>
+          <text x="550" y="85" text-anchor="middle">办公室B</text>
+          <text x="350" y="300" text-anchor="middle">走廊</text>
+          <text x="550" y="300" text-anchor="middle">办公室C</text>
+        </g>
+
+        <!-- 馈线路由（绿色） -->
+        <g stroke="#00ff00" stroke-width="2" fill="none">
+          <!-- 信源到功分器 -->
+          <line x1="80" y1="340" x2="80" y2="200"/>
+          <line x1="80" y1="200" x2="150" y2="200"/>
+          <!-- 功分器到耦合器 -->
+          <line x1="190" y1="200" x2="250" y2="200"/>
+          <!-- 耦合器直通到各天线 -->
+          <line x1="300" y1="200" x2="300" y2="155"/>
+          <line x1="300" y1="200" x2="550" y2="200"/>
+          <line x1="550" y1="200" x2="550" y2="155"/>
+          <!-- 耦合端到走廊天线 -->
+          <line x1="275" y1="193" x2="275" y2="280"/>
+          <line x1="275" y1="280" x2="350" y2="280"/>
+          <line x1="350" y1="280" x2="350" y2="255"/>
+          <!-- 到办公室C天线 -->
+          <line x1="550" y1="200" x2="550" y2="280"/>
+          <line x1="550" y1="280" x2="550" y2="255"/>
+        </g>
+
+        <!-- 器件放置 -->
+        <!-- 信源 -->
+        <use href="#source" x="60" y="320" width="40" height="40"/>
+        <text x="80" y="375" text-anchor="middle" fill="#ff00ff" font-size="10">信源BBU</text>
+
+        <!-- 二功分器 -->
+        <use href="#splitter-2" x="150" y="180" width="40" height="40"/>
+        <text x="170" y="235" text-anchor="middle" fill="#00ffff" font-size="9">二功分</text>
+
+        <!-- 10dB耦合器 -->
+        <use href="#coupler" x="250" y="185" width="50" height="30"/>
+        <text x="275" y="230" text-anchor="middle" fill="#ffff00" font-size="9">10dB耦合器</text>
+
+        <!-- 天线 - 办公室A -->
+        <use href="#antenna-omni" x="125" y="95" width="40" height="40"/>
+        <text x="145" y="150" text-anchor="middle" fill="#ff4444" font-size="10" font-weight="bold">ANT01</text>
+
+        <!-- 天线 - 会议室 -->
+        <use href="#antenna-omni" x="280" y="115" width="40" height="40"/>
+        <text x="300" y="170" text-anchor="middle" fill="#ff4444" font-size="10" font-weight="bold">ANT02</text>
+
+        <!-- 天线 - 办公室B -->
+        <use href="#antenna-omni" x="530" y="115" width="40" height="40"/>
+        <text x="550" y="170" text-anchor="middle" fill="#ff4444" font-size="10" font-weight="bold">ANT03</text>
+
+        <!-- 天线 - 走廊 -->
+        <use href="#antenna-omni" x="330" y="235" width="40" height="40"/>
+        <text x="350" y="290" text-anchor="middle" fill="#ff4444" font-size="10" font-weight="bold">ANT04</text>
+
+        <!-- 天线 - 办公室C -->
+        <use href="#antenna-omni" x="530" y="235" width="40" height="40"/>
+        <text x="550" y="290" text-anchor="middle" fill="#ff4444" font-size="10" font-weight="bold">ANT05</text>
+
+        <!-- 负载（耦合器终端） -->
+        <use href="#load" x="258" y="160" width="30" height="30"/>
+        <text x="273" y="155" text-anchor="middle" fill="#aaa" font-size="8">负载</text>
+
+        <!-- 功率标注 -->
+        <g fill="#00ff00" font-size="9" font-family="Consolas">
+          <text x="145" y="88" text-anchor="middle">-8.5dBm</text>
+          <text x="300" y="108" text-anchor="middle">-10.2dBm</text>
+          <text x="550" y="108" text-anchor="middle">-9.8dBm</text>
+          <text x="350" y="228" text-anchor="middle">-12.5dBm</text>
+          <text x="550" y="228" text-anchor="middle">-11.0dBm</text>
+        </g>
+
+        <!-- 尺寸标注 -->
+        <g stroke="#ffffff" stroke-width="0.8" fill="#ffffff" font-size="10">
+          <line x1="40" y1="410" x2="660" y2="410"/>
+          <line x1="40" y1="405" x2="40" y2="415"/>
+          <line x1="660" y1="405" x2="660" y2="415"/>
+          <text x="350" y="405" text-anchor="middle">6200mm</text>
+          
+          <line x1="30" y1="40" x2="30" y2="380"/>
+          <line x1="25" y1="40" x2="35" y2="40"/>
+          <line x1="25" y1="380" x2="35" y2="380"/>
+          <text x="20" y="215" text-anchor="middle" transform="rotate(-90 20 215)">3400mm</text>
+        </g>
+
+        <!-- 图名 -->
+        <text x="350" y="435" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">XX办公楼5F标准层平面布置图  1:100</text>
+      </svg>
+    </div>
+
+    <!-- 十字光标 -->
+    <div class="crosshair">
+      <div class="h-line"></div>
+      <div class="v-line"></div>
+      <div class="center-box"></div>
+    </div>
+
+    <!-- UCS图标 -->
+    <div class="ucs-icon">
+      <svg width="60" height="60" viewBox="0 0 60 60">
+        <line x1="10" y1="50" x2="50" y2="50" stroke="#c33" stroke-width="2"/>
+        <line x1="10" y1="50" x2="10" y2="10" stroke="#3c3" stroke-width="2"/>
+        <polygon points="50,50 42,46 42,54" fill="#c33"/>
+        <polygon points="10,10 6,18 14,18" fill="#3c3"/>
+        <text x="52" y="54" fill="#c33" font-size="10" font-weight="bold">X</text>
+        <text x="6" y="8" fill="#3c3" font-size="10" font-weight="bold">Y</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- 右侧器件库 -->
+  <div class="right-panel">
+    <div class="panel-header">器件库 <span style="cursor:pointer;">☰</span></div>
+    <div class="panel-content">
+      <div class="device-category">
+        <div class="cat-title">▼ 天线类</div>
+        <div class="cat-items">
+          <div class="device-item"><span class="dev-icon">●</span>全向吸顶</div>
+          <div class="device-item"><span class="dev-icon">▶</span>定向板状</div>
+          <div class="device-item"><span class="dev-icon">◆</span>壁挂天线</div>
+          <div class="device-item"><span class="dev-icon">◎</span>射灯天线</div>
+          <div class="device-item"><span class="dev-icon">◇</span>外引天线</div>
+          <div class="device-item"><span class="dev-icon">◉</span>5G天线</div>
+        </div>
+      </div>
+      <div class="device-category">
+        <div class="cat-title">▼ 耦合器</div>
+        <div class="cat-items">
+          <div class="device-item"><span class="dev-icon">▭</span>5dB耦合器</div>
+          <div class="device-item"><span class="dev-icon">▭</span>6dB耦合器</div>
+          <div class="device-item"><span class="dev-icon">▭</span>7dB耦合器</div>
+          <div class="device-item"><span class="dev-icon">▭</span>10dB耦合器</div>
+          <div class="device-item"><span class="dev-icon">▭</span>15dB耦合器</div>
+          <div class="device-item"><span class="dev-icon">▭</span>20dB耦合器</div>
+        </div>
+      </div>
+      <div class="device-category">
+        <div class="cat-title">▼ 功分器</div>
+        <div class="cat-items">
+          <div class="device-item"><span class="dev-icon">⎔</span>二功分</div>
+          <div class="device-item"><span class="dev-icon">⎔</span>三功分</div>
+          <div class="device-item"><span class="dev-icon">⎔</span>四功分</div>
+          <div class="device-item"><span class="dev-icon">⎔</span>六功分</div>
+        </div>
+      </div>
+      <div class="device-category">
+        <div class="cat-title">▼ 信源设备</div>
+        <div class="cat-items">
+          <div class="device-item"><span class="dev-icon">⬡</span>BBU</div>
+          <div class="device-item"><span class="dev-icon">⬡</span>RRU</div>
+          <div class="device-item"><span class="dev-icon">⬡</span>5G RRU</div>
+          <div class="device-item"><span class="dev-icon">⬡</span>皮基站</div>
+          <div class="device-item"><span class="dev-icon">⬡</span>直放站</div>
+        </div>
+      </div>
+      <div class="device-category">
+        <div class="cat-title">▼ 馈线</div>
+        <div class="cat-items">
+          <div class="device-item"><span class="dev-icon">━</span>1/2馈线</div>
+          <div class="device-item"><span class="dev-icon">━</span>7/8馈线</div>
+          <div class="device-item"><span class="dev-icon">━</span>5/4馈线</div>
+          <div class="device-item"><span class="dev-icon">━</span>漏缆</div>
+        </div>
+      </div>
+      <div class="device-category">
+        <div class="cat-title">▼ 辅材器件</div>
+        <div class="cat-items">
+          <div class="device-item"><span class="dev-icon">▤</span>负载</div>
+          <div class="device-item"><span class="dev-icon">▤</span>衰减器</div>
+          <div class="device-item"><span class="dev-icon">▤</span>3dB电桥</div>
+          <div class="device-item"><span class="dev-icon">▤</span>干线放大器</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 命令行 -->
+<div class="command-line">
+  <div class="cmd-history">
+    <div><span class="cmd-prompt">命令:</span> <span class="cmd-input">LINE</span></div>
+    <div>指定第一个点: 1000,1000</div>
+    <div>指定下一点或 [放弃(U)]: 3000,1000</div>
+    <div>指定下一点或 [放弃(U)]: 3000,3000</div>
+    <div><span class="cmd-prompt">命令:</span> <span class="cmd-input">L</span></div>
+    <div>LINE 指定第一个点:</div>
+  </div>
+  <div class="cmd-input-line">
+    <span class="prompt">命令:</span>
+    <input type="text" placeholder="输入命令或按F1查看帮助..." value="L">
+  </div>
+</div>
+
+<!-- 状态栏 -->
+<div class="statusbar">
+  <div class="coord">X: 1523.45  Y: 876.32  Z: 0.00</div>
+  <div class="status-btn active">捕捉</div>
+  <div class="status-btn">栅格</div>
+  <div class="status-btn active">正交</div>
+  <div class="status-btn active">极轴</div>
+  <div class="status-btn active">对象捕捉</div>
+  <div class="status-btn">动态输入</div>
+  <div class="status-btn">线宽</div>
+  <div class="status-btn active">模型空间</div>
+  <div class="spacer"></div>
+  <div class="status-btn">室分设计</div>
+  <div class="status-btn">☰ 自定义</div>
+</div>
+
+<script>
+// 简单交互：点击Ribbon标签切换
+document.querySelectorAll('.ribbon-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.ribbon-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// 点击工具按钮
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// 状态栏按钮切换
+document.querySelectorAll('.status-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    this.classList.toggle('active');
+  });
+});
+
+// 鼠标移动更新十字光标和坐标
+const canvas = document.getElementById('canvas');
+const crosshair = canvas.querySelector('.crosshair');
+canvas.addEventListener('mousemove', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  crosshair.style.left = x + 'px';
+  crosshair.style.top = y + 'px';
+  crosshair.style.transform = 'none';
+  
+  // 更新坐标显示
+  const coordX = (x * 10).toFixed(2);
+  const coordY = ((rect.height - y) * 10).toFixed(2);
+  document.querySelector('.coord').textContent = `X: ${coordX}  Y: ${coordY}  Z: 0.00`;
+});
+
+// 命令行输入
+const cmdInput = document.querySelector('.cmd-input-line input');
+cmdInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    const history = document.querySelector('.cmd-history');
+    const div = document.createElement('div');
+    div.innerHTML = '<span class="cmd-prompt">命令:</span> <span class="cmd-input">' + this.value + '</span>';
+    history.appendChild(div);
+    history.scrollTop = history.scrollHeight;
+    this.value = '';
+  }
+});
+
+// 右键菜单
+const canvas = document.getElementById('canvas');
+const contextMenu = document.createElement('div');
+contextMenu.style.cssText = 'position:fixed;display:none;background:#2d2d30;border:1px solid #555;padding:4px 0;z-index:1000;min-width:160px;box-shadow:2px 2px 8px rgba(0,0,0,0.5);';
+contextMenu.innerHTML = `
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">重复 直线</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">最近输入 &gt;</div>
+  <div style="height:1px;background:#444;margin:4px 0;"></div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">剪切 Ctrl+X</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">复制 Ctrl+C</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">粘贴 Ctrl+V</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">带基点复制 Ctrl+Shift+C</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">粘贴为块 Ctrl+Shift+V</div>
+  <div style="height:1px;background:#444;margin:4px 0;"></div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">移动 M</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">旋转 RO</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">缩放 SC</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">删除 E</div>
+  <div style="height:1px;background:#444;margin:4px 0;"></div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">特性 Ctrl+1</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">快速选择</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">查找</div>
+  <div style="height:1px;background:#444;margin:4px 0;"></div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">隔离对象 &gt;</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">绘图次序 &gt;</div>
+  <div style="height:1px;background:#444;margin:4px 0;"></div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">平移 P</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">缩放 Z</div>
+  <div class="ctx-item" style="padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;">选项...</div>
+`;
+document.body.appendChild(contextMenu);
+
+canvas.addEventListener('contextmenu', function(e) {
+  e.preventDefault();
+  contextMenu.style.display = 'block';
+  contextMenu.style.left = e.clientX + 'px';
+  contextMenu.style.top = e.clientY + 'px';
+});
+
+document.addEventListener('click', function() {
+  contextMenu.style.display = 'none';
+});
+
+// 右键菜单项悬停效果
+document.querySelectorAll('.ctx-item').forEach(item => {
+  item.addEventListener('mouseenter', function() { this.style.background = '#0e639c'; this.style.color = '#fff'; });
+  item.addEventListener('mouseleave', function() { this.style.background = 'transparent'; this.style.color = '#ccc'; });
+});
+</script>
+
+</body>
+</html>

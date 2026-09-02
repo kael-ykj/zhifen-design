@@ -6,9 +6,9 @@
 
 namespace Zhifen {
 
-void DeviceSymbols::setupStandardPen(QPainter *painter, qreal width)
+void DeviceSymbols::setupStandardPen(QPainter *painter, qreal width, const QColor &color)
 {
-    QPen pen(Qt::black, width);
+    QPen pen(color, width);
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
     painter->setPen(pen);
@@ -30,7 +30,7 @@ void DeviceSymbols::drawOmniAntenna(QPainter *painter, qreal scale)
     // 全向天线：圆 + 内部辐射箭头（行业标准画法）
     painter->save();
     painter->scale(scale, scale);
-    setupStandardPen(painter, 0.35);
+    setupStandardPen(painter, 0.35, QColor(255, 50, 50));
 
     // 外圆
     painter->drawEllipse(QPointF(0, 0), 2.5, 2.5);
@@ -150,7 +150,7 @@ void DeviceSymbols::drawCoupler(QPainter *painter, qreal scale, int db)
     // 耦合器：矩形 + 直通端 + 耦合端（行业标准画法）
     painter->save();
     painter->scale(scale, scale);
-    setupStandardPen(painter, 0.35);
+    setupStandardPen(painter, 0.35, QColor(255, 255, 0));
 
     // 主体矩形
     painter->drawRect(QRectF(-4, -1.5, 8, 3));
@@ -181,7 +181,7 @@ void DeviceSymbols::drawSplitter(QPainter *painter, qreal scale, int ways)
     // 功分器：Y形 / 树形（行业标准画法）
     painter->save();
     painter->scale(scale, scale);
-    setupStandardPen(painter, 0.35);
+    setupStandardPen(painter, 0.35, QColor(0, 255, 255));
 
     if (ways == 2) {
         // 二功分：Y形

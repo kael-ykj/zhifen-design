@@ -208,6 +208,34 @@ MainWindow::MainWindow(QWidget *parent)
     // 设置默认工具
     setCurrentTool("select");
 
+    // 画布右键菜单（标准CAD风格）
+    m_view->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_view, &CadView::customContextMenuRequested, this, [this](const QPoint &pos){
+        QMenu *ctxMenu = new QMenu(this);
+        ctxMenu->setStyleSheet("QMenu { background: #2d2d30; color: #ccc; border: 1px solid #555; } QMenu::item:selected { background: #0e639c; } QMenu::item { padding: 6px 24px; }");
+        
+        ctxMenu->addAction("重复 直线", this, [this](){ setCurrentTool("line"); });
+        ctxMenu->addSeparator();
+        ctxMenu->addAction("剪切 Ctrl+X", this, [this](){ });
+        ctxMenu->addAction("复制 Ctrl+C", this, [this](){ setCurrentTool("copy"); });
+        ctxMenu->addAction("粘贴 Ctrl+V", this, [this](){ });
+        ctxMenu->addSeparator();
+        ctxMenu->addAction("移动 M", this, [this](){ setCurrentTool("move"); });
+        ctxMenu->addAction("旋转 RO", this, [this](){ setCurrentTool("rotate"); });
+        ctxMenu->addAction("缩放 SC", this, [this](){ setCurrentTool("scale"); });
+        ctxMenu->addAction("删除 E", this, &MainWindow::onErase);
+        ctxMenu->addSeparator();
+        ctxMenu->addAction("特性 Ctrl+1", this, [this](){ });
+        ctxMenu->addAction("快速选择", this, [this](){ });
+        ctxMenu->addSeparator();
+        ctxMenu->addAction("平移 P", this, [this](){ });
+        ctxMenu->addAction("缩放 Z", this, [this](){ });
+        ctxMenu->addAction("选项...", this, [this](){ });
+        
+        ctxMenu->exec(m_view->mapToGlobal(pos));
+        delete ctxMenu;
+    });
+
     // 连接信号
     connect(m_view, &CadView::coordinateChanged, this, &MainWindow::onCoordinateChanged);
     connect(m_view, &CadView::toolFinished, this, &MainWindow::onToolFinished);
