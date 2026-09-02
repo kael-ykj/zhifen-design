@@ -5,6 +5,7 @@
 #include <QTextStream>
 #include <QDateTime>
 #include <QMessageBox>
+#include <QDebug>
 #include <QDir>
 
 // 全局日志文件
