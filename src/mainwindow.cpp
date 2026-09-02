@@ -237,6 +237,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::createActions()
 {
+    Zhifen::IconFactory &icons = Zhifen::IconFactory::instance();
     m_newAct = new QAction(icons.icon("new"), "新建", this);
     m_newAct->setShortcut(QKeySequence::New);
     m_newAct->setStatusTip("创建新工程");
