@@ -5753,6 +5753,45 @@ void MainWindow::onErase()
     statusBar()->showMessage(QString("已删除 %1 个对象").arg(selected.size()), 3000);
 }
 
+void MainWindow::onLayerManager()
+{
+    // 图层管理器 - 显示图层管理对话框
+    QDialog *layerDlg = new QDialog(this);
+    layerDlg->setWindowTitle("图层管理器");
+    layerDlg->resize(500, 400);
+    layerDlg->setStyleSheet("QDialog { background: #2b2b2b; } QLabel { color: #ccc; } QListWidget { background: #1e1e1e; color: #ccc; border: 1px solid #555; } QPushButton { background: #3c3f41; color: #ccc; border: 1px solid #555; padding: 5px 15px; } QPushButton:hover { background: #505355; }");
+    
+    QVBoxLayout *layout = new QVBoxLayout(layerDlg);
+    QListWidget *layerList = new QListWidget(layerDlg);
+    
+    // 添加默认图层
+    QStringList layers = {"0", "建筑底图", "墙体", "门窗", "天线", "馈线", "器件", "信源", "标注", "文字", "图框"};
+    foreach (const QString &layer, layers) {
+        QListWidgetItem *item = new QListWidgetItem(layer);
+        item->setCheckState(Qt::Checked);
+        layerList->addItem(item);
+    }
+    
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *addBtn = new QPushButton("新建图层", layerDlg);
+    QPushButton *delBtn = new QPushButton("删除图层", layerDlg);
+    QPushButton *closeBtn = new QPushButton("关闭", layerDlg);
+    btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(delBtn);
+    btnLayout->addStretch();
+    btnLayout->addWidget(closeBtn);
+    
+    layout->addWidget(new QLabel("图层列表（点击复选框控制显示/隐藏）:", layerDlg));
+    layout->addWidget(layerList);
+    layout->addLayout(btnLayout);
+    
+    connect(closeBtn, &QPushButton::clicked, layerDlg, &QDialog::accept);
+    
+    layerDlg->setLayout(layout);
+    layerDlg->exec();
+    layerDlg->deleteLater();
+}
+
 void MainWindow::onAbout()
 {
     QMessageBox::about(this, "关于智分Design",
